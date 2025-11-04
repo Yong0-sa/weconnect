@@ -1,0 +1,26 @@
+# Backend
+backend/build/
+backend/.gradle/
+backend/out/
+backend/*.jar
+backend/.idea/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# AI
+ai/__pycache__/
+ai/venv/
+ai/.env
+ai/*.pyc
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
