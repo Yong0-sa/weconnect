@@ -12,18 +12,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. AI 파일 압축
       - name: Compress AI files
         run: |
           cd ai
           tar -czf ../ai-files.tar.gz *
 
-      # 3. AI 파일 전송 (Bastion으로)
-      - name: Copy AI files to Bastion
+      - name: Copy to Bastion
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.BASTION_HOST }}
@@ -32,7 +29,6 @@ jobs:
           source: "ai-files.tar.gz"
           target: "/tmp/"
 
-      # 4. AI Server로 배포
       - name: Deploy to AI Server
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -40,5 +36,15 @@ jobs:
           username: ${{ secrets.BASTION_USER }}
           password: ${{ secrets.BASTION_PASSWORD }}
           script: |
-            sshpass -p '${{ secrets.BASTION_PASSWORD }}' scp -o StrictHostKeyChecking=no /tmp/ai-files.tar.gz ${{ secrets.APP_SERVER_USER }}@${{ secrets.AI_SERVER_IP }}:/tmp/
-            sshpass -p '${{ secrets.BASTION_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.APP_SERVER_USER }}@${{ secrets.AI_SERVER_IP }} "mkdir -p /app/ai && cd /app/ai && rm -rf * && tar -xzf /tmp/ai-files.tar.gz && rm /tmp/ai-files.tar.gz && pip install -r requirements.txt && systemctl restart ai-service"
+            scp -o StrictHostKeyChecking=no /tmp/ai-files.tar.gz ${{ secrets.APP_SERVER_USER }}@${{ secrets.AI_SERVER_IP }}:/tmp/
+            ssh -o StrictHostKeyChecking=no ${{ secrets.APP_SERVER_USER }}@${{ secrets.AI_SERVER_IP }} "
+              cd /app/ai && 
+              rm -rf * && 
+              tar -xzf /tmp/ai-files.tar.gz && 
+              rm /tmp/ai-files.tar.gz && 
+              python3 -m venv venv && 
+              source venv/bin/activate && 
+              pip install --upgrade pip && 
+              pip install -r requirements.txt && 
+              systemctl restart fastapi
+            "
