@@ -1,6 +1,7 @@
 import './HomePage.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import BackgroundImg from '../assets/backgroud 1.png';
 import AIIcon from '../assets/AI.png';
 import FarmSearchIcon from '../assets/농장찾기.png';
@@ -11,6 +12,25 @@ import CharacterIcon from '../assets/캐릭터.png';
 function HomePage() {
   const [showAIModal, setShowAIModal] = useState(false);
   const navigate = useNavigate();
+
+  // ===== AI 서버 연동 테스트 코드 시작 (언제든 삭제 가능) =====
+  const [aiMessage, setAiMessage] = useState('');
+
+  useEffect(() => {
+    // 페이지 로드 시 AI 서버에서 메시지 가져오기
+    const fetchAIMessage = async () => {
+      try {
+        const response = await axios.get('/api/ai/hello');
+        setAiMessage(response.data);
+      } catch (error) {
+        console.error('AI 서버 연결 실패:', error);
+        setAiMessage('AI 서버 연결 실패');
+      }
+    };
+
+    fetchAIMessage();
+  }, []);
+  // ===== AI 서버 연동 테스트 코드 끝 =====
 
   const handleImageClick = (route) => {
     if (route === 'ai') {
@@ -30,6 +50,14 @@ function HomePage() {
 
   return (
     <div className="home-page">
+      {/* ===== AI 서버 메시지 표시 영역 시작 (언제든 삭제 가능) ===== */}
+      {aiMessage && (
+        <div className="ai-message-banner">
+          {aiMessage}
+        </div>
+      )}
+      {/* ===== AI 서버 메시지 표시 영역 끝 ===== */}
+
       <div className="background-container">
         <img src={BackgroundImg} alt="background" className="background-image" />
       {/* 재배일기 */}
