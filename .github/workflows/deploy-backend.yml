@@ -1,9 +1,11 @@
-name: Deploy Spring Boot to NCP.
+name: Deploy Backend to App Servers
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'backend/**'
 
 jobs:
   build-and-deploy:
@@ -23,6 +25,7 @@ jobs:
 
       # 3. Gradle 빌드
       - name: Build with Gradle
+        working-directory: ./backend
         run: |
           chmod +x gradlew
           ./gradlew clean build -x test
@@ -30,6 +33,7 @@ jobs:
       # 4. JAR 파일 이름 확인
       - name: Get JAR filename
         id: jar
+        working-directory: ./backend
         run: |
           cd build/libs
           JAR_FILE=$(ls *.jar | head -n 1)
@@ -42,31 +46,27 @@ jobs:
           host: ${{ secrets.BASTION_HOST }}
           username: ${{ secrets.BASTION_USER }}
           password: ${{ secrets.BASTION_PASSWORD }}
-          source: "build/libs/${{ steps.jar.outputs.filename }}"
+          source: "backend/build/libs/${{ steps.jar.outputs.filename }}"
           target: "/tmp/"
 
       # 6. App Server 1로 전송 및 재시작
-      - name: Deploy and Restart App Server 1
+      - name: Deploy to App Server 1
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.BASTION_HOST }}
           username: ${{ secrets.BASTION_USER }}
           password: ${{ secrets.BASTION_PASSWORD }}
           script: |
-            echo "Deploying to App Server 1..."
-            scp -i ~/.ssh/id_rsa /tmp/build/libs/${{ steps.jar.outputs.filename }} ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_1_IP }}:/app/backend/app.jar
-            ssh -i ~/.ssh/id_rsa ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_1_IP }} "systemctl restart springboot"
-            echo "App Server 1 deployment completed!"
+            sshpass -p '${{ secrets.BASTION_PASSWORD }}' scp -o StrictHostKeyChecking=no /tmp/backend/build/libs/${{ steps.jar.outputs.filename }} ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_1_IP }}:/app/backend/app.jar
+            sshpass -p '${{ secrets.BASTION_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_1_IP }} "sudo systemctl restart springboot"
 
       # 7. App Server 2로 전송 및 재시작
-      - name: Deploy and Restart App Server 2
+      - name: Deploy to App Server 2
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.BASTION_HOST }}
           username: ${{ secrets.BASTION_USER }}
           password: ${{ secrets.BASTION_PASSWORD }}
           script: |
-            echo "Deploying to App Server 2..."
-            scp -i ~/.ssh/id_rsa /tmp/build/libs/${{ steps.jar.outputs.filename }} ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_2_IP }}:/app/backend/app.jar
-            ssh -i ~/.ssh/id_rsa ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_2_IP }} "systemctl restart springboot"
-            echo "App Server 2 deployment completed!"
+            sshpass -p '${{ secrets.BASTION_PASSWORD }}' scp -o StrictHostKeyChecking=no /tmp/backend/build/libs/${{ steps.jar.outputs.filename }} ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_2_IP }}:/app/backend/app.jar
+            sshpass -p '${{ secrets.BASTION_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_2_IP }} "sudo systemctl restart springboot"
