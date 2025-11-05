@@ -9,7 +9,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/ai")
+@RequestMapping("/ai") // nginx가 /api/를 제거하고 전달하므로 /ai만 사용
 public class aiTest {
 
     @Value("${ai.server.url}")
