@@ -1,0 +1,158 @@
+.home-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+}
+
+.background-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  display: inline-block;
+}
+
+.background-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 클릭 가능한 이미지 공통 스타일 */
+.clickable-image {
+  position: absolute;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.clickable-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 호버 효과 - 1.1배 스케일 */
+.clickable-image:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+/* 툴팁 효과 */
+.clickable-image::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 20;
+}
+
+.clickable-image:hover::after {
+  opacity: 1;
+}
+
+/* AI 이미지는 툴팁 제거 */
+.ai-image::after {
+  display: none;
+}
+
+/* 재배일기 */
+.diary-image {
+  left: 42.50%;
+  top: 56.28%;
+  width: 14.05%;
+  height: 11.58%;
+}
+
+/* 농장찾기 */
+.farm-search-image {
+  left: 35.79%;
+  top: 0.32%;
+  width: 25.55%;
+  height: 37.77%;
+}
+
+/* 캐릭터 */
+.character-image {
+  left: 18.21%;
+  top: 35.50%;
+  width: 13.89%;
+  height: 39.94%;
+}
+
+/* 커뮤니티 */
+.community-image {
+  left: 80.95%;
+  top: 13.96%;
+  width: 11.34%;
+  height: 62.77%;
+}
+
+/* AI */
+.ai-image {
+  left: 69.56%;
+  top: 22.19%;
+  width: 5.46%;
+  height: 19.70%;
+}
+
+/* AI 선택 메뉴 */
+.ai-menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 10px;
+  background: rgba(242, 242, 218, 0.95);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+/* AI 메뉴 버튼 */
+.ai-menu-btn {
+  padding: 12px 20px;
+  background: #67BC63;
+  color: #F2F2DA;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.ai-menu-btn:hover {
+  background: #45a049;
+  transform: scale(1.05);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .clickable-image::after {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .ai-menu-btn {
+    font-size: 12px;
+    padding: 10px 16px;
+  }
+}

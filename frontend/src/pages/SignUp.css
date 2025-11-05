@@ -1,0 +1,142 @@
+.signup-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  backdrop-filter: blur(5px);
+}
+
+/* 모달 컨텐츠 */
+.modal-content {
+  width: 90%;
+  max-width: 500px;
+  background: rgba(242, 242, 218, 0.85);
+  border-radius: 10px;
+  padding: 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  /* overflow: hidden; */
+}
+
+/* 모달 헤더 */
+.modal-header {
+  text-align: center;
+  margin-bottom: 30px;
+  margin-left: -40px;   
+  margin-right: -40px; 
+  padding: 20px 0;  /* 좌우 패딩 제거, 위아래만 */
+  background-color: #FFFAE4;
+  width: calc(100% + 80px);
+  height: 70px;
+  display: flex;           
+  justify-content: center; /* 가로 중앙 */
+  align-items: center;
+}
+
+.modal-header h1 {
+  font-size: 28px;
+  color: #67BC63;
+  margin: 0;
+}
+
+/* 폼 바디 */
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 폼 그룹 */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.form-group input {
+  padding: 12px;
+  background-color: rgba(255, 250, 228);
+  border: 2px solid #FFFAE4;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+/* 이메일 인증 */
+.email-input {
+  display: flex;
+  gap: 10px;
+}
+
+.email-input input {
+  flex: 1;
+}
+
+.verify-btn {
+  padding: 12px 20px;
+  background: #67BC63;
+  color: #F2F2DA;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+  white-space: nowrap;
+  /* height: 40px; */
+  display: flex;           /* 추가 */
+  justify-content: center; /* 가로 중앙 */
+  align-items: center; 
+}
+
+.verify-btn:hover {
+  background: #45a049;
+}
+
+/* 가입하기 버튼 */
+.submit-btn {
+  padding: 0;
+  background: #67BC63;
+  color: #F2F2DA;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+  margin-top: 10px;
+  width: 100px;
+  height: 40px;
+  margin-left: auto;  /* 중앙 정렬 */
+  margin-right: auto;
+  display: flex;           /* 추가 */
+  justify-content: center; /* 가로 중앙 */
+  align-items: center;   
+}
+
+.submit-btn:hover {
+  background: #45a049;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    padding: 30px 20px;
+  }
+  
+  .modal-header h1 {
+    font-size: 24px;
+  }
+}
