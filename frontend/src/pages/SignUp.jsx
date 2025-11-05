@@ -31,7 +31,7 @@ function SignUp() {
     <div className="signup-page">
       <div className="modal-content">
         <div className="modal-header">
-          <h1>회원가입</h1>
+          <h1>회원가입1</h1>
         </div>
         
         <form className="modal-body" onSubmit={handleSubmit}>
