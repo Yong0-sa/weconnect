@@ -8,7 +8,7 @@ public class HelloController {
 
     @GetMapping("/")
     public String home() {
-        return "EUM Backend Server is running!";
+        return "EUM Backend Server is running! im jinseo";
     }
 
     @GetMapping("/api/hello")
