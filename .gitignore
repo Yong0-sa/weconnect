@@ -24,3 +24,6 @@ ai/*.pyc
 # OS
 .DS_Store
 Thumbs.db
+
+# Ignore Codex configuration file
+AGENTS.md
