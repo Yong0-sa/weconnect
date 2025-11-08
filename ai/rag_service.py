@@ -19,7 +19,13 @@ from dataclasses import dataclass
 from typing import List, Literal, Optional, Sequence
 
 from chromadb import PersistentClient
-from chromadb.errors import InvalidCollectionException, NotFoundError
+try:
+    from chromadb.errors import InvalidCollectionException, NotFoundError
+except ImportError:  # chromadb>=0.5 drops NotFoundError
+    from chromadb.errors import InvalidCollectionException
+
+    class NotFoundError(InvalidCollectionException):  # type: ignore[misc]
+        """Fallback for older chromadb API expectation."""
 from dotenv import load_dotenv
 from openai import OpenAI
 
