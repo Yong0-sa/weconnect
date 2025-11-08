@@ -1,0 +1,43 @@
+.tutorial-simple-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f2f2da;
+  padding: 0;
+  margin: 0;
+}
+
+.tutorial-image-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+
+.tutorial-full-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.tutorial-icon-overlay {
+  position: absolute;
+  left: 92.89%;
+  top: 86.12%;
+  width: 4.63%;
+  height: 8.88%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorial-icon-overlay img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

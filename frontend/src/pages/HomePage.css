@@ -1,20 +1,3 @@
-/* ===== AI 서버 메시지 배너 스타일 시작 (언제든 삭제 가능) ===== */
-.ai-message-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  background-color: #F2F2DA; /* 노란색 배경 */
-  color: #333;
-  text-align: center;
-  padding: 15px 20px;
-  font-size: 18px;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-}
-/* ===== AI 서버 메시지 배너 스타일 끝 ===== */
-
 .home-page {
   min-height: 100vh;
   width: 100%;
@@ -37,17 +20,32 @@
   display: block;
 }
 
-/* 클릭 가능한 이미지 공통 스타일 */
-.clickable-image {
+/* 오버레이 이미지 공통 스타일 */
+.clickable-image,
+.icon-overlay {
   position: absolute;
+}
+
+.clickable-image {
   cursor: pointer;
   transition: transform 0.3s ease;
 }
 
-.clickable-image img {
+.clickable-image img,
+.icon-overlay img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.tutorial-icon {
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.tutorial-icon:hover {
+  transform: scale(1.1);
+  z-index: 10;
 }
 
 /* 호버 효과 - 1.1배 스케일 */
@@ -56,37 +54,56 @@
   z-index: 10;
 }
 
-/* 툴팁 효과 */
-.clickable-image::after {
-  content: attr(data-tooltip);
+/* 라벨 */
+.image-label {
   position: absolute;
-  bottom: -35px;
+  top: calc(100% + 12px);
   left: 50%;
   transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 3px;
   font-size: 14px;
+  font-weight: 600;
   white-space: nowrap;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
-  z-index: 20;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  z-index: 30;
 }
 
-.clickable-image:hover::after {
-  opacity: 1;
+.ai-button-group {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 30;
 }
 
-/* AI 이미지는 툴팁 제거 */
-.ai-image::after {
-  display: none;
+.ai-action-btn {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 3px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.ai-action-btn:hover {
+  background: rgba(0, 0, 0, 0.93);
 }
 
 /* 재배일기 */
 .diary-image {
-  left: 42.50%;
+  left: 42.5%;
   top: 56.28%;
   width: 14.05%;
   height: 11.58%;
@@ -103,7 +120,7 @@
 /* 캐릭터 */
 .character-image {
   left: 18.21%;
-  top: 35.50%;
+  top: 35.5%;
   width: 13.89%;
   height: 39.94%;
 }
@@ -121,55 +138,84 @@
   left: 69.56%;
   top: 22.19%;
   width: 5.46%;
-  height: 19.70%;
+  height: 19.7%;
 }
 
-/* AI 선택 메뉴 */
-.ai-menu {
+/* 메뉴 아이콘 */
+.menu-icon {
+  left: 1.82%;
+  top: 2.92%;
+  width: 4.63%;
+  height: 8.87%;
+}
+
+/* 코인 아이콘 */
+.coin-icon {
+  left: 73.2%;
+  top: 3.46%;
+  width: 7.75%;
+  height: 8.87%;
+}
+
+/* 코인 수량 라벨 */
+.coin-label {
+  margin-top: -0.3rem;
+  margin-left: -0.2rem;
   position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 10px;
-  background: rgba(242, 242, 218, 0.95);
-  border-radius: 12px;
-  padding: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  left: calc(78.37% + 1.015%);
+  top: calc(6.93% + 0.975%);
+  transform: translate(-50%, -50%);
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 32px;
+  color: #7f7460;
+  pointer-events: none;
+  z-index: 4;
   white-space: nowrap;
 }
 
-/* AI 메뉴 버튼 */
-.ai-menu-btn {
-  padding: 12px 20px;
-  background: #67BC63;
-  color: #F2F2DA;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-align: center;
+/* 채팅 아이콘 */
+.chat-icon {
+  left: 86%;
+  top: 2.92%;
+  width: 4.63%;
+  height: 8.88%;
 }
 
-.ai-menu-btn:hover {
-  background: #45a049;
-  transform: scale(1.05);
+/* 마이페이지 아이콘 */
+.mypage-icon {
+  left: 92.89%;
+  top: 2.92%;
+  width: 4.63%;
+  height: 8.88%;
+}
+
+/* 튜토리얼 아이콘 */
+.tutorial-icon {
+  left: 92.89%;
+  top: 86.12%;
+  width: 4.63%;
+  height: 8.88%;
 }
 
 /* 반응형 */
 @media (max-width: 768px) {
-  .clickable-image::after {
+  .image-label,
+  .ai-action-btn {
     font-size: 12px;
-    padding: 6px 10px;
+    padding: 8px 12px;
   }
+}
+.tutorial-icon .image-label {
+  top: -12px;
+  left: 50%;
+  transform: translate(-50%, -100%);
+}
 
-  .ai-menu-btn {
-    font-size: 12px;
-    padding: 10px 16px;
-  }
+.community-image .image-label {
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
 }

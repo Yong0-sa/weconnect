@@ -1,0 +1,66 @@
+[각 이미지별 좌표]
+재배일기
+left: 42.50%
+top: 56.28%
+width: 14.05%
+height: 11.58%
+
+농장찾기
+left: 35.79%
+top: 0.32%
+width: 25.55%
+height: 37.77%
+
+캐릭터
+left: 18.21%
+  top: 35.50%
+  width: 13.89%
+  height: 39.94%
+
+커뮤니티
+left: 80.95%
+top: 13.96%
+width: 11.34%
+height: 62.77%
+
+AI
+left: 69.56%
+top: 22.19%
+width: 5.46%
+height: 19.70%
+
+menu icon
+left: 1.82%
+top: 2.92%
+width: 4.63%
+height: 8.87%
+
+coin icon
+left: 78.37%
+top: 6.93%
+width: 2.03%
+height: 1.95%
+
+chat icon
+left: 86.00%
+top: 2.92%
+width: 4.63%
+height: 8.88%
+
+mypage icon
+left: 92.89%
+top: 2.92%
+width: 4.63%
+height: 8.88%
+
+tutorial icon
+left: 92.89%
+top: 86.12%
+width: 4.63%
+height: 8.88%
+
+coin label
+left: 78.37%;
+top: 6.93%;
+width: 2.03%;
+height: 1.95%;

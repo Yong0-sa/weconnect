@@ -41,8 +41,3 @@ tasks.named('test') {
 jar {
     enabled = false  // Plain JAR 생성 안 함!
 }
-
-// Plain JAR 생성 방지
-jar {
-    enabled = false
-}
