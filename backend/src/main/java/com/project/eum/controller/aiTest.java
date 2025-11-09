@@ -1,7 +1,10 @@
 package com.project.eum.controller;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
@@ -34,4 +37,10 @@ public class aiTest {
             return "Error connecting to AI server: " + e.getMessage();
         }
     }
+
+    @PostMapping("/search")
+    public ResponseEntity<String> proxy(@RequestBody String body) {
+        return restTemplate.postForEntity(aiServerUrl + "/api/ai/search", body, String.class);
+    }
+
 }
