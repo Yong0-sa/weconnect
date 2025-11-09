@@ -59,7 +59,7 @@
   position: absolute;
   top: calc(100% + 12px);
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, 6px);
   background: rgba(0, 0, 0, 0.75);
   color: #fff;
   padding: 8px 14px;
@@ -70,9 +70,57 @@
   pointer-events: none;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   z-index: 30;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
 }
 
-.ai-button-group {
+.clickable-image:hover .image-label,
+.tutorial-icon:hover .image-label {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.ai-hover-tooltip {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translate(-50%, 6px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 30;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+.ai-hover-item {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 3px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+
+.ai-image:hover .ai-hover-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.ai-hover-tooltip--hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+.ai-tooltip {
   position: absolute;
   top: calc(100% + 12px);
   left: 50%;
@@ -95,6 +143,7 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   white-space: nowrap;
   transition: background 0.2s ease;
+  text-align: center;
 }
 
 .ai-action-btn:hover {
@@ -209,9 +258,10 @@
   }
 }
 .tutorial-icon .image-label {
-  top: -12px;
+  top: auto;
+  bottom: calc(100% + 12px);
   left: 50%;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, 0);
 }
 
 .community-image .image-label {

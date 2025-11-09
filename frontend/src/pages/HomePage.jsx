@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import "./HomePage.css";
 import { useNavigate } from "react-router-dom";
 import BackgroundImg from "../assets/backgroud 1.png";
@@ -14,6 +15,8 @@ import TutorialIcon from "../assets/tutorial_icon.png";
 
 function HomePage() {
   const navigate = useNavigate();
+  const [isAITooltipOpen, setIsAITooltipOpen] = useState(false);
+  const aiImageRef = useRef(null);
 
   const handleImageClick = (route) => {
     navigate(route);
@@ -26,6 +29,30 @@ function HomePage() {
       navigate("/ai-info-search");
     }
   };
+
+  const toggleAITooltip = () => {
+    setIsAITooltipOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (
+        isAITooltipOpen &&
+        aiImageRef.current &&
+        !aiImageRef.current.contains(event.target)
+      ) {
+        setIsAITooltipOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, [isAITooltipOpen]);
 
   return (
     <div className="home-page">
@@ -116,25 +143,55 @@ function HomePage() {
         </div>
 
         {/* AI */}
-        <div className="clickable-image ai-image">
+        <div
+          className="clickable-image ai-image"
+          ref={aiImageRef}
+          onClick={toggleAITooltip}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isAITooltipOpen}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggleAITooltip();
+            }
+          }}
+        >
           <img src={AIIcon} alt="AI" />
-
-          <div className="ai-button-group" aria-label="AI 기능 선택">
-            <button
-              type="button"
-              className="ai-action-btn"
-              onClick={() => handleAISelect("crop")}
-            >
-              AI 작물 진단
-            </button>
-            <button
-              type="button"
-              className="ai-action-btn"
-              onClick={() => handleAISelect("info")}
-            >
-              AI 농사 정보 챗봇
-            </button>
+          <div
+            className={`ai-hover-tooltip ${
+              isAITooltipOpen ? "ai-hover-tooltip--hidden" : ""
+            }`}
+            aria-hidden={isAITooltipOpen}
+          >
+            <span className="ai-hover-item">AI 작물 진단</span>
+            <span className="ai-hover-item">AI 농사 정보 챗봇</span>
           </div>
+
+          {isAITooltipOpen && (
+            <div className="ai-tooltip" aria-label="AI 기능 선택">
+              <button
+                type="button"
+                className="ai-action-btn"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleAISelect("crop");
+                }}
+              >
+                AI 작물 진단
+              </button>
+              <button
+                type="button"
+                className="ai-action-btn"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleAISelect("info");
+                }}
+              >
+                AI 농사 정보 챗봇
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
