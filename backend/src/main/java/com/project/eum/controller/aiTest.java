@@ -1,6 +1,8 @@
 package com.project.eum.controller;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -8,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import java.util.Map;
 
@@ -40,7 +44,14 @@ public class aiTest {
 
     @PostMapping("/search")
     public ResponseEntity<String> proxy(@RequestBody String body) {
-        return restTemplate.postForEntity(aiServerUrl + "/api/ai/search", body, String.class);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> req = new HttpEntity<>(body, headers);
+
+        String url = aiServerUrl + "/api/ai/search";  // 예: http://10.171.4.7:8000
+
+        return restTemplate.exchange(url, HttpMethod.POST, req, String.class);
     }
+
 
 }

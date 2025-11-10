@@ -18,6 +18,13 @@ function HomePage() {
   const [isAITooltipOpen, setIsAITooltipOpen] = useState(false);
   const aiImageRef = useRef(null);
 
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      navigate("/login", { replace: true });
+    }
+  }, [navigate]);
+
   const handleImageClick = (route) => {
     navigate(route);
   };

@@ -214,6 +214,13 @@
   box-shadow: 0 14px 30px rgba(92, 179, 107, 0.45);
 }
 
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 10px 24px rgba(92, 179, 107, 0.2);
+}
+
 .login-helper-links {
   width: 100%;
   text-align: center;

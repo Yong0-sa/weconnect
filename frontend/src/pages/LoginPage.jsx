@@ -1,8 +1,11 @@
 import "./LoginPage.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import BackgroundBlur from "../assets/backgroud_blur.png";
 import LogoImage from "../assets/로고.png";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -13,6 +16,15 @@ function LoginPage() {
   const [rememberId, setRememberId] = useState(false);
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const storedEmail = localStorage.getItem("rememberedEmail");
+    if (storedEmail) {
+      setCredentials((prev) => ({ ...prev, email: storedEmail }));
+      setRememberId(true);
+    }
+  }, []);
 
   const getFieldError = (field, value) => {
     const trimmed = value.trim();
@@ -42,7 +54,25 @@ function LoginPage() {
       });
       return next;
     });
+    if (name === "email" && rememberId) {
+      const trimmed = value.trim();
+      if (trimmed) localStorage.setItem("rememberedEmail", trimmed);
+      else localStorage.removeItem("rememberedEmail");
+    }
     setToast(null);
+  };
+
+  const handleRememberToggle = (event) => {
+    const { checked } = event.target;
+    setRememberId(checked);
+    if (checked) {
+      const trimmedEmail = credentials.email.trim();
+      if (trimmedEmail) {
+        localStorage.setItem("rememberedEmail", trimmedEmail);
+      }
+    } else {
+      localStorage.removeItem("rememberedEmail");
+    }
   };
 
   const validateForm = () => {
@@ -55,7 +85,7 @@ function LoginPage() {
     return Object.keys(fieldErrors).length === 0;
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) {
       setToast({
@@ -64,18 +94,49 @@ function LoginPage() {
       });
       return;
     }
-    if (
-      credentials.email.trim().toLowerCase() === "test@gmail.com" &&
-      credentials.password === "test1234"
-    ) {
-      navigate("/home");
-      return;
-    }
+    setIsSubmitting(true);
+    const payload = {
+      email: credentials.email.trim(),
+      password: credentials.password,
+    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setToast({
+          type: "error",
+          message: data?.message || "로그인 정보가 일치하지 않습니다.",
+        });
+        return;
+      }
 
-    setToast({
-      type: "error",
-      message: "로그인 정보가 일치하지 않습니다.",
-    });
+      if (data?.token) {
+        localStorage.setItem("authToken", data.token);
+      }
+      if (rememberId && payload.email) {
+        localStorage.setItem("rememberedEmail", payload.email);
+      } else {
+        localStorage.removeItem("rememberedEmail");
+      }
+      setToast({
+        type: "success",
+        message: data?.message || "로그인되었습니다.",
+      });
+      navigate("/home", { replace: true });
+    } catch (error) {
+      setToast({
+        type: "error",
+        message: "서버와 통신할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -90,9 +151,16 @@ function LoginPage() {
 
       <div className="login-overlay">
         {toast && (
-          <div className={`login-toast login-toast--${toast.type}`} role="status">
+          <div
+            className={`login-toast login-toast--${toast.type}`}
+            role="status"
+          >
             <span>{toast.message}</span>
-            <button type="button" onClick={() => setToast(null)} aria-label="알림 닫기">
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              aria-label="알림 닫기"
+            >
               ×
             </button>
           </div>
@@ -113,7 +181,9 @@ function LoginPage() {
                   placeholder="이메일을 입력하세요"
                 />
               </div>
-              {errors.email && <p className="login-field-error">{errors.email}</p>}
+              {errors.email && (
+                <p className="login-field-error">{errors.email}</p>
+              )}
 
               <div className="login-field">
                 <input
@@ -131,8 +201,12 @@ function LoginPage() {
             </div>
 
             <div className="login-submit-column">
-              <button type="submit" className="login-btn">
-                로그인
+              <button
+                type="submit"
+                className="login-btn"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "로그인 중..." : "로그인"}
               </button>
             </div>
           </div>
@@ -142,7 +216,7 @@ function LoginPage() {
               <input
                 type="checkbox"
                 checked={rememberId}
-                onChange={(event) => setRememberId(event.target.checked)}
+                onChange={handleRememberToggle}
               />
               아이디 저장
             </label>
