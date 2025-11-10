@@ -3,6 +3,9 @@ import HomePage from "./pages/HomePage";
 import SignUp from "./pages/SignUp";
 import TutorialPage from "./pages/TutorialPage";
 import LoginPage from "./pages/LoginPage";
+import ChatPage from "./pages/ChatPage";
+import ProfilePage from "./pages/ProfilePage";
+import AccountDeletePage from "./pages/AccountDeletePage";
 import "./App.css";
 
 function App() {
@@ -20,6 +23,9 @@ function App() {
         <Route path="/community" element={<div>커뮤니티 (준비중)</div>} />
         <Route path="/ai-crop-search" element={<div>AI작물검사(준비중)</div>} />
         <Route path="/ai-info-search" element={<div>AI정보검사(준비중)</div>} />
+        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/withdraw" element={<AccountDeletePage />} />
       </Routes>
     </Router>
   );

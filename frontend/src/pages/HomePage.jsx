@@ -16,7 +16,13 @@ import TutorialIcon from "../assets/tutorial_icon.png";
 function HomePage() {
   const navigate = useNavigate();
   const [isAITooltipOpen, setIsAITooltipOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const aiImageRef = useRef(null);
+  const menuRef = useRef(null);
+  const menuIconRef = useRef(null);
+  const profileRef = useRef(null);
+  const profileIconRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -41,6 +47,23 @@ function HomePage() {
     setIsAITooltipOpen((prev) => !prev);
   };
 
+  const toggleMenu = () => {
+    setIsMenuOpen((prev) => !prev);
+  };
+
+  const menuItems = [
+    { label: "재배 일기", onClick: () => handleImageClick("/diary") },
+    { label: "농장 찾기", onClick: () => handleImageClick("/farm-search") },
+    { label: "AI 농사 정보 챗봇", onClick: () => handleAISelect("info") },
+    { label: "작물 진단", onClick: () => handleAISelect("crop") },
+    { label: "커뮤니티", onClick: () => handleImageClick("/community") },
+  ];
+
+  const profileItems = [
+    { label: "마이페이지", onClick: () => handleImageClick("/profile") },
+    { label: "회원탈퇴", onClick: () => handleImageClick("/withdraw") },
+  ];
+
   useEffect(() => {
     const handleOutsideClick = (event) => {
       if (
@@ -61,6 +84,34 @@ function HomePage() {
     };
   }, [isAITooltipOpen]);
 
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      const menuInside =
+        menuRef.current && menuRef.current.contains(event.target);
+      const menuIconInside =
+        menuIconRef.current && menuIconRef.current.contains(event.target);
+      if (isMenuOpen && !menuInside && !menuIconInside) {
+        setIsMenuOpen(false);
+      }
+
+      const profileInside =
+        profileRef.current && profileRef.current.contains(event.target);
+      const profileIconInside =
+        profileIconRef.current && profileIconRef.current.contains(event.target);
+      if (isProfileOpen && !profileInside && !profileIconInside) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, [isMenuOpen, isProfileOpen]);
+
   return (
     <div className="home-page">
       <div className="background-container">
@@ -71,9 +122,47 @@ function HomePage() {
         />
 
         {/* 메뉴 아이콘 */}
-        <div className="icon-overlay menu-icon">
+        <div
+          className="icon-overlay menu-icon"
+          onClick={toggleMenu}
+          role="button"
+          tabIndex={0}
+          ref={menuIconRef}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggleMenu();
+            }
+          }}
+          aria-expanded={isMenuOpen}
+        >
           <img src={MenuIcon} alt="메뉴" />
         </div>
+
+        {isMenuOpen && (
+          <div className="menu-panel" ref={menuRef}>
+            <div className="menu-panel__header">
+              <span className="menu-panel__title">메뉴</span>
+              {/* <span className="menu-panel__subtitle">아이콘과 동일한 기능</span> */}
+            </div>
+            <ul className="menu-panel__list">
+              {menuItems.map((item) => (
+                <li key={item.label}>
+                  <button
+                    type="button"
+                    className="menu-panel__item"
+                    onClick={() => {
+                      item.onClick();
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* 코인 아이콘 */}
         <div className="icon-overlay coin-icon">
@@ -87,14 +176,58 @@ function HomePage() {
         </div>
 
         {/* 채팅 아이콘 */}
-        <div className="icon-overlay chat-icon">
+        <div
+          className="icon-overlay chat-icon"
+          onClick={() => handleImageClick("/chat")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              handleImageClick("/chat");
+            }
+          }}
+        >
           <img src={ChatIcon} alt="채팅" />
         </div>
 
         {/* 마이페이지 아이콘 */}
-        <div className="icon-overlay mypage-icon">
+        <div
+          className="icon-overlay mypage-icon"
+          onClick={() => setIsProfileOpen((prev) => !prev)}
+          role="button"
+          tabIndex={0}
+          ref={profileIconRef}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsProfileOpen((prev) => !prev);
+            }
+          }}
+          aria-expanded={isProfileOpen}
+        >
           <img src={MypageIcon} alt="마이페이지" />
         </div>
+        {isProfileOpen && (
+          <div className="profile-panel" ref={profileRef}>
+            <ul className="profile-panel__list">
+              {profileItems.map((item) => (
+                <li key={item.label}>
+                  <button
+                    type="button"
+                    className="profile-panel__item"
+                    onClick={() => {
+                      item.onClick();
+                      setIsProfileOpen(false);
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* 튜토리얼 아이콘 */}
         <div

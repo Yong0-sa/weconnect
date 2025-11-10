@@ -141,32 +141,33 @@ function LoginPage() {
 
   return (
     <div className="login-page">
-      <div className="login-bg" aria-hidden="true">
-        <img src={BackgroundBlur} alt="blurred background" />
-      </div>
+      <div className="login-stage">
+        <div className="login-bg" aria-hidden="true">
+          <img src={BackgroundBlur} alt="blurred background" />
+        </div>
 
-      <div className="login-logo-layer" aria-hidden="true">
-        <img src={LogoImage} alt="위커넥트 로고" />
-      </div>
+        <div className="login-logo-layer" aria-hidden="true">
+          <img src={LogoImage} alt="위커넥트 로고" />
+        </div>
 
-      <div className="login-overlay">
-        {toast && (
-          <div
-            className={`login-toast login-toast--${toast.type}`}
-            role="status"
-          >
-            <span>{toast.message}</span>
-            <button
-              type="button"
-              onClick={() => setToast(null)}
-              aria-label="알림 닫기"
+        <div className="login-overlay">
+          {toast && (
+            <div
+              className={`login-toast login-toast--${toast.type}`}
+              role="status"
             >
-              ×
-            </button>
-          </div>
-        )}
+              <span>{toast.message}</span>
+              <button
+                type="button"
+                onClick={() => setToast(null)}
+                aria-label="알림 닫기"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
-        <form className="login-modal" onSubmit={handleSubmit} noValidate>
+          <form className="login-modal" onSubmit={handleSubmit} noValidate>
           <div className="login-modal__header">계정 로그인</div>
 
           <div className="login-form-grid">
@@ -229,7 +230,8 @@ function LoginPage() {
             <span> | </span>
             <Link to="/signup">회원가입</Link>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

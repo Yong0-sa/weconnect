@@ -10,13 +10,14 @@
 .background-container {
   position: relative;
   width: 100%;
-  max-width: 100%;
+  max-width: 1922px;
   display: inline-block;
+  aspect-ratio: 1922 / 924;
 }
 
 .background-image {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
 }
 
@@ -38,6 +39,12 @@
   object-fit: contain;
 }
 
+.clickable-image:active,
+.icon-overlay:active {
+  transform: scale(0.94);
+  transition-duration: 0.15s;
+}
+
 .tutorial-icon {
   cursor: pointer;
   transition: transform 0.3s ease;
@@ -46,6 +53,10 @@
 .tutorial-icon:hover {
   transform: scale(1.1);
   z-index: 10;
+}
+
+.tutorial-icon:active {
+  transform: scale(0.95);
 }
 
 /* 호버 효과 - 1.1배 스케일 */
@@ -150,6 +161,10 @@
   background: rgba(0, 0, 0, 0.93);
 }
 
+.ai-action-btn:active {
+  transform: scale(0.97);
+}
+
 /* 재배일기 */
 .diary-image {
   left: 42.5%;
@@ -198,6 +213,126 @@
   height: 8.87%;
 }
 
+.menu-panel {
+  position: absolute;
+  left: 1.5%;
+  top: calc(2.92% + 10%);
+  width: 12%;
+  --panel-padding: clamp(12px, 1.5vw, 24px);
+  --panel-radius: clamp(8px, 1vw, 16px);
+  --panel-gap: clamp(10px, 1vw, 18px);
+  background: rgba(102, 186, 98, 0.9);
+  border-radius: var(--panel-radius);
+  padding: var(--panel-padding);
+  color: #f2f2da;
+  z-index: 12;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+.menu-panel__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+  background: #66ba62;
+  border-radius: clamp(8px, 0.9vw, 14px);
+  padding: clamp(10px, 1.2vw, 18px);
+  width: calc(100% + var(--panel-padding) * 2);
+  margin: calc(-1 * var(--panel-padding)) calc(-1 * var(--panel-padding))
+    var(--panel-gap);
+}
+
+.menu-panel__title {
+  font-size: clamp(18px, 1.8vw, 30px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.menu-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3px, 0.4vw, 8px);
+}
+
+.menu-panel__item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #f2f2da;
+  border-radius: 0;
+  padding: clamp(8px, 0.8vw, 14px) 0;
+  text-align: right;
+  font-size: clamp(12px, 1.2vw, 25px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.menu-panel__item:hover,
+.menu-panel__item:focus-visible {
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+  transform: translateX(-4px);
+}
+
+.menu-panel__item:active {
+  transform: translateX(-4px) scale(0.98);
+}
+
+.profile-panel {
+  position: absolute;
+  right: 2%;
+  top: calc(2.92% + 10%);
+  width: 8%;
+  --panel-padding: clamp(12px, 1.5vw, 24px);
+  --panel-radius: clamp(8px, 1vw, 16px);
+  background: rgba(102, 186, 98, 0.9);
+  color: #f2f2da;
+  border-radius: var(--panel-radius);
+  padding: var(--panel-padding);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  z-index: 12;
+}
+
+.profile-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2px, 0.3vw, 6px);
+}
+
+.profile-panel__item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #f2f2da;
+  padding: clamp(10px, 0.9vw, 15px) 0;
+  border-radius: 0;
+  font-size: clamp(10px, 1.2vw, 21px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+  text-align: center;
+}
+
+.profile-panel__item:hover,
+.profile-panel__item:focus-visible {
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+  transform: translateX(-4px);
+}
+
+.profile-panel__item:active {
+  transform: translateX(-4px) scale(0.97);
+  background: rgba(255, 255, 255, 0.2);
+}
+
 /* 코인 아이콘 */
 .coin-icon {
   left: 73.2%;
@@ -218,7 +353,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 32px;
+  font-size: clamp(18px, 1.9vw, 32px);
   color: #7f7460;
   pointer-events: none;
   z-index: 4;
@@ -255,6 +390,34 @@
   .ai-action-btn {
     font-size: 12px;
     padding: 8px 12px;
+  }
+
+  .menu-panel {
+    width: 60vw;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .profile-panel {
+    position: fixed;
+    top: 18%;
+    right: 50%;
+    transform: translateX(50%);
+    width: 60vw;
+  }
+}
+
+@media (max-width: 540px) {
+  .menu-panel {
+    position: fixed;
+    left: 50%;
+    top: 18%;
+    transform: translateX(-50%);
+    width: min(90vw, 360px);
+  }
+
+  .profile-panel {
+    width: min(80vw, 320px);
   }
 }
 .tutorial-icon .image-label {
