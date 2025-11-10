@@ -22,11 +22,13 @@ import java.time.LocalDateTime;
 @Builder
 public class Member {
 
+    // 서비스 전반에서 참조하는 사용자 영속 엔티티
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
     private Long userId;
 
+    // 로그인 식별에 필요한 계정 정보
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
@@ -47,10 +49,12 @@ public class Member {
     @Builder.Default
     private UserRole role = UserRole.USER;
 
+    // 코인 적립/차감 시 참조하는 누적 값
     @Column(name = "coin_balance", nullable = false)
     @Builder.Default
     private Long coinBalance = 0L;
 
+    // 레코드 생성/수정 시점을 자동으로 기록한다
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

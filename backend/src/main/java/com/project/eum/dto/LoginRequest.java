@@ -2,9 +2,11 @@ package com.project.eum.dto;
 
 public class LoginRequest {
 
+    // 로그인 폼이 전달하는 가장 기본적인 데이터
     private String email;
     private String password;
 
+    // 직렬화/역직렬화를 위해 기본 생성자를 둔다
     public LoginRequest() {
     }
 

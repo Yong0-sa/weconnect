@@ -20,16 +20,18 @@ import java.util.UUID;
 @RequestMapping({"/api/auth", "/auth"})
 public class AuthController {
 
+    // 세션에 로그인 상태를 저장할 때 사용하는 키 값
     private static final String SESSION_MEMBER_ID = "LOGIN_MEMBER_ID";
     private static final String SESSION_MEMBER_ROLE = "LOGIN_MEMBER_ROLE";
 
+    // 인증 관련 비즈니스 로직을 위임받는 서비스
     private final MemberService memberService;
 
     public AuthController(MemberService memberService) {
         this.memberService = memberService;
     }
 
-    // 로그인
+    // 기본 계정과 일치하면 임시 토큰을 내려주는 단순 로그인 엔드포인트
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request, HttpSession session) {
         String email = request.getEmail() == null ? "" : request.getEmail().trim();
@@ -64,7 +66,7 @@ public class AuthController {
         );
     }
 
-    // 회원가입
+    // 실제 가입 처리는 MemberService 로 위임한다
     @PostMapping("/signup")
     public ResponseEntity<?> signUp(@Valid @RequestBody SignUpRequest req) {
         Long id = memberService.signUp(req);
@@ -73,7 +75,7 @@ public class AuthController {
                 .body(new SignUpResponse(id, "회원가입이 완료되었습니다."));
     }
 
-    // 응답용 내부 클래스
+    // 프론트가 확인하기 쉬운 형태의 간단한 응답 바디
     record SignUpResponse(Long id, String message) {}    
 
 }

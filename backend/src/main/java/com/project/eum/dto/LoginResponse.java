@@ -2,6 +2,7 @@ package com.project.eum.dto;
 
 public class LoginResponse {
 
+    // 로그인 요청 결과와 메시지, 임시 토큰을 담는다
     private boolean success;
     private String message;
     private String token;
@@ -28,10 +29,12 @@ public class LoginResponse {
         this.role = role;
     }
 
+    // 헬퍼를 통해 응답 생성 코드를 단순화한다
     public static LoginResponse success(String message, String token, Long userId, String nickname, String role) {
         return new LoginResponse(true, message, token, userId, nickname, role);
     }
 
+    // 실패 시에는 민감한 정보를 포함하지 않는다
     public static LoginResponse failure(String message) {
         return new LoginResponse(false, message, null, null, null, null);
     }

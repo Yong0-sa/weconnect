@@ -9,6 +9,7 @@ const API_BASE_URL =
 
 function LoginPage() {
   const navigate = useNavigate();
+  // 로그인 폼의 핵심 입력값
   const [credentials, setCredentials] = useState({
     email: "",
     password: "",
@@ -18,6 +19,7 @@ function LoginPage() {
   const [toast, setToast] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 최초 렌더 시 저장된 이메일을 복원
   useEffect(() => {
     const storedEmail = localStorage.getItem("rememberedEmail");
     if (storedEmail) {
@@ -26,6 +28,7 @@ function LoginPage() {
     }
   }, []);
 
+  // 이메일/비밀번호 각각에 대한 최소 검증
   const getFieldError = (field, value) => {
     const trimmed = value.trim();
     if (field === "email") {
@@ -41,6 +44,7 @@ function LoginPage() {
     return "";
   };
 
+  // 입력값 변경 시 상태 및 에러 메시지 갱신
   const handleChange = (event) => {
     const { name, value } = event.target;
     setCredentials((prev) => {
@@ -62,6 +66,7 @@ function LoginPage() {
     setToast(null);
   };
 
+  // 아이디 저장 체크박스 토글 처리
   const handleRememberToggle = (event) => {
     const { checked } = event.target;
     setRememberId(checked);
@@ -75,6 +80,7 @@ function LoginPage() {
     }
   };
 
+  // 제출 전에 각 필드를 검사
   const validateForm = () => {
     const fieldErrors = {};
     ["email", "password"].forEach((field) => {
@@ -85,6 +91,7 @@ function LoginPage() {
     return Object.keys(fieldErrors).length === 0;
   };
 
+  // 로그인 폼 제출 시 실행되는 비동기 흐름
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) {
