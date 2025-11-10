@@ -153,7 +153,7 @@ class RAGService:
             query_result = self._collection.query(
                 query_embeddings=[embedding],
                 n_results=self._n_results,
-                include=["documents", "metadatas", "distances", "ids"],
+                include=["documents", "metadatas", "distances"],
             )
         except Exception as exc:  # Chroma errors
             raise RetrievalError("지식을 조회하는 중 오류가 발생했습니다.") from exc
