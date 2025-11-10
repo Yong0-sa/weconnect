@@ -5,7 +5,6 @@ import com.project.eum.dto.LoginResponse;
 import com.project.eum.dto.SignUpRequest;
 import com.project.eum.service.MemberService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -17,18 +16,10 @@ import java.util.UUID;
 @RequestMapping({"/api/auth", "/auth"})
 public class AuthController {
 
-    private final String defaultEmail;
-    private final String defaultPassword;
     private final MemberService memberService;
 
-    public AuthController(
-            MemberService memberService,
-            @Value("${app.auth.default-email:test@gmail.com}") String defaultEmail,
-            @Value("${app.auth.default-password:test1234}") String defaultPassword
-    ) {
+    public AuthController(MemberService memberService) {
         this.memberService = memberService;
-        this.defaultEmail = defaultEmail;
-        this.defaultPassword = defaultPassword;
     }
 
     // 로그인
@@ -42,13 +33,15 @@ public class AuthController {
                     .body(LoginResponse.failure("이메일과 비밀번호를 모두 입력해 주세요."));
         }
 
-        if (email.equalsIgnoreCase(defaultEmail) && password.equals(defaultPassword)) {
-            String token = UUID.randomUUID().toString();
-            return ResponseEntity.ok(LoginResponse.success("로그인에 성공했습니다.", token));
+        try {
+            memberService.authenticate(email, password);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(LoginResponse.failure(ex.getMessage()));
         }
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(LoginResponse.failure("로그인 정보가 일치하지 않습니다."));
+        String token = UUID.randomUUID().toString();
+        return ResponseEntity.ok(LoginResponse.success("로그인에 성공했습니다.", token));
     }
 
     // 회원가입
