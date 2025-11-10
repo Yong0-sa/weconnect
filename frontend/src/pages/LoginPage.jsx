@@ -36,7 +36,7 @@ function LoginPage() {
     }
     if (field === "password") {
       if (!trimmed) return "비밀번호를 입력해 주세요.";
-      if (trimmed.length < 4) return "비밀번호는 4자 이상 입력해 주세요.";
+      if (trimmed.length < 4) return "비밀번호는 8자 이상 입력해 주세요.";
     }
     return "";
   };
