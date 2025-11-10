@@ -27,6 +27,7 @@ jobs:
         working-directory: ./frontend
         run: |
           printf 'VITE_API_BASE_URL="%s"\n' "${{ secrets.VITE_API_BASE_URL }}" > .env
+          echo "Generated frontend/.env:" && cat .env
 
       # 4. 의존성 설치 및 빌드
       - name: Install and Build
