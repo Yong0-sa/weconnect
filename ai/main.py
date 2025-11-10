@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import traceback
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -20,6 +22,13 @@ from rag_service import (
 )
 
 app = FastAPI(title="WeConnect AI Search API")
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -81,20 +90,38 @@ def _to_history_item(entry: HistoryEntry) -> HistoryItem:
     )
 
 
-rag_service = RAGService()
+logger.info("RAGService 초기화 시작...")
+try:
+    rag_service = RAGService()
+    logger.info("RAGService 초기화 완료")
+except Exception as exc:
+    logger.error(f"RAGService 초기화 실패: {exc}")
+    logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+    raise
+
 history_store = HistoryStore()
 
 
 @app.post("/api/ai/search", response_model=HistoryItem)
 async def search_ai(payload: SearchRequest) -> HistoryItem:
     try:
+        logger.info(f"질문 수신: {payload.question}")
         result = await run_in_threadpool(rag_service.ask, payload.question)
+        logger.info(f"답변 생성 완료: prompt_type={result.prompt_type}")
     except InappropriateQueryError as exc:
+        logger.warning(f"부적절한 질문: {exc}")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except EmptyQueryError as exc:
+        logger.warning(f"빈 질문: {exc}")
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RAGServiceError as exc:
+        logger.error(f"RAG 서비스 에러 발생: {exc}")
+        logger.error(f"상세 traceback:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.error(f"예상치 못한 에러 발생: {type(exc).__name__}: {exc}")
+        logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"서버 내부 오류: {exc}") from exc
 
     entry = history_store.add(payload.question.strip(), result)
     return _to_history_item(entry)
