@@ -6,6 +6,7 @@ import { signUp } from "../api/auth";
 
 function SignUp() {
   const navigate = useNavigate();
+  // 가입 폼에서 관리하는 모든 입력값
   const [formData, setFormData] = useState({
     email: "",
     nickname: "",
@@ -17,12 +18,14 @@ function SignUp() {
   });
   const [memberType, setMemberType] = useState("personal");
   const [errors, setErrors] = useState({});
+  // 이메일 인증 플로우의 진행 상태
   const [emailStatus, setEmailStatus] = useState({
     state: "idle",
     message: "",
   });
   const [notification, setNotification] = useState(null);
 
+  // 단일 필드 수준의 유효성 검사를 담당
   const getFieldError = (field, value, nextState = formData) => {
     const trimmed = value?.trim() ?? "";
     switch (field) {
@@ -64,6 +67,7 @@ function SignUp() {
     }
   };
 
+  // 모든 입력 요소의 onChange 핸들러
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
@@ -102,6 +106,7 @@ function SignUp() {
     });
   };
 
+  // 개인/농장주 토글 시 관련 상태를 정리
   const handleTypeChange = (type) => {
     setMemberType(type);
     if (type === "personal") {
@@ -113,6 +118,7 @@ function SignUp() {
     }
   };
 
+  // 제출 전에 모든 필드를 재검증
   const validateForm = () => {
     const fields = [
       "email",
@@ -142,6 +148,7 @@ function SignUp() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // 인증 메일 발송 버튼 클릭 시 처리
   const handleVerifyEmail = () => {
     const message = getFieldError("email", formData.email);
     if (message) {
@@ -178,6 +185,7 @@ function SignUp() {
     });
   };
 
+  // 사용자가 메일 인증 완료를 직접 확인했다고 알리는 버튼
   const handleConfirmEmailVerification = () => {
     if (emailStatus.state !== "sent") return;
     setEmailStatus({
@@ -190,6 +198,7 @@ function SignUp() {
     });
   };
 
+  // 가입 폼 제출 핸들러
   const handleSubmit = async (e) => {
     e.preventDefault();
 

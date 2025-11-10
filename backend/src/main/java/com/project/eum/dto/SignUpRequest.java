@@ -13,6 +13,7 @@ import lombok.*;
 @Builder
 public class SignUpRequest {
 
+    // 회원 가입 시 클라이언트가 전달하는 핵심 프로필 정보
     @Email
     @NotBlank
     private String email;
@@ -37,6 +38,7 @@ public class SignUpRequest {
     @NotNull
     private MemberType memberType;  // PERSONAL / FARMER
 
+    // 농장주 유형에서만 채워지는 선택 필드
     private String farmName;
     private String farmAddress;
 }

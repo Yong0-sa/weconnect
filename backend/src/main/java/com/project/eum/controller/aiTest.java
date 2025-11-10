@@ -22,10 +22,12 @@ public class aiTest {
     @Value("${ai.server.url}")
     private String aiServerUrl;
 
+    // 간단한 프록시 호출에만 사용하므로 RestTemplate 을 재사용한다
     private final RestTemplate restTemplate = new RestTemplate();
 
     @GetMapping("/test")
     public String test() {
+        // 헬스체크 용도의 가장 단순한 응답
         return "AI Server Connection Test";
     }
 
@@ -44,6 +46,7 @@ public class aiTest {
 
     @PostMapping("/search")
     public ResponseEntity<String> proxy(@RequestBody String body) {
+        // 프론트 요청 바디를 그대로 AI 서버의 검색 API 로 전달한다
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> req = new HttpEntity<>(body, headers);
