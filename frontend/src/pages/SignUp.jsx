@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BackgroundBlur from "../assets/backgroud_blur.png";
+import { signUp } from "../api/auth";
 
 function SignUp() {
   const navigate = useNavigate();
@@ -189,13 +190,30 @@ function SignUp() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) {
-      return;
+
+    const { email, nickname, password, name, phone, farmName, farmAddress } =
+      formData;
+
+    try {
+      const payload = {
+        email,
+        nickname,
+        password,
+        name,
+        phone,
+        memberType: memberType === "FARMER" ? "FARMER" : "PERSONAL",
+        farmName: memberType === "FARMER" ? farmName : null,
+        farmAddress: memberType === "FARMER" ? farmAddress : null,
+      };
+      await signUp(payload);
+      alert("회원가입 완료");
+      navigate("/login");
+    } catch (err) {
+      console.error(err);
+      alert(err?.message || "회원가입 실패");
     }
-    console.log("회원가입 완료:", { ...formData, memberType });
-    navigate("/login");
   };
 
   return (
@@ -325,9 +343,7 @@ function SignUp() {
             </button>
             <button
               type="button"
-              className={`type-btn ${
-                memberType === "farmer" ? "active" : ""
-              }`}
+              className={`type-btn ${memberType === "farmer" ? "active" : ""}`}
               onClick={() => handleTypeChange("farmer")}
             >
               농장주
@@ -410,6 +426,21 @@ function SignUp() {
               />
               {errors.farmName && (
                 <p className="input-error">{errors.farmName}</p>
+              )}
+              <label className="signup-label" htmlFor="farmAddress">
+                농장 주소
+              </label>
+              <input
+                id="farmAddress"
+                className="signup-input"
+                type="text"
+                name="farmAddress"
+                value={formData.farmAddress || ""}
+                onChange={handleChange}
+                placeholder="농장 주소를 입력해 주세요."
+              />
+              {errors.farmAddress && (
+                <p className="input-error">{errors.farmAddress}</p>
               )}
             </>
           )}
