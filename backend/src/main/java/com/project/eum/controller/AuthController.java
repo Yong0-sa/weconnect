@@ -4,7 +4,10 @@ import com.project.eum.dto.LoginRequest;
 import com.project.eum.dto.LoginResponse;
 import com.project.eum.dto.SignUpRequest;
 import com.project.eum.service.MemberService;
+import com.project.eum.user.Member;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -13,8 +16,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
+@Slf4j
 @RequestMapping({"/api/auth", "/auth"})
 public class AuthController {
+
+    private static final String SESSION_MEMBER_ID = "LOGIN_MEMBER_ID";
+    private static final String SESSION_MEMBER_ROLE = "LOGIN_MEMBER_ROLE";
 
     private final MemberService memberService;
 
@@ -24,7 +31,7 @@ public class AuthController {
 
     // 로그인
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request, HttpSession session) {
         String email = request.getEmail() == null ? "" : request.getEmail().trim();
         String password = request.getPassword() == null ? "" : request.getPassword();
 
@@ -33,15 +40,28 @@ public class AuthController {
                     .body(LoginResponse.failure("이메일과 비밀번호를 모두 입력해 주세요."));
         }
 
+        Member member;
         try {
-            memberService.authenticate(email, password);
+            member = memberService.authenticate(email, password);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(LoginResponse.failure(ex.getMessage()));
         }
 
+        session.setAttribute(SESSION_MEMBER_ID, member.getUserId());
+        session.setAttribute(SESSION_MEMBER_ROLE, member.getRole());
+        // log.info("session id={}", session.getId());
+
         String token = UUID.randomUUID().toString();
-        return ResponseEntity.ok(LoginResponse.success("로그인에 성공했습니다.", token));
+        return ResponseEntity.ok(
+                LoginResponse.success(
+                        "로그인에 성공했습니다.",
+                        token,
+                        member.getUserId(),
+                        member.getNickname(),
+                        member.getRole().name()
+                )
+        );
     }
 
     // 회원가입
