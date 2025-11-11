@@ -1,5 +1,6 @@
 package com.project.eum.controller;
 
+import com.project.eum.config.SessionConst;
 import com.project.eum.dto.LoginRequest;
 import com.project.eum.dto.LoginResponse;
 import com.project.eum.dto.SignUpRequest;
@@ -19,10 +20,6 @@ import java.util.UUID;
 @Slf4j
 @RequestMapping({"/api/auth", "/auth"})
 public class AuthController {
-
-    // 세션에 로그인 상태를 저장할 때 사용하는 키 값
-    private static final String SESSION_MEMBER_ID = "LOGIN_MEMBER_ID";
-    private static final String SESSION_MEMBER_ROLE = "LOGIN_MEMBER_ROLE";
 
     // 인증 관련 비즈니스 로직을 위임받는 서비스
     private final MemberService memberService;
@@ -50,8 +47,8 @@ public class AuthController {
                     .body(LoginResponse.failure(ex.getMessage()));
         }
 
-        session.setAttribute(SESSION_MEMBER_ID, member.getUserId());
-        session.setAttribute(SESSION_MEMBER_ROLE, member.getRole());
+        session.setAttribute(SessionConst.LOGIN_MEMBER_ID, member.getUserId());
+        session.setAttribute(SessionConst.LOGIN_MEMBER_ROLE, member.getRole());
         // log.info("session id={}", session.getId());
 
         String token = UUID.randomUUID().toString();
