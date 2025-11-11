@@ -13,6 +13,7 @@ import ChatIcon from "../assets/chat_icon.png";
 import MypageIcon from "../assets/mypage_icon.png";
 import TutorialIcon from "../assets/tutorial_icon.png";
 import AICropSearchPage from "./AICropSearchPage";
+import AIInfoSearchPage from "./AIInfoSearchPage";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -41,7 +43,7 @@ function HomePage() {
     if (type === "crop") {
       setIsCropModalOpen(true);
     } else if (type === "info") {
-      navigate("/ai-info-search");
+      setIsInfoModalOpen(true);
     }
   };
 
@@ -341,6 +343,13 @@ function HomePage() {
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
             <AICropSearchPage onClose={() => setIsCropModalOpen(false)} />
+          </div>
+        </div>
+      )}
+      {isInfoModalOpen && (
+        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="crop-modal">
+            <AIInfoSearchPage onClose={() => setIsInfoModalOpen(false)} />
           </div>
         </div>
       )}
