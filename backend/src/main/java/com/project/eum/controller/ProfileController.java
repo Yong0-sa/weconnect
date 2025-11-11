@@ -14,7 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/profile")
+@RequestMapping({"/api/profile", "/profile"})
 @RequiredArgsConstructor
 public class ProfileController {
 
