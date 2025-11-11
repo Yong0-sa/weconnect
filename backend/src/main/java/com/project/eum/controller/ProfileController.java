@@ -5,6 +5,7 @@ import com.project.eum.dto.MemberProfileResponse;
 import com.project.eum.dto.NicknameCheckRequest;
 import com.project.eum.dto.NicknameCheckResponse;
 import com.project.eum.dto.UpdateProfileRequest;
+import com.project.eum.dto.VerifyPasswordRequest;
 import com.project.eum.service.MemberService;
 import com.project.eum.user.Member;
 import jakarta.servlet.http.HttpSession;
@@ -12,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping({"/api/profile", "/profile"})
@@ -65,6 +68,26 @@ public class ProfileController {
         try {
             Member updated = memberService.updateProfile(memberId, request);
             return ResponseEntity.ok(MemberProfileResponse.from(updated));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/verify-password")
+    public ResponseEntity<?> verifyPassword(@RequestBody VerifyPasswordRequest request, HttpSession session) {
+        Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("로그인 후 이용해 주세요.");
+        }
+
+        if (request == null || request.password() == null || request.password().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("비밀번호를 입력해 주세요.");
+        }
+
+        try {
+            memberService.verifyCurrentPassword(memberId, request.password());
+            return ResponseEntity.ok(Map.of("verified", true));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }

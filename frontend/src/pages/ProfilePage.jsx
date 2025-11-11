@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import BackgroundBlur from "../assets/backgroud_blur.png";
 import {
   checkNicknameAvailability,
   fetchMyProfile,
   updateProfile,
+  verifyCurrentPassword,
 } from "../api/profile";
 import "./ProfilePage.css";
 
@@ -74,7 +74,8 @@ function ProfilePage() {
   const [savedProfile, setSavedProfile] = useState(INITIAL_PROFILE);
   const [formData, setFormData] = useState({
     nickname: INITIAL_PROFILE.nickname,
-    password: "",
+    currentPassword: "",
+    newPassword: "",
     confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
@@ -86,20 +87,17 @@ function ProfilePage() {
     message: "",
   });
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [modalPassword, setModalPassword] = useState("");
-  const [modalError, setModalError] = useState("");
-  const [pendingPayload, setPendingPayload] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isEntryVerified, setIsEntryVerified] = useState(false);
+  const [showEntryModal, setShowEntryModal] = useState(true);
+  const [entryPassword, setEntryPassword] = useState("");
+  const [entryError, setEntryError] = useState("");
+  const [isVerifyingEntry, setIsVerifyingEntry] = useState(false);
 
   const trimmedNickname = (formData.nickname || "").trim();
   const memberTypeLabel = savedProfile.memberType || "PERSONAL";
-  const isActionDisabled = isSaving || isLoadingProfile;
-
-  const avatarInitials = useMemo(() => {
-    const initials = (trimmedNickname || savedProfile.nickname).slice(0, 2);
-    return initials || "MY";
-  }, [trimmedNickname, savedProfile.nickname]);
+  const isLocked = !isEntryVerified;
+  const isFormDisabled = isSaving || isLoadingProfile || isLocked;
 
   useEffect(() => {
     let active = true;
@@ -146,14 +144,24 @@ function ProfilePage() {
       case "nickname":
         if (!trimmed) return "닉네임을 입력해 주세요.";
         return "";
-      case "password":
+      case "currentPassword":
+        if (!nextState.newPassword) return "";
+        if (!trimmed) return "현재 비밀번호를 입력해 주세요.";
+        return "";
+      case "newPassword":
         if (!trimmed) return "";
         if (trimmed.length < 8) return "비밀번호는 8자 이상이어야 합니다.";
+        if (
+          nextState.currentPassword &&
+          trimmed === nextState.currentPassword.trim()
+        ) {
+          return "현재 비밀번호와 다른 비밀번호를 입력해 주세요.";
+        }
         return "";
       case "confirmPassword":
-        if (!nextState.password) return "";
+        if (!nextState.newPassword) return "";
         if (!trimmed) return "비밀번호를 다시 입력해 주세요.";
-        if (trimmed !== nextState.password)
+        if (trimmed !== nextState.newPassword)
           return "비밀번호가 일치하지 않습니다.";
         return "";
       default:
@@ -163,8 +171,8 @@ function ProfilePage() {
 
   const validateForm = () => {
     const fields = ["nickname"];
-    if (formData.password) {
-      fields.push("password", "confirmPassword");
+    if (formData.newPassword) {
+      fields.push("currentPassword", "newPassword", "confirmPassword");
     }
 
     const newErrors = {};
@@ -183,6 +191,24 @@ function ProfilePage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const buildProfilePayload = () => {
+    const payload = {};
+
+    if (trimmedNickname) {
+      const savedNickname = (savedProfile.nickname || "").trim();
+      if (trimmedNickname !== savedNickname) {
+        payload.nickname = trimmedNickname;
+      }
+    }
+
+    if (formData.newPassword) {
+      payload.newPassword = formData.newPassword.trim();
+      payload.currentPassword = formData.currentPassword?.trim();
+    }
+
+    return payload;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
@@ -195,7 +221,17 @@ function ProfilePage() {
         } else {
           delete updated[name];
         }
-        if (name === "password") {
+        if (name === "newPassword") {
+          const currentMsg = getFieldError(
+            "currentPassword",
+            nextState.currentPassword,
+            nextState
+          );
+          if (currentMsg) {
+            updated.currentPassword = currentMsg;
+          } else {
+            delete updated.currentPassword;
+          }
           const confirmMsg = getFieldError(
             "confirmPassword",
             nextState.confirmPassword,
@@ -218,7 +254,7 @@ function ProfilePage() {
   };
 
   const handleCheckNickname = async () => {
-    if (isLoadingProfile) return;
+    if (isLoadingProfile || isLocked) return;
     const message = getFieldError("nickname", formData.nickname);
     if (message) {
       setErrors((prev) => ({ ...prev, nickname: message }));
@@ -275,7 +311,8 @@ function ProfilePage() {
       setSavedProfile((prev) => ({ ...prev, ...hydrated }));
       setFormData({
         nickname: hydrated.nickname,
-        password: "",
+        currentPassword: "",
+        newPassword: "",
         confirmPassword: "",
       });
       setNicknameCheck({ state: "idle", message: "" });
@@ -294,49 +331,29 @@ function ProfilePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isLoadingProfile || !validateForm()) return;
+    if (isLoadingProfile || isLocked) {
+      setStatus({
+        type: "error",
+        message: "회원정보 보호를 위해 비밀번호를 먼저 확인해 주세요.",
+      });
+      return;
+    }
+    if (!validateForm()) return;
 
-    const payload = {
-      nickname: trimmedNickname || savedProfile.nickname,
-      newPassword: formData.password || undefined,
-    };
-
-    if (formData.password) {
-      setPendingPayload(payload);
-      setModalPassword("");
-      setModalError("");
-      setShowPasswordModal(true);
+    const payload = buildProfilePayload();
+    if (Object.keys(payload).length === 0) {
+      setStatus({
+        type: "info",
+        message: "변경된 내용이 없습니다.",
+      });
       return;
     }
 
     await submitProfileUpdate(payload);
   };
 
-  const handleModalConfirm = async () => {
-    if (!modalPassword.trim()) {
-      setModalError("현재 비밀번호를 입력해 주세요.");
-      return;
-    }
-    setShowPasswordModal(false);
-    await submitProfileUpdate({
-      ...(pendingPayload || {}),
-      currentPassword: modalPassword.trim(),
-    });
-    setPendingPayload(null);
-    setModalPassword("");
-    setModalError("");
-  };
-
-  const handleModalClose = () => {
-    if (isSaving) return;
-    setShowPasswordModal(false);
-    setPendingPayload(null);
-    setModalPassword("");
-    setModalError("");
-  };
-
   const handleCancelClick = () => {
-    if (isActionDisabled) return;
+    if (isSaving) return;
     setShowCancelModal(true);
   };
 
@@ -350,37 +367,58 @@ function ProfilePage() {
     setShowCancelModal(false);
   };
 
+  const handleEntryVerify = async () => {
+    if (!entryPassword.trim()) {
+      setEntryError("현재 비밀번호를 입력해 주세요.");
+      return;
+    }
+    setEntryError("");
+    setIsVerifyingEntry(true);
+    try {
+      await verifyCurrentPassword(entryPassword.trim());
+      setIsEntryVerified(true);
+      setShowEntryModal(false);
+      setEntryPassword("");
+    } catch (error) {
+      setEntryError(error.message || "비밀번호가 일치하지 않습니다.");
+    } finally {
+      setIsVerifyingEntry(false);
+    }
+  };
+
+  const handleEntryCancel = () => {
+    if (isVerifyingEntry) return;
+    navigate("/home");
+  };
+
   return (
     <div className="profile-page">
-      <div className="profile-bg" aria-hidden="true">
-        <img src={BackgroundBlur} alt="blurred background" />
-      </div>
+      <div className={`profile-card ${isLocked ? "profile-card--locked" : ""}`}>
+        <header className="profile-card__header">
+          <div>
+            <p className="profile-card__eyebrow">회원정보 수정</p>
+            <h1 className="profile-card__title">
+              {savedProfile.name || "회원"}님의 계정
+            </h1>
+          </div>
+          <div className="profile-card__meta">
+            <span>
+              {memberTypeLabel === "FARMER" ? "농장주 회원" : "일반 회원"}
+            </span>
+            <span>최근 저장 {lastSavedAt}</span>
+          </div>
+        </header>
 
-      <div className="profile-wrapper">
-        <section className="profile-hero">
-          <div className="hero-avatar" aria-hidden="true">
-            {avatarInitials}
+        {!isEntryVerified && (
+          <div className="profile-locked-banner">
+            회원님의 정보를 보호하기 위해 비밀번호 확인 전까지 수정이 잠겨
+            있어요.
           </div>
-          <div className="hero-meta">
-            <p className="hero-label">마이페이지</p>
-            <h1>{savedProfile.name}님</h1>
-            <p className="hero-email">{savedProfile.email}</p>
-            <div className="hero-tags">
-              <span
-                className={`hero-badge hero-badge--${memberTypeLabel.toLowerCase()}`}
-              >
-                {memberTypeLabel === "FARMER" ? "농장주 회원" : "일반 회원"}
-              </span>
-              <span className="hero-badge hero-badge--soft">
-                최근 저장 • {lastSavedAt}
-              </span>
-            </div>
-          </div>
-        </section>
+        )}
 
         <form
           id="profile-form"
-          className="profile-form"
+          className="profile-form-table"
           onSubmit={handleSubmit}
           noValidate
         >
@@ -402,244 +440,146 @@ function ProfilePage() {
             </p>
           )}
 
-          <section className="form-section form-section--readonly">
-            <div className="section-heading">
-              <h2>회원 정보</h2>
-              <p>기존 가입 정보는 확인만 가능합니다.</p>
+          <div className="profile-info-table" aria-live="polite">
+            <div className="profile-row">
+              <div className="profile-row__label">아이디(이메일)</div>
+              <div className="profile-row__content">
+                <div className="profile-row__value">{savedProfile.email}</div>
+              </div>
             </div>
-            <label className="profile-label" htmlFor="email">
-              이메일
-            </label>
-            <input
-              id="email"
-              className="profile-input profile-input--readonly"
-              type="email"
-              value={savedProfile.email}
-              readOnly
-              disabled
-            />
 
-            <label className="profile-label" htmlFor="name">
-              이름
-            </label>
-            <input
-              id="name"
-              className="profile-input profile-input--readonly"
-              type="text"
-              value={savedProfile.name}
-              readOnly
-              disabled
-            />
-
-            <label className="profile-label" htmlFor="phone">
-              전화번호
-            </label>
-            <input
-              id="phone"
-              className="profile-input profile-input--readonly"
-              type="tel"
-              value={savedProfile.phone}
-              readOnly
-              disabled
-            />
-
-            <label className="profile-label" htmlFor="bio">
-              한 줄 소개
-            </label>
-            <textarea
-              id="bio"
-              className="profile-textarea profile-input--readonly"
-              value={savedProfile.bio}
-              readOnly
-              disabled
-              rows={3}
-            />
-
-            {memberTypeLabel === "FARMER" && (
-              <>
-                <label className="profile-label" htmlFor="farmName">
-                  농장 이름
-                </label>
-                <input
-                  id="farmName"
-                  className="profile-input profile-input--readonly"
-                  type="text"
-                  value={savedProfile.farmName}
-                  readOnly
-                  disabled
-                />
-
-                <label className="profile-label" htmlFor="farmAddress">
-                  농장 주소
-                </label>
-                <input
-                  id="farmAddress"
-                  className="profile-input profile-input--readonly"
-                  type="text"
-                  value={savedProfile.farmAddress}
-                  readOnly
-                  disabled
-                />
-              </>
-            )}
-
-            <div className="readonly-pill">
-              알림 수신 상태:{" "}
-              <strong>{savedProfile.marketingConsent ? "동의" : "거부"}</strong>
+            <div className="profile-row">
+              <div className="profile-row__label">이름</div>
+              <div className="profile-row__content">
+                <div className="profile-row__value">{savedProfile.name}</div>
+              </div>
             </div>
-          </section>
 
-          <section className="form-section">
-            <h2>닉네임 수정</h2>
-            <label className="profile-label" htmlFor="nickname">
-              닉네임
-            </label>
-            <div className="nickname-inline">
-              <input
-                id="nickname"
-                className="profile-input"
-                type="text"
-                name="nickname"
-                value={formData.nickname}
-                onChange={handleChange}
-                placeholder="닉네임을 입력해 주세요."
-                disabled={isLoadingProfile}
-              />
-              <button
-                type="button"
-                className="profile-check-btn"
-                onClick={handleCheckNickname}
-                disabled={
-                  nicknameCheck.state === "checking" || isLoadingProfile
-                }
-              >
-                {nicknameCheck.state === "checking"
-                  ? "확인 중..."
-                  : "중복 확인"}
-              </button>
+            <div className="profile-row">
+              <div className="profile-row__label">휴대폰 번호</div>
+              <div className="profile-row__content">
+                <div className="profile-row__value">{savedProfile.phone}</div>
+              </div>
             </div>
-            {errors.nickname && (
-              <p className="input-error">{errors.nickname}</p>
-            )}
-            {nicknameCheck.message && (
-              <p
-                className={`nickname-status nickname-status--${nicknameCheck.state}`}
-              >
-                {nicknameCheck.message}
-              </p>
-            )}
-          </section>
 
-          <section className="form-section">
-            <h2>비밀번호 변경</h2>
-            <label className="profile-label" htmlFor="password">
-              새 비밀번호
-            </label>
-            <input
-              id="password"
-              className="profile-input"
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="변경할 비밀번호를 입력해 주세요."
-              disabled={isActionDisabled}
-            />
-            {errors.password && (
-              <p className="input-error">{errors.password}</p>
-            )}
+            <div className="profile-row profile-row--nickname">
+              <div className="profile-row__label">닉네임</div>
+              <div className="profile-row__content">
+                <div className="profile-row__value profile-row__value--input">
+                  <input
+                    id="nickname"
+                    className="profile-input"
+                    type="text"
+                    name="nickname"
+                    value={formData.nickname}
+                    onChange={handleChange}
+                    placeholder="닉네임을 입력해 주세요."
+                    disabled={isFormDisabled}
+                  />
+                  <button
+                    type="button"
+                    className="profile-check-btn"
+                    onClick={handleCheckNickname}
+                    disabled={
+                      nicknameCheck.state === "checking" ||
+                      isLoadingProfile ||
+                      isLocked
+                    }
+                  >
+                    {nicknameCheck.state === "checking"
+                      ? "확인 중..."
+                      : "중복 확인"}
+                  </button>
+                </div>
+                {errors.nickname && (
+                  <p className="input-error">{errors.nickname}</p>
+                )}
+                {nicknameCheck.message && (
+                  <p
+                    className={`nickname-status nickname-status--${nicknameCheck.state}`}
+                  >
+                    {nicknameCheck.message}
+                  </p>
+                )}
+              </div>
+            </div>
 
-            <label className="profile-label" htmlFor="confirmPassword">
-              새 비밀번호 확인
-            </label>
-            <input
-              id="confirmPassword"
-              className="profile-input"
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="비밀번호를 다시 입력해 주세요."
-              disabled={isActionDisabled}
-            />
-            {errors.confirmPassword && (
-              <p className="input-error">{errors.confirmPassword}</p>
-            )}
-          </section>
+            <div className="profile-row profile-row--stacked">
+              <div className="profile-row__label">비밀번호 변경</div>
+              <div className="profile-row__content">
+                <div className="profile-row__content--grid">
+                  <div className="password-field-group">
+                    <label htmlFor="currentPassword">현재 비밀번호</label>
+                    <input
+                      id="currentPassword"
+                      className="profile-input"
+                      type="password"
+                      name="currentPassword"
+                      value={formData.currentPassword}
+                      onChange={handleChange}
+                      placeholder="현재 비밀번호"
+                      disabled={isFormDisabled}
+                    />
+                    {errors.currentPassword && (
+                      <p className="input-error">{errors.currentPassword}</p>
+                    )}
+                  </div>
+                  <div className="password-field-group">
+                    <label htmlFor="newPassword">새 비밀번호</label>
+                    <input
+                      id="newPassword"
+                      className="profile-input"
+                      type="password"
+                      name="newPassword"
+                      value={formData.newPassword}
+                      onChange={handleChange}
+                      placeholder="8자 이상 입력해 주세요."
+                      disabled={isFormDisabled}
+                    />
+                    {errors.newPassword && (
+                      <p className="input-error">{errors.newPassword}</p>
+                    )}
+                  </div>
+                  <div className="password-field-group">
+                    <label htmlFor="confirmPassword">비밀번호 다시 입력</label>
+                    <input
+                      id="confirmPassword"
+                      className="profile-input"
+                      type="password"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="비밀번호를 확인해 주세요."
+                      disabled={isFormDisabled}
+                    />
+                    {errors.confirmPassword && (
+                      <p className="input-error">{errors.confirmPassword}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="form-actions">
             <button
               type="button"
               className="outline-btn"
               onClick={handleCancelClick}
-              disabled={isActionDisabled}
+              disabled={isSaving}
             >
               변경 취소
             </button>
             <button
               type="submit"
               className="primary-btn"
-              disabled={isActionDisabled}
+              disabled={isFormDisabled}
             >
               {isSaving ? "저장 중..." : "변경 사항 저장"}
             </button>
           </div>
         </form>
       </div>
-      {showPasswordModal && (
-        <div className="password-modal-overlay">
-          <div className="password-modal" role="dialog" aria-modal="true">
-            <div className="password-modal__header">비밀번호 확인</div>
-            <p className="password-modal__desc">
-              현재 비밀번호를 입력해 주세요. 로그인 창과 동일한 스타일로
-              보호됩니다.
-            </p>
-            <label className="profile-label" htmlFor="current-password-input">
-              현재 비밀번호
-            </label>
-            <div className="password-field">
-              <input
-                id="current-password-input"
-                type="password"
-                value={modalPassword}
-                onChange={(e) => {
-                  setModalPassword(e.target.value);
-                  setModalError("");
-                }}
-                placeholder="현재 비밀번호"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleModalConfirm();
-                  }
-                }}
-              />
-            </div>
-            {modalError && (
-              <p className="password-modal__error">{modalError}</p>
-            )}
-            <div className="password-modal__actions">
-              <button
-                type="button"
-                className="outline-btn"
-                onClick={handleModalClose}
-                disabled={isSaving}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={handleModalConfirm}
-                disabled={isSaving}
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {showCancelModal && (
         <div className="password-modal-overlay">
           <div className="password-modal" role="dialog" aria-modal="true">
@@ -663,6 +603,60 @@ function ProfilePage() {
                 disabled={isSaving}
               >
                 확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showEntryModal && (
+        <div className="password-modal-overlay">
+          <div className="password-modal" role="dialog" aria-modal="true">
+            <div className="password-modal__header">비밀번호 확인</div>
+            <p className="password-modal__desc">
+              회원정보를 수정하기 전에 현재 비밀번호를 다시 입력해 주세요.
+            </p>
+            <label className="profile-label" htmlFor="entry-password">
+              현재 비밀번호
+            </label>
+            <div className="password-field">
+              <input
+                id="entry-password"
+                type="password"
+                value={entryPassword}
+                onChange={(e) => {
+                  setEntryPassword(e.target.value);
+                  setEntryError("");
+                }}
+                placeholder="현재 비밀번호"
+                autoFocus
+                disabled={isVerifyingEntry}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleEntryVerify();
+                  }
+                }}
+              />
+            </div>
+            {entryError && (
+              <p className="password-modal__error">{entryError}</p>
+            )}
+            <div className="password-modal__actions">
+              <button
+                type="button"
+                className="outline-btn"
+                onClick={handleEntryCancel}
+                disabled={isVerifyingEntry}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={handleEntryVerify}
+                disabled={isVerifyingEntry}
+              >
+                {isVerifyingEntry ? "확인 중..." : "확인"}
               </button>
             </div>
           </div>

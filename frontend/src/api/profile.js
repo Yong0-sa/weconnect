@@ -38,3 +38,13 @@ export async function updateProfile(payload) {
   });
   return handleResponse(res, "회원 정보를 저장하지 못했습니다.");
 }
+
+export async function verifyCurrentPassword(password) {
+  const res = await fetch(`${API_BASE}/api/profile/verify-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ password }),
+  });
+  return handleResponse(res, "비밀번호를 확인하지 못했습니다.");
+}

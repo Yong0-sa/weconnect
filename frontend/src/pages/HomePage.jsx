@@ -13,7 +13,6 @@ import ChatIcon from "../assets/chat_icon.png";
 import MypageIcon from "../assets/mypage_icon.png";
 import TutorialIcon from "../assets/tutorial_icon.png";
 import AICropSearchPage from "./AICropSearchPage";
-import AIInfoSearchPage from "./AIInfoSearchPage";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -21,7 +20,6 @@ function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -43,7 +41,7 @@ function HomePage() {
     if (type === "crop") {
       setIsCropModalOpen(true);
     } else if (type === "info") {
-      setIsInfoModalOpen(true);
+      navigate("/ai-info-search");
     }
   };
 
@@ -64,7 +62,7 @@ function HomePage() {
   ];
 
   const profileItems = [
-    { label: "마이페이지", onClick: () => handleImageClick("/profile") },
+    { label: "회원정보수정", onClick: () => handleImageClick("/profile") },
     { label: "회원탈퇴", onClick: () => handleImageClick("/withdraw") },
   ];
 
@@ -312,18 +310,18 @@ function HomePage() {
             <span className="ai-hover-item">AI 농사 정보 챗봇</span>
           </div>
 
-        {isAITooltipOpen && (
-          <div className="ai-tooltip" aria-label="AI 기능 선택">
-            <button
-              type="button"
-              className="ai-action-btn"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleAISelect("crop");
-              }}
-            >
-              AI 작물 진단
-            </button>
+          {isAITooltipOpen && (
+            <div className="ai-tooltip" aria-label="AI 기능 선택">
+              <button
+                type="button"
+                className="ai-action-btn"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleAISelect("crop");
+                }}
+              >
+                AI 작물 진단
+              </button>
               <button
                 type="button"
                 className="ai-action-btn"
@@ -343,13 +341,6 @@ function HomePage() {
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
             <AICropSearchPage onClose={() => setIsCropModalOpen(false)} />
-          </div>
-        </div>
-      )}
-      {isInfoModalOpen && (
-        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="crop-modal">
-            <AIInfoSearchPage onClose={() => setIsInfoModalOpen(false)} />
           </div>
         </div>
       )}
