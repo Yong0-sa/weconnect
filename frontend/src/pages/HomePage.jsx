@@ -12,12 +12,14 @@ import CoinIcon from "../assets/coin_icon.png";
 import ChatIcon from "../assets/chat_icon.png";
 import MypageIcon from "../assets/mypage_icon.png";
 import TutorialIcon from "../assets/tutorial_icon.png";
+import AICropSearchPage from "./AICropSearchPage";
 
 function HomePage() {
   const navigate = useNavigate();
   const [isAITooltipOpen, setIsAITooltipOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -37,7 +39,7 @@ function HomePage() {
 
   const handleAISelect = (type) => {
     if (type === "crop") {
-      navigate("/ai-crop-search");
+      setIsCropModalOpen(true);
     } else if (type === "info") {
       navigate("/ai-info-search");
     }
@@ -308,18 +310,18 @@ function HomePage() {
             <span className="ai-hover-item">AI 농사 정보 챗봇</span>
           </div>
 
-          {isAITooltipOpen && (
-            <div className="ai-tooltip" aria-label="AI 기능 선택">
-              <button
-                type="button"
-                className="ai-action-btn"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleAISelect("crop");
-                }}
-              >
-                AI 작물 진단
-              </button>
+        {isAITooltipOpen && (
+          <div className="ai-tooltip" aria-label="AI 기능 선택">
+            <button
+              type="button"
+              className="ai-action-btn"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleAISelect("crop");
+              }}
+            >
+              AI 작물 진단
+            </button>
               <button
                 type="button"
                 className="ai-action-btn"
@@ -334,6 +336,14 @@ function HomePage() {
           )}
         </div>
       </div>
+
+      {isCropModalOpen && (
+        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="crop-modal">
+            <AICropSearchPage onClose={() => setIsCropModalOpen(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
