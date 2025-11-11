@@ -92,4 +92,20 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<?> deleteAccount(HttpSession session) {
+        Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("로그인 후 이용해 주세요.");
+        }
+        try {
+            memberService.deleteMember(memberId);
+            session.invalidate();
+            return ResponseEntity.ok(Map.of("deleted", true));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
 }

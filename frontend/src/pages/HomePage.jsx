@@ -63,7 +63,6 @@ function HomePage() {
 
   const profileItems = [
     { label: "회원정보수정", onClick: () => handleImageClick("/profile") },
-    { label: "회원탈퇴", onClick: () => handleImageClick("/withdraw") },
   ];
 
   useEffect(() => {

@@ -158,6 +158,15 @@ public class MemberService {
         }
     }
 
+    @Transactional
+    public void deleteMember(Long memberId) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("유효하지 않은 회원 번호입니다.");
+        }
+        Member member = getMember(memberId);
+        memberRepository.delete(member);
+    }
+
     private UserRole resolveRole(MemberType memberType) {
         // 요청된 회원 유형에 따라 기본 권한을 매핑한다
         if (memberType == null) {

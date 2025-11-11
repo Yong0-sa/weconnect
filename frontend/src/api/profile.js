@@ -48,3 +48,11 @@ export async function verifyCurrentPassword(password) {
   });
   return handleResponse(res, "비밀번호를 확인하지 못했습니다.");
 }
+
+export async function deleteAccount() {
+  const res = await fetch(`${API_BASE}/api/profile/me`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  return handleResponse(res, "회원 탈퇴를 완료하지 못했습니다.");
+}

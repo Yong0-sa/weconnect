@@ -5,6 +5,7 @@ import {
   fetchMyProfile,
   updateProfile,
   verifyCurrentPassword,
+  deleteAccount,
 } from "../api/profile";
 import "./ProfilePage.css";
 
@@ -93,6 +94,16 @@ function ProfilePage() {
   const [entryPassword, setEntryPassword] = useState("");
   const [entryError, setEntryError] = useState("");
   const [isVerifyingEntry, setIsVerifyingEntry] = useState(false);
+  const [showWithdrawConfirmModal, setShowWithdrawConfirmModal] =
+    useState(false);
+  const [showWithdrawPasswordModal, setShowWithdrawPasswordModal] =
+    useState(false);
+  const [showFarewellModal, setShowFarewellModal] = useState(false);
+  const [withdrawPassword, setWithdrawPassword] = useState("");
+  const [withdrawPasswordError, setWithdrawPasswordError] = useState("");
+  const [isVerifyingWithdraw, setIsVerifyingWithdraw] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [farewellError, setFarewellError] = useState("");
 
   const trimmedNickname = (formData.nickname || "").trim();
   const memberTypeLabel = savedProfile.memberType || "PERSONAL";
@@ -391,6 +402,65 @@ function ProfilePage() {
     navigate("/home");
   };
 
+  const handleWithdrawClick = () => {
+    if (isDeletingAccount) return;
+    setShowWithdrawConfirmModal(true);
+  };
+
+  const handleWithdrawConfirm = () => {
+    setShowWithdrawConfirmModal(false);
+    setShowWithdrawPasswordModal(true);
+    setWithdrawPassword("");
+    setWithdrawPasswordError("");
+  };
+
+  const handleWithdrawConfirmCancel = () => {
+    setShowWithdrawConfirmModal(false);
+  };
+
+  const handleWithdrawPasswordCancel = () => {
+    if (isVerifyingWithdraw) return;
+    setShowWithdrawPasswordModal(false);
+    setWithdrawPassword("");
+    setWithdrawPasswordError("");
+  };
+
+  const handleWithdrawPasswordConfirm = async () => {
+    if (!withdrawPassword.trim()) {
+      setWithdrawPasswordError("현재 비밀번호를 입력해 주세요.");
+      return;
+    }
+    setWithdrawPasswordError("");
+    setIsVerifyingWithdraw(true);
+    try {
+      await verifyCurrentPassword(withdrawPassword.trim());
+      setShowWithdrawPasswordModal(false);
+      setShowFarewellModal(true);
+      setWithdrawPassword("");
+    } catch (error) {
+      setWithdrawPasswordError(
+        error.message || "비밀번호가 일치하지 않습니다."
+      );
+    } finally {
+      setIsVerifyingWithdraw(false);
+    }
+  };
+
+  const handleFarewellAction = async () => {
+    if (isDeletingAccount) return;
+    setFarewellError("");
+    setIsDeletingAccount(true);
+    try {
+      await deleteAccount();
+      setShowFarewellModal(false);
+      navigate("/login", { replace: true });
+    } catch (error) {
+      setFarewellError(error.message || "탈퇴 처리에 실패했습니다.");
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   return (
     <div className="profile-page">
       <div className={`profile-card ${isLocked ? "profile-card--locked" : ""}`}>
@@ -405,7 +475,15 @@ function ProfilePage() {
             <span>
               {memberTypeLabel === "FARMER" ? "농장주 회원" : "일반 회원"}
             </span>
-            <span>최근 저장 {lastSavedAt}</span>
+            <button
+              type="button"
+              className="withdraw-btn"
+              onClick={handleWithdrawClick}
+              disabled={isDeletingAccount}
+              title={`최근 저장 ${lastSavedAt}`}
+            >
+              회원 탈퇴
+            </button>
           </div>
         </header>
 
@@ -657,6 +735,121 @@ function ProfilePage() {
                 disabled={isVerifyingEntry}
               >
                 {isVerifyingEntry ? "확인 중..." : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showWithdrawConfirmModal && (
+        <div className="password-modal-overlay">
+          <div className="password-modal" role="dialog" aria-modal="true">
+            <div className="password-modal__header">정말 탈퇴하시겠어요?</div>
+            <p className="password-modal__desc">
+              탈퇴하면 저장된 모든 데이터가 완전히 삭제돼요.
+            </p>
+            <div className="password-modal__actions">
+              <button
+                type="button"
+                className="outline-btn"
+                onClick={handleWithdrawConfirmCancel}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={handleWithdrawConfirm}
+              >
+                계속 탈퇴하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showWithdrawPasswordModal && (
+        <div className="password-modal-overlay">
+          <div className="password-modal" role="dialog" aria-modal="true">
+            <div className="password-modal__header">
+              비밀번호를 입력해 주세요
+            </div>
+            <p className="password-modal__desc">
+              안전을 위해 현재 비밀번호를 다시 확인할게요.
+            </p>
+            <label className="profile-label" htmlFor="withdraw-password">
+              현재 비밀번호
+            </label>
+            <div className="password-field">
+              <input
+                id="withdraw-password"
+                type="password"
+                value={withdrawPassword}
+                onChange={(e) => {
+                  setWithdrawPassword(e.target.value);
+                  setWithdrawPasswordError("");
+                }}
+                placeholder="현재 비밀번호"
+                disabled={isVerifyingWithdraw}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleWithdrawPasswordConfirm();
+                  }
+                }}
+              />
+            </div>
+            {withdrawPasswordError && (
+              <p className="password-modal__error">{withdrawPasswordError}</p>
+            )}
+            <div className="password-modal__actions">
+              <button
+                type="button"
+                className="outline-btn"
+                onClick={handleWithdrawPasswordCancel}
+                disabled={isVerifyingWithdraw}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={handleWithdrawPasswordConfirm}
+                disabled={isVerifyingWithdraw}
+              >
+                {isVerifyingWithdraw ? "확인 중..." : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showFarewellModal && (
+        <div className="password-modal-overlay">
+          <div className="password-modal" role="dialog" aria-modal="true">
+            <button
+              type="button"
+              className="password-modal__close"
+              aria-label="모달 닫기"
+              onClick={handleFarewellAction}
+              disabled={isDeletingAccount}
+            >
+              ×
+            </button>
+            <div className="password-modal__header">그동안 감사했어요!</div>
+            <p className="password-modal__desc">
+              지금까지의 여정에 함께해 주셔서 고맙습니다. 언제든 다시
+              찾아주세요.
+            </p>
+            {farewellError && (
+              <p className="password-modal__error">{farewellError}</p>
+            )}
+            <div className="password-modal__actions">
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={handleFarewellAction}
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? "탈퇴 처리 중..." : "확인"}
               </button>
             </div>
           </div>
