@@ -183,7 +183,7 @@ function FarmSearchModal({ onClose }) {
             </select>
           </label>
           <label className="search-field">
-            <span>주소 검색</span>
+            <span>검색</span>
             <div className="search-input-group">
               <input
                 type="text"
