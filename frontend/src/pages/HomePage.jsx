@@ -13,6 +13,9 @@ import ChatIcon from "../assets/chat_icon.png";
 import MypageIcon from "../assets/mypage_icon.png";
 import TutorialIcon from "../assets/tutorial_icon.png";
 import AICropSearchPage from "./AICropSearchPage";
+import AIInfoSearchPage from "./AIInfoSearchPage";
+import FarmSearchModal from "./FarmSearchModal";
+import DiaryModal from "./DiaryModal";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -20,6 +23,9 @@ function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isFarmModalOpen, setIsFarmModalOpen] = useState(false);
+  const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -41,7 +47,7 @@ function HomePage() {
     if (type === "crop") {
       setIsCropModalOpen(true);
     } else if (type === "info") {
-      navigate("/ai-info-search");
+      setIsInfoModalOpen(true);
     }
   };
 
@@ -54,8 +60,8 @@ function HomePage() {
   };
 
   const menuItems = [
-    { label: "재배 일기", onClick: () => handleImageClick("/diary") },
-    { label: "농장 찾기", onClick: () => handleImageClick("/farm-search") },
+    { label: "재배 일기", onClick: () => setIsDiaryModalOpen(true) },
+    { label: "농장 찾기", onClick: () => setIsFarmModalOpen(true) },
     { label: "AI 농사 정보 챗봇", onClick: () => handleAISelect("info") },
     { label: "작물 진단", onClick: () => handleAISelect("crop") },
     { label: "커뮤니티", onClick: () => handleImageClick("/community") },
@@ -250,7 +256,15 @@ function HomePage() {
         {/* 재배일기 */}
         <div
           className="clickable-image diary-image"
-          onClick={() => handleImageClick("/diary")}
+          onClick={() => setIsDiaryModalOpen(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsDiaryModalOpen(true);
+            }
+          }}
         >
           <img src={DiaryIcon} alt="재배일기" />
           <div className="image-label">재배일기</div>
@@ -259,7 +273,15 @@ function HomePage() {
         {/* 농장찾기 */}
         <div
           className="clickable-image farm-search-image"
-          onClick={() => handleImageClick("/farm-search")}
+          onClick={() => setIsFarmModalOpen(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsFarmModalOpen(true);
+            }
+          }}
         >
           <img src={FarmSearchIcon} alt="농장찾기" />
           <div className="image-label">농장 찾기</div>
@@ -336,10 +358,31 @@ function HomePage() {
         </div>
       </div>
 
+      {isDiaryModalOpen && (
+        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="crop-modal">
+            <DiaryModal onClose={() => setIsDiaryModalOpen(false)} />
+          </div>
+        </div>
+      )}
+      {isFarmModalOpen && (
+        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="crop-modal">
+            <FarmSearchModal onClose={() => setIsFarmModalOpen(false)} />
+          </div>
+        </div>
+      )}
       {isCropModalOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
             <AICropSearchPage onClose={() => setIsCropModalOpen(false)} />
+          </div>
+        </div>
+      )}
+      {isInfoModalOpen && (
+        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="crop-modal">
+            <AIInfoSearchPage onClose={() => setIsInfoModalOpen(false)} />
           </div>
         </div>
       )}

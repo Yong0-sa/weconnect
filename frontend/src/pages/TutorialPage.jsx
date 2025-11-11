@@ -1,19 +1,23 @@
-import './TutorialPage.css';
-import TutorialImage from '../assets/tutorial page.png';
-import TutorialIcon from '../assets/tutorial_icon.png';
-import { useNavigate } from 'react-router-dom';
+import "./TutorialPage.css";
+import TutorialImage from "../assets/tutorial page.png";
+import TutorialIcon from "../assets/tutorial_icon.png";
+import { useNavigate } from "react-router-dom";
 
 function TutorialPage() {
   const navigate = useNavigate();
 
   const handleClose = () => {
-    navigate('/');
+    navigate("/home");
   };
 
   return (
     <div className="tutorial-simple-page">
       <div className="tutorial-image-wrapper">
-        <img src={TutorialImage} alt="튜토리얼 화면" className="tutorial-full-image" />
+        <img
+          src={TutorialImage}
+          alt="튜토리얼 화면"
+          className="tutorial-full-image"
+        />
         <button
           type="button"
           className="tutorial-icon-overlay"

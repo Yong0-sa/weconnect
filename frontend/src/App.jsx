@@ -17,8 +17,6 @@ function App() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/tutorial" element={<TutorialPage />} />
         <Route path="/store" element={<div>캐릭터 상점 (준비중)</div>} />
-        <Route path="/diary" element={<div>성장 일기 (준비중)</div>} />
-        <Route path="/farm-search" element={<div>농장찾기 (준비중)</div>} />
         <Route path="/community" element={<div>커뮤니티 (준비중)</div>} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/profile" element={<ProfilePage />} />

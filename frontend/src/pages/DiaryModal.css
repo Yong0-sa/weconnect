@@ -1,0 +1,79 @@
+.diary-modal-card {
+  width: min(800px, 90vw);
+  max-height: 70vh;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 24px;
+  padding: clamp(32px, 5vw, 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+  box-shadow: 0 30px 55px rgba(0, 0, 0, 0.18);
+}
+
+.diary-modal-close {
+  position: absolute;
+  top: -26px;
+  right: 24px;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.diary-modal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diary-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: #67bc63;
+}
+
+.diary-modal-header h2 {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 34px);
+  color: #1f2e36;
+}
+
+.diary-modal-header p {
+  margin: 0;
+  color: #4a4a4a;
+  line-height: 1.5;
+}
+
+.diary-modal-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diary-placeholder {
+  width: 100%;
+  min-height: 260px;
+  border: 2px dashed rgba(103, 188, 99, 0.5);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(103, 188, 99, 0.08);
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(32, 61, 47, 0.7);
+  text-align: center;
+  padding: 20px;
+}
