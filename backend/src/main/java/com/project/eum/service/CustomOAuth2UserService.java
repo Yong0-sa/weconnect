@@ -23,7 +23,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
-    private static final String DEFAULT_PHONE_PLACEHOLDER = "010-0000-0000";
+    private static final String DEFAULT_PHONE_PLACEHOLDER = "010-0000-1234";
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
