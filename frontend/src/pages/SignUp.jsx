@@ -15,15 +15,10 @@ function SignUp() {
     name: "",
     phone: "",
     farmName: "",
+    farmAddress: "",
   });
   const [memberType, setMemberType] = useState("personal");
   const [errors, setErrors] = useState({});
-  // 이메일 인증 플로우의 진행 상태
-  const [emailStatus, setEmailStatus] = useState({
-    state: "idle",
-    message: "",
-  });
-  const [notification, setNotification] = useState(null);
 
   // 단일 필드 수준의 유효성 검사를 담당
   const getFieldError = (field, value, nextState = formData) => {
@@ -62,6 +57,11 @@ function SignUp() {
           return "농장 이름을 입력해 주세요.";
         }
         return "";
+      case "farmAddress":
+        if (memberType === "farmer" && !trimmed) {
+          return "농장 주소를 입력해 주세요.";
+        }
+        return "";
       default:
         return "";
     }
@@ -97,11 +97,6 @@ function SignUp() {
         return updated;
       });
 
-      if (name === "email") {
-        setEmailStatus({ state: "idle", message: "" });
-        setNotification(null);
-      }
-
       return nextState;
     });
   };
@@ -110,9 +105,9 @@ function SignUp() {
   const handleTypeChange = (type) => {
     setMemberType(type);
     if (type === "personal") {
-      setFormData((prev) => ({ ...prev, farmName: "" }));
+      setFormData((prev) => ({ ...prev, farmName: "", farmAddress: "" }));
       setErrors((prev) => {
-        const { farmName, ...rest } = prev;
+        const { farmName, farmAddress, ...rest } = prev;
         return rest;
       });
     }
@@ -129,7 +124,7 @@ function SignUp() {
       "phone",
     ];
     if (memberType === "farmer") {
-      fields.push("farmName");
+      fields.push("farmName", "farmAddress");
     }
 
     const newErrors = {};
@@ -140,67 +135,17 @@ function SignUp() {
       }
     });
 
-    if (!newErrors.email && emailStatus.state !== "verified") {
-      newErrors.email = "이메일 인증을 완료해 주세요.";
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  // 인증 메일 발송 버튼 클릭 시 처리
-  const handleVerifyEmail = () => {
-    const message = getFieldError("email", formData.email);
-    if (message) {
-      setErrors((prev) => ({ ...prev, email: message }));
-      setEmailStatus({ state: "idle", message: "" });
-      setNotification(null);
-      return;
-    }
-
-    if (emailStatus.state === "verified") {
-      return;
-    }
-
-    if (formData.email.trim().toLowerCase() === "test@gmail.com") {
-      setEmailStatus({
-        state: "verified",
-        message: "테스트 이메일 인증이 완료되었습니다.",
-      });
-      setNotification({
-        type: "success",
-        message: "테스트 이메일 인증이 완료되었습니다.",
-      });
-      return;
-    }
-
-    setEmailStatus({
-      state: "sent",
-      message:
-        "인증 메일이 발송되었습니다. 메일에 포함된 링크를 눌러 인증을 완료해 주세요.",
-    });
-    setNotification({
-      type: "info",
-      message: "인증 메일이 발송되었습니다. 이메일을 확인해 주세요.",
-    });
-  };
-
-  // 사용자가 메일 인증 완료를 직접 확인했다고 알리는 버튼
-  const handleConfirmEmailVerification = () => {
-    if (emailStatus.state !== "sent") return;
-    setEmailStatus({
-      state: "verified",
-      message: "이메일 인증이 완료되었습니다.",
-    });
-    setNotification({
-      type: "success",
-      message: "이메일 인증이 완료되었습니다.",
-    });
   };
 
   // 가입 폼 제출 핸들러
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
 
     const { email, nickname, password, name, phone, farmName, farmAddress } =
       formData;
@@ -212,9 +157,9 @@ function SignUp() {
         password,
         name,
         phone,
-        memberType: memberType === "FARMER" ? "FARMER" : "PERSONAL",
-        farmName: memberType === "FARMER" ? farmName : null,
-        farmAddress: memberType === "FARMER" ? farmAddress : null,
+        memberType: memberType === "farmer" ? "FARMER" : "PERSONAL",
+        farmName: memberType === "farmer" ? farmName : null,
+        farmAddress: memberType === "farmer" ? farmAddress : null,
       };
       await signUp(payload);
       alert("회원가입 완료");
@@ -237,61 +182,19 @@ function SignUp() {
         </div>
 
         <div className="modal-fields">
-          {notification && (
-            <div
-              className={`signup-toast signup-toast--${notification.type}`}
-              role="status"
-            >
-              <span>{notification.message}</span>
-              <button
-                type="button"
-                aria-label="알림 닫기"
-                onClick={() => setNotification(null)}
-              >
-                ×
-              </button>
-            </div>
-          )}
-
           <label className="signup-label" htmlFor="email">
             이메일
           </label>
-          <div className="email-inline">
-            <input
-              id="email"
-              className="signup-input"
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="이메일을 입력해주세요."
-            />
-            <button
-              type="button"
-              className="verify-btn"
-              onClick={handleVerifyEmail}
-              disabled={emailStatus.state === "verified"}
-            >
-              {emailStatus.state === "verified" ? "인증 완료" : "인증"}
-            </button>
-          </div>
+          <input
+            id="email"
+            className="signup-input"
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="이메일을 입력해주세요."
+          />
           {errors.email && <p className="input-error">{errors.email}</p>}
-          {emailStatus.message && (
-            <p
-              className={`verification-message verification-message--${emailStatus.state}`}
-            >
-              {emailStatus.message}
-            </p>
-          )}
-          {emailStatus.state === "sent" && (
-            <button
-              type="button"
-              className="verify-complete-btn"
-              onClick={handleConfirmEmailVerification}
-            >
-              이메일 인증을 완료했어요
-            </button>
-          )}
 
           <label className="signup-label" htmlFor="nickname">
             닉네임

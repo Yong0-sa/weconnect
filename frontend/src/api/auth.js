@@ -1,15 +1,31 @@
 // api/auth.js
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
-export async function signUp(payload) {
-  const res = await fetch(
-    `${API_BASE}/api/auth/signup`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+async function handleResponse(res, defaultMessage) {
+  const text = await res.text();
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      data = { message: text };
     }
-  );
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  }
+
+  if (!res.ok) {
+    const message =
+      data?.message || defaultMessage || "요청을 처리하지 못했습니다.";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function signUp(payload) {
+  const res = await fetch(`${API_BASE}/api/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res, "회원가입에 실패했습니다.");
 }

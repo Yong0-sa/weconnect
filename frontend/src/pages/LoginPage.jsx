@@ -1,6 +1,6 @@
 import "./LoginPage.css";
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import BackgroundBlur from "../assets/backgroud_blur.png";
 import LogoImage from "../assets/로고.png";
 
@@ -9,6 +9,7 @@ const API_BASE_URL =
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   // 로그인 폼의 핵심 입력값
   const [credentials, setCredentials] = useState({
     email: "",
@@ -27,6 +28,19 @@ function LoginPage() {
       setRememberId(true);
     }
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get("status");
+    const message = params.get("message");
+    if (status && message) {
+      setToast({
+        type: status === "success" ? "success" : "error",
+        message,
+      });
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, navigate]);
 
   // 이메일/비밀번호 각각에 대한 최소 검증
   const getFieldError = (field, value) => {
@@ -147,6 +161,10 @@ function LoginPage() {
     }
   };
 
+  const handleGoogleLogin = () => {
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
+  };
+
   return (
     <div className="login-page">
       <div className="login-stage">
@@ -176,68 +194,105 @@ function LoginPage() {
           )}
 
           <form className="login-modal" onSubmit={handleSubmit} noValidate>
-          <div className="login-modal__header">계정 로그인</div>
+            <div className="login-modal__header">계정 로그인</div>
 
-          <div className="login-form-grid">
-            <div className="login-input-column">
-              <div className="login-field">
-                <input
-                  id="login-email"
-                  type="email"
-                  name="email"
-                  value={credentials.email}
-                  onChange={handleChange}
-                  placeholder="이메일을 입력하세요"
-                />
-              </div>
-              {errors.email && (
-                <p className="login-field-error">{errors.email}</p>
-              )}
+            <div className="login-form-grid">
+              <div className="login-input-column">
+                <div className="login-field">
+                  <input
+                    id="login-email"
+                    type="email"
+                    name="email"
+                    value={credentials.email}
+                    onChange={handleChange}
+                    placeholder="이메일을 입력하세요"
+                  />
+                </div>
+                {errors.email && (
+                  <p className="login-field-error">{errors.email}</p>
+                )}
 
-              <div className="login-field">
-                <input
-                  id="login-password"
-                  type="password"
-                  name="password"
-                  value={credentials.password}
-                  onChange={handleChange}
-                  placeholder="비밀번호를 입력하세요"
-                />
+                <div className="login-field">
+                  <input
+                    id="login-password"
+                    type="password"
+                    name="password"
+                    value={credentials.password}
+                    onChange={handleChange}
+                    placeholder="비밀번호를 입력하세요"
+                  />
+                </div>
+                {errors.password && (
+                  <p className="login-field-error">{errors.password}</p>
+                )}
               </div>
-              {errors.password && (
-                <p className="login-field-error">{errors.password}</p>
-              )}
+
+              <div className="login-submit-column">
+                <button
+                  type="submit"
+                  className="login-btn"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "로그인 중..." : "로그인"}
+                </button>
+              </div>
             </div>
 
-            <div className="login-submit-column">
+            <div className="login-options">
+              <label className="remember-checkbox">
+                <input
+                  type="checkbox"
+                  checked={rememberId}
+                  onChange={handleRememberToggle}
+                />
+                아이디 저장
+              </label>
+            </div>
+
+            <div className="login-helper-links">
+              <button type="button">아이디 찾기</button>
+              <span> | </span>
+              <button type="button">비밀번호 찾기</button>
+              <span> | </span>
+              <Link to="/signup">회원가입</Link>
+            </div>
+
+            <div className="social-login-section">
+              <div className="social-login-divider">
+                <span />
+                <p>또는 소셜 계정으로 로그인</p>
+                <span />
+              </div>
               <button
-                type="submit"
-                className="login-btn"
-                disabled={isSubmitting}
+                type="button"
+                className="google-login-btn"
+                onClick={handleGoogleLogin}
               >
-                {isSubmitting ? "로그인 중..." : "로그인"}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 48 48"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="#FFC107"
+                    d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C33.6 6.1 28.1 4 22 4 10 4 0 14 0 26s10 22 22 22c11 0 21-8 21-22 0-1.9-.2-3.6-.4-5.5z"
+                  />
+                  <path
+                    fill="#FF3D00"
+                    d="M6 14.1l6.6 4.8C14.3 15.4 18.8 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C33.6 6.1 28.1 4 22 4 14.1 4 7.1 8.2 3 14.1z"
+                  />
+                  <path
+                    fill="#4CAF50"
+                    d="M24 44c5.3 0 10.1-1.8 13.8-4.9l-6.3-5.3C29.5 35.8 26.9 36.7 24 36c-5.4 0-9.8-3.6-11.3-8.5L6 32.4C9.9 39.4 16.4 44 24 44z"
+                  />
+                  <path
+                    fill="#1976D2"
+                    d="M43.6 20.5H42V20H24v8h11.3c-.9 2.7-2.8 5-5.3 6.5l6.3 5.3c3.6-3.3 5.7-8.1 5.7-13.8 0-1.9-.2-3.6-.4-5.5z"
+                  />
+                </svg>
+                구글로 계속하기
               </button>
             </div>
-          </div>
-
-          <div className="login-options">
-            <label className="remember-checkbox">
-              <input
-                type="checkbox"
-                checked={rememberId}
-                onChange={handleRememberToggle}
-              />
-              아이디 저장
-            </label>
-          </div>
-
-          <div className="login-helper-links">
-            <button type="button">아이디 찾기</button>
-            <span> | </span>
-            <button type="button">비밀번호 찾기</button>
-            <span> | </span>
-            <Link to="/signup">회원가입</Link>
-          </div>
           </form>
         </div>
       </div>

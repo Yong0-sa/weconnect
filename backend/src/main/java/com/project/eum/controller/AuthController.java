@@ -72,7 +72,22 @@ public class AuthController {
                 .body(new SignUpResponse(id, "회원가입이 완료되었습니다."));
     }
 
+    @GetMapping("/email/availability")
+    public ResponseEntity<EmailAvailabilityResponse> checkEmailAvailability(@RequestParam("email") String email) {
+        boolean available = memberService.isEmailAvailable(email);
+        return ResponseEntity.ok(new EmailAvailabilityResponse(available));
+    }
+
     // 프론트가 확인하기 쉬운 형태의 간단한 응답 바디
-    record SignUpResponse(Long id, String message) {}    
+    record SignUpResponse(Long id, String message) {}
+
+    record EmailAvailabilityResponse(boolean available) {}
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    record ErrorResponse(String message) {}
 
 }

@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.Locale;
+
 @Service
 @RequiredArgsConstructor
 public class MemberService {
@@ -22,8 +24,10 @@ public class MemberService {
 
     @Transactional
     public Long signUp(SignUpRequest req) {
+        String sanitizedEmail = sanitizeEmail(req.getEmail());
+
         // 기본 중복 검사를 통과하지 못하면 즉시 예외를 던진다
-        if (memberRepository.existsByEmail(req.getEmail())) {
+        if (memberRepository.existsByEmail(sanitizedEmail)) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
         if (memberRepository.existsByNickname(req.getNickname())) {
@@ -32,7 +36,7 @@ public class MemberService {
 
         // 요청 값을 정제한 뒤 영속화할 회원 엔티티를 조립한다
         Member member = Member.builder()
-                .email(req.getEmail().trim().toLowerCase())
+                .email(sanitizedEmail)
                 .nickname(req.getNickname().trim())
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
                 .name(req.getName().trim())
@@ -61,6 +65,10 @@ public class MemberService {
         }
 
         return member;
+    }
+
+    private String sanitizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
     }
 
     @Transactional(readOnly = true)
@@ -165,6 +173,15 @@ public class MemberService {
         }
         Member member = getMember(memberId);
         memberRepository.delete(member);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isEmailAvailable(String email) {
+        String sanitized = sanitizeEmail(email);
+        if (!StringUtils.hasText(sanitized)) {
+            throw new IllegalArgumentException("이메일을 입력해 주세요.");
+        }
+        return !memberRepository.existsByEmail(sanitized);
     }
 
     private UserRole resolveRole(MemberType memberType) {
