@@ -39,7 +39,19 @@ jobs:
           JAR_FILE=$(ls *.jar | head -n 1)
           echo "filename=$JAR_FILE" >> $GITHUB_OUTPUT
 
-      # 5. JAR 파일 전송 (Bastion으로)
+      # 5. backend/.env 생성 (GitHub Secret에서 주입)
+      - name: Create backend .env file
+        working-directory: ./backend
+        env:
+          BACKEND_ENV_FILE: ${{ secrets.BACKEND_ENV_FILE }}
+        run: |
+          if [ -z "$BACKEND_ENV_FILE" ]; then
+            echo "BACKEND_ENV_FILE secret is not set." >&2
+            exit 1
+          fi
+          printf "%s" "$BACKEND_ENV_FILE" > .env
+
+      # 6. JAR 파일 전송 (Bastion으로)
       - name: Copy JAR to Bastion
         uses: appleboy/scp-action@v0.1.4
         with:
@@ -49,7 +61,7 @@ jobs:
           source: "backend/build/libs/${{ steps.jar.outputs.filename }}"
           target: "/tmp/"
 
-      # 6. .env 파일 전송 (Bastion으로)
+      # 7. .env 파일 전송 (Bastion으로)
       - name: Copy .env to Bastion
         uses: appleboy/scp-action@v0.1.4
         with:
@@ -59,7 +71,7 @@ jobs:
           source: "backend/.env"
           target: "/tmp/"
 
-      # 7. App Server로 전송 및 재시작
+      # 8. App Server로 전송 및 재시작
       - name: Deploy to App Server
         uses: appleboy/ssh-action@v1.0.0
         with:
