@@ -29,8 +29,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     @Value("${app.oauth2.frontend-success-uri:http://localhost:5173/oauth/success}")
     private String frontendSuccessUri;
 
-    @Value("${app.oauth2.profile-complete-uri:http://localhost:5173/profile/complete}")
-    private String profileCompleteUri;
+    @Value("${app.oauth2.signup-uri:http://localhost:5173/signup}")
+    private String signupUri;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
@@ -41,6 +41,20 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "이메일 정보를 확인할 수 없습니다.");
             return;
         }
+        Object needsSignupAttr = principal.getAttribute("needsSignup");
+        boolean needsSignup = needsSignupAttr != null && Boolean.parseBoolean(needsSignupAttr.toString());
+        if (needsSignup) {
+            String provider = authToken.getAuthorizedClientRegistrationId();
+            String redirectUrl = UriComponentsBuilder.fromUriString(signupUri)
+                    .queryParam("status", "social_signup")
+                    .queryParam("provider", provider)
+                    .queryParam("email", email)
+                    .build()
+                    .toUriString();
+            response.sendRedirect(redirectUrl);
+            return;
+        }
+
         Member member = memberRepository.findByEmail(email.trim().toLowerCase(Locale.ROOT))
                 .orElseThrow(() -> new IllegalStateException("회원 정보를 찾을 수 없습니다."));
 
@@ -50,18 +64,11 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         String issuedToken = UUID.randomUUID().toString();
 
-        Boolean needsProfileCompletion = principal.getAttribute("needsProfileCompletion");
-
-        String baseRedirect = Boolean.TRUE.equals(needsProfileCompletion)
-                ? profileCompleteUri
-                : frontendSuccessUri;
-
-        String redirectUrl = UriComponentsBuilder.fromUriString(baseRedirect)
+        String redirectUrl = UriComponentsBuilder.fromUriString(frontendSuccessUri)
                 .queryParam("status", "success")
                 .queryParam("token", issuedToken)
                 .queryParam("email", email)
-                .queryParam("needsProfileCompletion", Boolean.TRUE.equals(needsProfileCompletion))
-                .build(true)
+                .build()
                 .toUriString();
 
         response.sendRedirect(redirectUrl);

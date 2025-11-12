@@ -16,8 +16,8 @@ import AICropSearchPage from "./AICropSearchPage";
 import AIInfoSearchPage from "./AIInfoSearchPage";
 import FarmSearchModal from "./FarmSearchModal";
 import DiaryModal from "./DiaryModal";
-import CommunityModal from "./CommunityModal";
 import ProfilePage from "./ProfilePage";
+import { logout as requestLogout } from "../api/auth";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -28,7 +28,6 @@ function HomePage() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isFarmModalOpen, setIsFarmModalOpen] = useState(false);
   const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
-  const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
@@ -63,12 +62,23 @@ function HomePage() {
     setIsMenuOpen((prev) => !prev);
   };
 
+  const handleLogout = async () => {
+    try {
+      await requestLogout();
+    } catch (error) {
+      console.error("logout failed", error);
+    } finally {
+      localStorage.removeItem("authToken");
+      navigate("/login", { replace: true });
+    }
+  };
+
   const menuItems = [
     { label: "재배 일기", onClick: () => setIsDiaryModalOpen(true) },
     { label: "농장 찾기", onClick: () => setIsFarmModalOpen(true) },
     { label: "AI 농사 정보 챗봇", onClick: () => handleAISelect("info") },
     { label: "작물 진단", onClick: () => handleAISelect("crop") },
-    { label: "커뮤니티", onClick: () => setIsCommunityModalOpen(true) },
+    { label: "커뮤니티", onClick: () => handleImageClick("/community") },
   ];
 
   const profileItems = [
@@ -77,6 +87,10 @@ function HomePage() {
       onClick: () => {
         setIsProfileModalOpen(true);
       },
+    },
+    {
+      label: "로그아웃",
+      onClick: handleLogout,
     },
   ];
 
@@ -308,15 +322,7 @@ function HomePage() {
         {/* 커뮤니티 */}
         <div
           className="clickable-image community-image"
-          onClick={() => setIsCommunityModalOpen(true)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              setIsCommunityModalOpen(true);
-            }
-          }}
+          onClick={() => handleImageClick("/community")}
         >
           <img src={CommunityIcon} alt="커뮤니티" />
           <div className="image-label">커뮤니티</div>
@@ -400,13 +406,6 @@ function HomePage() {
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
             <AIInfoSearchPage onClose={() => setIsInfoModalOpen(false)} />
-          </div>
-        </div>
-      )}
-      {isCommunityModalOpen && (
-        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="crop-modal">
-            <CommunityModal onClose={() => setIsCommunityModalOpen(false)} />
           </div>
         </div>
       )}

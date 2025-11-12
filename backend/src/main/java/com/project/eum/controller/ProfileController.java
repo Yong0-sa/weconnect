@@ -16,17 +16,18 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-@RestController
-@RequestMapping({"/api/profile", "/profile"})
-@RequiredArgsConstructor
+@RestController  // REST API 응답(JSON)을 반환
+@RequestMapping({"/api/profile", "/profile"}) 
+@RequiredArgsConstructor  // 생성자 주입 자동 생성
 public class ProfileController {
-
+    // 회원 관련 비즈니스 로직 담당 서비스
     private final MemberService memberService;
 
+    // 로그인된 사용자 정보 조회
     @GetMapping("/me")
     public ResponseEntity<?> getMyProfile(HttpSession session) {
         Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
-        if (memberId == null) {
+        if (memberId == null) { // 로그인하지 않은 경우
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("로그인 후 이용해 주세요.");
         }
@@ -39,6 +40,7 @@ public class ProfileController {
         }
     }
 
+    // 닉네임 중복 검사
     @PostMapping("/check-nickname")
     public ResponseEntity<?> checkNickname(@RequestBody NicknameCheckRequest request, HttpSession session) {
         Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
@@ -58,6 +60,7 @@ public class ProfileController {
         return ResponseEntity.ok(response);
     }
 
+    // 프로필 수정 (닉네임, 전화번호 등)
     @PutMapping("/me")
     public ResponseEntity<?> updateProfile(@RequestBody UpdateProfileRequest request, HttpSession session) {
         Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
@@ -73,6 +76,7 @@ public class ProfileController {
         }
     }
 
+    // 현재 비밀번호가 일치하는지 검증
     @PostMapping("/verify-password")
     public ResponseEntity<?> verifyPassword(@RequestBody VerifyPasswordRequest request, HttpSession session) {
         Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
@@ -93,6 +97,7 @@ public class ProfileController {
         }
     }
 
+    // 회원 탈퇴 (DB 삭제 + 세션 만료)
     @DeleteMapping("/me")
     public ResponseEntity<?> deleteAccount(HttpSession session) {
         Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
@@ -102,7 +107,7 @@ public class ProfileController {
         }
         try {
             memberService.deleteMember(memberId);
-            session.invalidate();
+            session.invalidate();  // 세션 만료 (로그아웃 효과)
             return ResponseEntity.ok(Map.of("deleted", true));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());

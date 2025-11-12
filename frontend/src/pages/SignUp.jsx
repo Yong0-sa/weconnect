@@ -1,11 +1,12 @@
 ﻿import "./SignUp.css";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import BackgroundBlur from "../assets/backgroud_blur.png";
-import { signUp } from "../api/auth";
+import { signUp, login as loginRequest } from "../api/auth";
 
 function SignUp() {
   const navigate = useNavigate();
+  const location = useLocation();
   // 가입 폼에서 관리하는 모든 입력값
   const [formData, setFormData] = useState({
     email: "",
@@ -19,6 +20,31 @@ function SignUp() {
   });
   const [memberType, setMemberType] = useState("personal");
   const [errors, setErrors] = useState({});
+  const [isSocialSignup, setIsSocialSignup] = useState(false);
+  const [socialInfo, setSocialInfo] = useState({
+    provider: "",
+    message: "",
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get("status");
+    const emailParam = params.get("email");
+    if (status === "social_signup" && emailParam) {
+      setIsSocialSignup(true);
+      const provider = params.get("provider") || "SNS";
+      const displayName = params.get("name") || "";
+      setFormData((prev) => ({
+        ...prev,
+        email: emailParam,
+      }));
+      setSocialInfo({
+        provider,
+        message: `${provider.toUpperCase()} 계정으로 이메일이 고정되어 있어요. 아래 정보만 입력하면 가입이 완료됩니다.`,
+      });
+      setMemberType("personal");
+    }
+  }, [location.search]);
 
   // 단일 필드 수준의 유효성 검사를 담당
   const getFieldError = (field, value, nextState = formData) => {
@@ -123,7 +149,7 @@ function SignUp() {
       "name",
       "phone",
     ];
-    if (memberType === "farmer") {
+    if (memberType === "farmer" && !isSocialSignup) {
       fields.push("farmName", "farmAddress");
     }
 
@@ -157,11 +183,28 @@ function SignUp() {
         password,
         name,
         phone,
-        memberType: memberType === "farmer" ? "FARMER" : "PERSONAL",
-        farmName: memberType === "farmer" ? farmName : null,
-        farmAddress: memberType === "farmer" ? farmAddress : null,
+        memberType:
+          !isSocialSignup && memberType === "farmer" ? "FARMER" : "PERSONAL",
+        farmName:
+          !isSocialSignup && memberType === "farmer" ? farmName : null,
+        farmAddress:
+          !isSocialSignup && memberType === "farmer" ? farmAddress : null,
       };
       await signUp(payload);
+      if (isSocialSignup) {
+        try {
+          const loginResponse = await loginRequest({ email, password });
+          if (loginResponse?.token) {
+            localStorage.setItem("authToken", loginResponse.token);
+          }
+          navigate("/home", { replace: true });
+          return;
+        } catch (loginErr) {
+          console.error(loginErr);
+          navigate("/login", { replace: true });
+          return;
+        }
+      }
       alert("회원가입 완료");
       navigate("/login");
     } catch (err) {
@@ -182,6 +225,12 @@ function SignUp() {
         </div>
 
         <div className="modal-fields">
+          {isSocialSignup && (
+            <div className="social-signup-info">
+              <strong>{socialInfo.provider.toUpperCase()}</strong>{" "}
+              {socialInfo.message}
+            </div>
+          )}
           <label className="signup-label" htmlFor="email">
             이메일
           </label>
@@ -193,6 +242,8 @@ function SignUp() {
             value={formData.email}
             onChange={handleChange}
             placeholder="이메일을 입력해주세요."
+            disabled={isSocialSignup}
+            readOnly={isSocialSignup}
           />
           {errors.email && <p className="input-error">{errors.email}</p>}
 
@@ -240,27 +291,37 @@ function SignUp() {
             <p className="input-error">{errors.confirmPassword}</p>
           )}
 
-          <label className="signup-label" htmlFor="memberType">
-            회원 유형
-          </label>
-          <div className="member-type" role="group" aria-label="회원 유형 선택">
-            <button
-              type="button"
-              className={`type-btn ${
-                memberType === "personal" ? "active" : ""
-              }`}
-              onClick={() => handleTypeChange("personal")}
-            >
-              개인
-            </button>
-            <button
-              type="button"
-              className={`type-btn ${memberType === "farmer" ? "active" : ""}`}
-              onClick={() => handleTypeChange("farmer")}
-            >
-              농장주
-            </button>
-          </div>
+          {!isSocialSignup && (
+            <>
+              <label className="signup-label" htmlFor="memberType">
+                회원 유형
+              </label>
+              <div
+                className="member-type"
+                role="group"
+                aria-label="회원 유형 선택"
+              >
+                <button
+                  type="button"
+                  className={`type-btn ${
+                    memberType === "personal" ? "active" : ""
+                  }`}
+                  onClick={() => handleTypeChange("personal")}
+                >
+                  개인
+                </button>
+                <button
+                  type="button"
+                  className={`type-btn ${
+                    memberType === "farmer" ? "active" : ""
+                  }`}
+                  onClick={() => handleTypeChange("farmer")}
+                >
+                  농장주
+                </button>
+              </div>
+            </>
+          )}
 
           {memberType === "personal" && (
             <>

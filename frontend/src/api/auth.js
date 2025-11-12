@@ -29,3 +29,21 @@ export async function signUp(payload) {
   });
   return handleResponse(res, "회원가입에 실패했습니다.");
 }
+
+export async function login(payload) {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res, "로그인에 실패했습니다.");
+}
+
+export async function logout() {
+  const res = await fetch(`${API_BASE}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+  return handleResponse(res, "로그아웃에 실패했습니다.");
+}

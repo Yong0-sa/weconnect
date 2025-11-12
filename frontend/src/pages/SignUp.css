@@ -112,6 +112,16 @@
   margin: 0 auto clamp(10px, 2vw, 20px);
 }
 
+.social-signup-info {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(76, 132, 175, 0.1);
+  border: 1px solid rgba(76, 132, 175, 0.3);
+  color: #1d3b52;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .signup-label {
   font-size: 15px;
   font-weight: 600;

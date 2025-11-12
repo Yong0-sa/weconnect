@@ -82,8 +82,12 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
   const navigate = useNavigate();
   const [savedProfile, setSavedProfile] = useState(INITIAL_PROFILE);
   const [formData, setFormData] = useState({
+    name: INITIAL_PROFILE.name,
     nickname: INITIAL_PROFILE.nickname,
     phone: sanitizePhoneValue(INITIAL_PROFILE.phone),
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null);
@@ -94,7 +98,6 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     message: "",
   });
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-  const [showCancelModal, setShowCancelModal] = useState(false);
   const [showWithdrawConfirmModal, setShowWithdrawConfirmModal] =
     useState(false);
   const [showFarewellModal, setShowFarewellModal] = useState(false);
@@ -155,10 +158,11 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
+      name: savedProfile.name || "",
       nickname: savedProfile.nickname || "",
       phone: sanitizePhoneValue(savedProfile.phone),
     }));
-  }, [savedProfile.nickname, savedProfile.phone]);
+  }, [savedProfile.name, savedProfile.nickname, savedProfile.phone]);
 
   const getFieldError = (field, value, nextState = formData) => {
     const trimmed = value?.toString().trim() ?? "";
@@ -166,11 +170,34 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
       case "nickname":
         if (!trimmed) return "닉네임을 입력해 주세요.";
         return "";
+      case "name":
+        if (!trimmed) return "이름을 입력해 주세요.";
+        return "";
       case "phone":
         if (!trimmed) return "전화번호를 입력해 주세요.";
         if (!/^\d{2,3}-\d{3,4}-\d{4}$/.test(trimmed)) {
           return "전화번호는 010-1234-5678 형식으로 입력해 주세요.";
         }
+        return "";
+      case "currentPassword":
+        if (!nextState.newPassword) return "";
+        if (!trimmed) return "현재 비밀번호를 입력해 주세요.";
+        return "";
+      case "newPassword":
+        if (!trimmed) return "";
+        if (trimmed.length < 8) return "비밀번호는 8자 이상이어야 합니다.";
+        if (
+          nextState.currentPassword &&
+          trimmed === nextState.currentPassword.trim()
+        ) {
+          return "현재 비밀번호와 다른 비밀번호를 입력해 주세요.";
+        }
+        return "";
+      case "confirmPassword":
+        if (!nextState.newPassword) return "";
+        if (!trimmed) return "비밀번호를 다시 입력해 주세요.";
+        if (trimmed !== nextState.newPassword)
+          return "비밀번호가 일치하지 않습니다.";
         return "";
       default:
         return "";
@@ -178,7 +205,10 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
   };
 
   const validateForm = () => {
-    const fields = ["nickname", "phone"];
+    const fields = ["name", "nickname", "phone"];
+    if (formData.newPassword) {
+      fields.push("currentPassword", "newPassword", "confirmPassword");
+    }
 
     const newErrors = {};
     fields.forEach((field) => {
@@ -206,9 +236,19 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
       }
     }
 
+    const trimmedName = (formData.name || "").trim();
+    if (trimmedName && trimmedName !== (savedProfile.name || "").trim()) {
+      payload.name = trimmedName;
+    }
+
     const trimmedPhone = (formData.phone || "").trim();
     if (trimmedPhone && trimmedPhone !== (savedProfile.phone || "").trim()) {
       payload.phone = trimmedPhone;
+    }
+
+    if (formData.newPassword) {
+      payload.newPassword = formData.newPassword.trim();
+      payload.currentPassword = formData.currentPassword?.trim();
     }
 
     return payload;
@@ -225,6 +265,55 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
           updated[name] = message;
         } else {
           delete updated[name];
+        }
+
+        if (name === "newPassword") {
+          const currentMsg = getFieldError(
+            "currentPassword",
+            nextState.currentPassword,
+            nextState
+          );
+          if (currentMsg) {
+            updated.currentPassword = currentMsg;
+          } else {
+            delete updated.currentPassword;
+          }
+          const confirmMsg = getFieldError(
+            "confirmPassword",
+            nextState.confirmPassword,
+            nextState
+          );
+          if (confirmMsg) {
+            updated.confirmPassword = confirmMsg;
+          } else {
+            delete updated.confirmPassword;
+          }
+        }
+
+        if (name === "currentPassword" && nextState.newPassword) {
+          const currentMsg = getFieldError(
+            "currentPassword",
+            nextState.currentPassword,
+            nextState
+          );
+          if (currentMsg) {
+            updated.currentPassword = currentMsg;
+          } else {
+            delete updated.currentPassword;
+          }
+        }
+
+        if (name === "confirmPassword" && nextState.newPassword) {
+          const confirmMsg = getFieldError(
+            "confirmPassword",
+            nextState.confirmPassword,
+            nextState
+          );
+          if (confirmMsg) {
+            updated.confirmPassword = confirmMsg;
+          } else {
+            delete updated.confirmPassword;
+          }
         }
         return updated;
       });
@@ -293,8 +382,12 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
       const hydrated = normalizeProfile(updated);
       setSavedProfile((prev) => ({ ...prev, ...hydrated }));
       setFormData({
+        name: hydrated.name,
         nickname: hydrated.nickname,
         phone: sanitizePhoneValue(hydrated.phone),
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
       });
       setNicknameCheck({ state: "idle", message: "" });
       setErrors({});
@@ -332,22 +425,6 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
 
     await submitProfileUpdate(payload);
   };
-
-  const handleCancelClick = () => {
-    if (isSaving) return;
-    setShowCancelModal(true);
-  };
-
-  const handleCancelConfirm = () => {
-    setShowCancelModal(false);
-    handleCloseModal();
-  };
-
-  const handleCancelModalClose = () => {
-    if (isSaving) return;
-    setShowCancelModal(false);
-  };
-
 
   const handleWithdrawClick = () => {
     if (isDeletingAccount) return;
@@ -390,22 +467,23 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
   }
 
   return (
-    <div
-      className="profile-modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      onClick={handleOverlayClick}
-    >
-      <div className="profile-card">
-        <button
-          type="button"
-          className="profile-modal__close"
-          aria-label="회원정보 수정 닫기"
-          onClick={handleCloseModal}
-        >
-          ×
-        </button>
-        <header className="profile-card__header">
+    <>
+      <div
+        className="profile-modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        onClick={handleOverlayClick}
+      >
+        <div className="profile-card">
+          <button
+            type="button"
+            className="profile-modal__close"
+            aria-label="회원정보 수정 닫기"
+            onClick={handleCloseModal}
+          >
+            ×
+          </button>
+          <header className="profile-card__header">
           <div>
             <p className="profile-card__eyebrow">회원정보 수정</p>
             <h1 className="profile-card__title">
@@ -428,158 +506,187 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
           </div>
         </header>
         <div className="profile-card__scroll">
-          <form
-            id="profile-form"
-            className="profile-form-table"
-            onSubmit={handleSubmit}
-            noValidate
-          >
-          {status && (
-            <div className={`profile-toast profile-toast--${status.type}`}>
-              <span>{status.message}</span>
+          <form id="profile-form" className="profile-form-table" onSubmit={handleSubmit} noValidate>
+            {status && (
+              <div className={`profile-toast profile-toast--${status.type}`}>
+                <span>{status.message}</span>
+                <button
+                  type="button"
+                  aria-label="알림 닫기"
+                  onClick={() => setStatus(null)}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {isLoadingProfile && (
+              <p className="profile-loading" role="status">
+                회원 정보를 불러오는 중입니다...
+              </p>
+            )}
+
+            <div className="profile-info-table" aria-live="polite">
+              <div className="profile-row">
+                <div className="profile-row__label">아이디(이메일)</div>
+                <div className="profile-row__content">
+                  <div className="profile-row__value">{savedProfile.email}</div>
+                </div>
+              </div>
+
+              <div className="profile-row">
+                <div className="profile-row__label">이름</div>
+                <div className="profile-row__content">
+                  <div className="profile-row__value profile-row__value--input">
+                    <input
+                      id="name"
+                      className="profile-input"
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      placeholder="이름을 입력해 주세요."
+                      disabled={isFormDisabled}
+                    />
+                  </div>
+                  {errors.name && <p className="input-error">{errors.name}</p>}
+                </div>
+              </div>
+
+              <div className="profile-row">
+                <div className="profile-row__label">닉네임</div>
+                <div className="profile-row__content">
+                  <div className="profile-row__value profile-row__value--input">
+                    <input
+                      id="nickname"
+                      className="profile-input"
+                      type="text"
+                      name="nickname"
+                      value={formData.nickname}
+                      onChange={handleChange}
+                      placeholder="닉네임을 입력해 주세요."
+                      disabled={isFormDisabled}
+                    />
+                    <button
+                      type="button"
+                      className="profile-check-btn"
+                      onClick={handleCheckNickname}
+                      disabled={
+                        nicknameCheck.state === "checking" ||
+                        isLoadingProfile ||
+                        isSaving
+                      }
+                    >
+                      {nicknameCheck.state === "checking"
+                        ? "확인 중..."
+                        : "중복 확인"}
+                    </button>
+                  </div>
+                  {errors.nickname && (
+                    <p className="input-error">{errors.nickname}</p>
+                  )}
+                  {nicknameCheck.message && (
+                    <p
+                      className={`nickname-status nickname-status--${nicknameCheck.state}`}
+                    >
+                      {nicknameCheck.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="profile-row">
+                <div className="profile-row__label">휴대폰 번호</div>
+                <div className="profile-row__content">
+                  <div className="profile-row__value profile-row__value--input">
+                    <input
+                      id="phone"
+                      className="profile-input"
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="010-1234-5678"
+                      disabled={isFormDisabled}
+                    />
+                  </div>
+                  {errors.phone && <p className="input-error">{errors.phone}</p>}
+                </div>
+              </div>
+
+              <div className="profile-row profile-row--stacked">
+                <div className="profile-row__label">비밀번호 변경</div>
+                <div className="profile-row__content">
+                  <div className="profile-row__content--grid">
+                    <div className="password-field-group">
+                      <label htmlFor="currentPassword">현재 비밀번호</label>
+                      <input
+                        id="currentPassword"
+                        className="profile-input"
+                        type="password"
+                        name="currentPassword"
+                        value={formData.currentPassword}
+                        onChange={handleChange}
+                        placeholder="현재 비밀번호"
+                        disabled={isFormDisabled}
+                      />
+                      {errors.currentPassword && (
+                        <p className="input-error">{errors.currentPassword}</p>
+                      )}
+                    </div>
+                    <div className="password-field-group">
+                      <label htmlFor="newPassword">새 비밀번호</label>
+                      <input
+                        id="newPassword"
+                        className="profile-input"
+                        type="password"
+                        name="newPassword"
+                        value={formData.newPassword}
+                        onChange={handleChange}
+                        placeholder="8자 이상 입력해 주세요."
+                        disabled={isFormDisabled}
+                      />
+                      {errors.newPassword && (
+                        <p className="input-error">{errors.newPassword}</p>
+                      )}
+                    </div>
+                    <div className="password-field-group">
+                      <label htmlFor="confirmPassword">비밀번호 다시 입력</label>
+                      <input
+                        id="confirmPassword"
+                        className="profile-input"
+                        type="password"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        placeholder="비밀번호를 확인해 주세요."
+                        disabled={isFormDisabled}
+                      />
+                      {errors.confirmPassword && (
+                        <p className="input-error">{errors.confirmPassword}</p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="profile-row__hint">
+                    새 비밀번호를 입력하지 않으면 비밀번호는 변경되지 않습니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-actions">
               <button
-                type="button"
-                aria-label="알림 닫기"
-                onClick={() => setStatus(null)}
+                type="submit"
+                className="primary-btn"
+                disabled={isFormDisabled}
               >
-                ×
+                {isSaving ? "저장 중..." : "변경 사항 저장"}
               </button>
             </div>
-          )}
-          {isLoadingProfile && (
-            <p className="profile-loading" role="status">
-              회원 정보를 불러오는 중입니다...
-            </p>
-          )}
-
-          <div className="profile-info-table" aria-live="polite">
-            <div className="profile-row">
-              <div className="profile-row__label">아이디(이메일)</div>
-              <div className="profile-row__content">
-                <div className="profile-row__value">{savedProfile.email}</div>
-              </div>
-            </div>
-
-            <div className="profile-row">
-              <div className="profile-row__label">이름</div>
-              <div className="profile-row__content">
-                <div className="profile-row__value">{savedProfile.name}</div>
-              </div>
-            </div>
-
-            <div className="profile-row">
-              <div className="profile-row__label">휴대폰 번호</div>
-              <div className="profile-row__content">
-                <div className="profile-row__value profile-row__value--input">
-                  <input
-                    id="phone"
-                    className="profile-input"
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="010-1234-5678"
-                    disabled={isFormDisabled}
-                  />
-                </div>
-                {errors.phone && (
-                  <p className="input-error">{errors.phone}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="profile-row profile-row--nickname">
-              <div className="profile-row__label">닉네임</div>
-              <div className="profile-row__content">
-                <div className="profile-row__value profile-row__value--input">
-                  <input
-                    id="nickname"
-                    className="profile-input"
-                    type="text"
-                    name="nickname"
-                    value={formData.nickname}
-                    onChange={handleChange}
-                    placeholder="닉네임을 입력해 주세요."
-                    disabled={isFormDisabled}
-                  />
-                  <button
-                    type="button"
-                    className="profile-check-btn"
-                    onClick={handleCheckNickname}
-                    disabled={
-                      nicknameCheck.state === "checking" ||
-                      isLoadingProfile ||
-                      isSaving
-                    }
-                  >
-                    {nicknameCheck.state === "checking"
-                      ? "확인 중..."
-                      : "중복 확인"}
-                  </button>
-                </div>
-                {errors.nickname && (
-                  <p className="input-error">{errors.nickname}</p>
-                )}
-                {nicknameCheck.message && (
-                  <p
-                    className={`nickname-status nickname-status--${nicknameCheck.state}`}
-                  >
-                    {nicknameCheck.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          <div className="form-actions">
-            <button
-              type="button"
-              className="outline-btn"
-              onClick={handleCancelClick}
-              disabled={isSaving}
-            >
-              변경 취소
-            </button>
-            <button
-              type="submit"
-              className="primary-btn"
-              disabled={isFormDisabled}
-            >
-              {isSaving ? "저장 중..." : "변경 사항 저장"}
-            </button>
-          </div>
           </form>
         </div>
       </div>
-      {showCancelModal && (
-        <div className="password-modal-overlay">
-          <div className="password-modal" role="dialog" aria-modal="true">
-            <div className="password-modal__header">변경을 취소할까요?</div>
-            <p className="password-modal__desc">
-              취소를 누르면 메인 페이지로 이동해요. 계속 진행할까요?
-            </p>
-            <div className="password-modal__actions">
-              <button
-                type="button"
-                className="outline-btn"
-                onClick={handleCancelModalClose}
-                disabled={isSaving}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={handleCancelConfirm}
-                disabled={isSaving}
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+    </div>
+
       {showWithdrawConfirmModal && (
         <div className="password-modal-overlay">
           <div className="password-modal" role="dialog" aria-modal="true">
@@ -638,7 +745,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

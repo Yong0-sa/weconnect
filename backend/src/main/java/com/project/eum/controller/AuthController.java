@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -76,6 +77,14 @@ public class AuthController {
     public ResponseEntity<EmailAvailabilityResponse> checkEmailAvailability(@RequestParam("email") String email) {
         boolean available = memberService.isEmailAvailable(email);
         return ResponseEntity.ok(new EmailAvailabilityResponse(available));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, Object>> logout(HttpSession session) {
+        if (session != null) {
+            session.invalidate();
+        }
+        return ResponseEntity.ok(Map.of("message", "로그아웃 되었습니다."));
     }
 
     // 프론트가 확인하기 쉬운 형태의 간단한 응답 바디
