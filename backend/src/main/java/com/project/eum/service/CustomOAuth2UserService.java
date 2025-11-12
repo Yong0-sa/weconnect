@@ -65,7 +65,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 .nickname(nickname)
                 .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
                 .name(name)
-                .phone("010-0000-0000")
+                .phone("010-1234-0000")
                 .role(UserRole.USER)
                 .build();
 
