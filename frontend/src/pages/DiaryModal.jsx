@@ -39,6 +39,8 @@ function DiaryModal({ onClose }) {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState(null);
   const [editingEntryId, setEditingEntryId] = useState(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [entries, setEntries] = useState(() =>
     [...initialEntries].sort((a, b) => b.timestamp - a.timestamp)
   );
@@ -55,6 +57,12 @@ function DiaryModal({ onClose }) {
     ? entries.find((entry) => entry.id === editingEntryId)
     : null;
   const isPanelOpen = isWriting || !!selectedEntry || !!editingEntry;
+  const filteredEntries = entries.filter((entry) => {
+    if (!searchQuery.trim()) return true;
+    return entry.summary
+      .toLowerCase()
+      .includes(searchQuery.trim().toLowerCase());
+  });
 
   return (
     <div className="diary-modal-card">
@@ -70,10 +78,26 @@ function DiaryModal({ onClose }) {
       )}
       <header className="diary-modal-header">
         <div>
-          <p className="diary-eyebrow">GROWTH LOG</p>
           <h2>재배 일기</h2>
         </div>
         <div className="diary-controls">
+          <div className="diary-search-group">
+            <input
+              type="text"
+              className="diary-search"
+              placeholder="본문으로 일기 검색"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+            />
+            <button
+              type="button"
+              className="diary-search-btn"
+              aria-label="일기 검색"
+              onClick={() => setSearchQuery(searchInput)}
+            >
+              🔍
+            </button>
+          </div>
           <button
             type="button"
             className={`diary-control-btn${isEditing ? " active" : ""}`}
@@ -98,7 +122,7 @@ function DiaryModal({ onClose }) {
       <section className={`diary-layout${isPanelOpen ? " panel-open" : ""}`}>
         <div className="diary-list-panel">
           <div className="diary-list">
-            {entries.map((entry) => (
+            {filteredEntries.map((entry) => (
               <article
                 key={entry.id}
                 className={`diary-list-item${
@@ -162,6 +186,18 @@ function DiaryModal({ onClose }) {
                 )}
               </article>
             ))}
+            {searchQuery && (
+              <button
+                type="button"
+                className="diary-search-reset"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchInput("");
+                }}
+              >
+                리스트로 돌아가기
+              </button>
+            )}
           </div>
         </div>
         <div className={`diary-panel${isPanelOpen ? " open" : ""}`}>
@@ -285,7 +321,9 @@ function DiaryModal({ onClose }) {
                     </div>
                   )}
                   <p className="diary-detail-date">{selectedEntry.date}</p>
-                  <p className="diary-detail-summary">{selectedEntry.summary}</p>
+                  <p className="diary-detail-summary">
+                    {selectedEntry.summary}
+                  </p>
                 </div>
               </div>
             )
