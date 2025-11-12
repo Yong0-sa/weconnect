@@ -1,42 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./FarmSearchModal.css";
-
-const regionOptions = ["서울특별시", "광주광역시"];
-
-const mockFarms = [
-  {
-    id: 1,
-    name: "도심 속 힐링 농장",
-    address: "서울특별시 종로구 삼청로 12",
-    phone: "02-123-4567",
-    lat: 37.58222,
-    lng: 126.98316,
-  },
-  {
-    id: 2,
-    name: "용산 체험 농장",
-    address: "서울특별시 용산구 한강대로 325",
-    phone: "02-987-6543",
-    lat: 37.52989,
-    lng: 126.96452,
-  },
-  {
-    id: 3,
-    name: "빛고을 주말농장",
-    address: "광주광역시 북구 첨단과기로 42",
-    phone: "062-555-7777",
-    lat: 35.22982,
-    lng: 126.84244,
-  },
-  {
-    id: 4,
-    name: "광산 힐링 파크",
-    address: "광주광역시 광산구 수완로 90",
-    phone: "062-111-3333",
-    lat: 35.19941,
-    lng: 126.84562,
-  },
-];
+import { farms as mockFarms, regionOptions } from "../data/farms";
 
 function FarmSearchModal({ onClose }) {
   const [selectedSido, setSelectedSido] = useState("");

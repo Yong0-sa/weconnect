@@ -17,7 +17,6 @@ function App() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/tutorial" element={<TutorialPage />} />
         <Route path="/store" element={<div>캐릭터 상점 (준비중)</div>} />
-        <Route path="/community" element={<div>커뮤니티 (준비중)</div>} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/oauth/success" element={<OAuthCallbackPage />} />
       </Routes>
