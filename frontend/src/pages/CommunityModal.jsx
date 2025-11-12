@@ -81,7 +81,6 @@ function CommunityModal({ onClose }) {
   const [isFarmDropdownOpen, setIsFarmDropdownOpen] = useState(false);
   const [farmSearch, setFarmSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
-  const [selectedPost, setSelectedPost] = useState(null);
   const dropdownRef = useRef(null);
 
   const filteredBoardPosts = useMemo(() => {
@@ -122,10 +121,6 @@ function CommunityModal({ onClose }) {
   const totalCount =
     (showNotice ? filteredNoticePosts.length : 0) +
     (showBoard ? filteredBoardPosts.length : 0);
-
-  const handlePostClick = (post) => {
-    setSelectedPost(post);
-  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -259,92 +254,96 @@ function CommunityModal({ onClose }) {
           </div>
         </aside>
         <div className="community-feed">
-          <div className="community-feed-card">
-            {!selectedPost ? (
-              <div className="community-feed-content">
-                <h3 className="section-title">전체 글 보기</h3>
-                <div className="section-header">
-                  <span>{totalCount}건</span>
-                </div>
+          <div className="community-feed-card merged">
+            <h3 className="section-title">전체 글 보기</h3>
+            <div className="section-header">
+              <span>{totalCount}건</span>
+            </div>
 
-                {showNotice &&
-                  filteredNoticePosts.map((post) => (
-                    <article
-                      key={post.id}
-                      className="community-post notice"
-                      onClick={() => handlePostClick(post)}
-                    >
-                      <div className="post-title-line">
-                        <span className="category-chip">공지</span>
-                        <h3>{post.title}</h3>
-                      </div>
-                    </article>
-                  ))}
-
-                {showNotice && filteredNoticePosts.length === 0 && (
-                  <div className="community-empty small">
-                    <p>공지사항이 없습니다.</p>
+            {showNotice &&
+              filteredNoticePosts.map((post) => (
+                <article key={post.id} className="community-post notice">
+                  <header>
+                    <div>
+                      <p className="author">{post.author}</p>
+                      <p className="role">{post.role}</p>
+                    </div>
+                  </header>
+                  <div className="post-title-line">
+                    <span className="category-chip">공지</span>
+                    <h3>{post.title}</h3>
                   </div>
-                )}
-
-                {showBoard &&
-                  filteredBoardPosts.map((post) => (
-                    <article
-                      key={post.id}
-                      className="community-post"
-                      onClick={() => handlePostClick(post)}
-                    >
-                      <div className="post-title-line">
-                        <h3>{post.title}</h3>
-                      </div>
-                    </article>
-                  ))}
-
-                {showBoard && filteredBoardPosts.length === 0 && (
-                  <div className="community-empty small">
-                    <p>조건에 맞는 글이 없습니다.</p>
-                    <button
-                      type="button"
-                      className="outline-btn"
-                      onClick={() => setSearch("")}
-                    >
-                      검색 초기화
-                    </button>
-                  </div>
-                )}
-
-                {showBoard && (
-                  <button type="button" className="community-write-fab">
-                    글쓰기
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="community-detail-panel">
-                <div className="detail-header">
-                  <div>
-                    <p className="detail-meta">
-                      {selectedPost.createdAt} · {selectedPost.author}
-                    </p>
-                    <h4>{selectedPost.title}</h4>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPost(null)}
-                    aria-label="상세 닫기"
-                  >
-                    목록
-                  </button>
-                </div>
-                <p className="detail-body">{selectedPost.excerpt}</p>
-                {selectedPost.tags?.length > 0 && (
-                  <div className="detail-tags">
-                    {selectedPost.tags.map((tag) => (
+                  <p className="excerpt">{post.excerpt}</p>
+                  <div className="tags">
+                    {post.tags.map((tag) => (
                       <span key={tag}>#{tag}</span>
                     ))}
                   </div>
-                )}
+                  <footer>
+                    <div className="stats">
+                      <span>{post.createdAt}</span>
+                    </div>
+                    <button type="button" className="outline-btn">
+                      상세 보기
+                    </button>
+                  </footer>
+                </article>
+              ))}
+
+            {showNotice && filteredNoticePosts.length === 0 && (
+              <div className="community-empty small">
+                <p>공지사항이 없습니다.</p>
               </div>
+            )}
+
+            {showBoard &&
+              filteredBoardPosts.map((post) => (
+                <article key={post.id} className="community-post">
+                  <header>
+                    <div>
+                      <p className="author">{post.author}</p>
+                      <p className="role">{post.role}</p>
+                    </div>
+                  </header>
+                  <div className="post-title-line">
+                    <h3>{post.title}</h3>
+                  </div>
+                  <p className="excerpt">{post.excerpt}</p>
+                  <div className="tags">
+                    {post.tags.map((tag) => (
+                      <span key={tag}>#{tag}</span>
+                    ))}
+                  </div>
+                  <footer>
+                    <div className="stats">
+                      <span>❤️ {post.likes}</span>
+                      <span>💬 {post.replies}</span>
+                      <span>{post.createdAt}</span>
+                    </div>
+                    <button type="button" className="outline-btn">
+                      상세 보기
+                    </button>
+                  </footer>
+                </article>
+              ))}
+
+            {showBoard && filteredBoardPosts.length === 0 && (
+              <div className="community-empty small">
+                <p>조건에 맞는 글이 없습니다.</p>
+                <button
+                  type="button"
+                  className="outline-btn"
+                  onClick={() => setSearch("")}
+                >
+                  검색 초기화
+                </button>
+              </div>
+            )}
+
+            {showBoard && (
+              <button type="button" className="community-write-fab">
+                글쓰기
+              </button>
             )}
           </div>
         </div>
