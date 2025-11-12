@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
+import ProfileCompletePage from "./pages/ProfileCompletePage";
 import "./App.css";
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/oauth/success" element={<OAuthCallbackPage />} />
+        <Route path="/profile/complete" element={<ProfileCompletePage />} />
       </Routes>
     </Router>
   );

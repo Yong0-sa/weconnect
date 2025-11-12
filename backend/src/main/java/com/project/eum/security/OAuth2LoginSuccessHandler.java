@@ -29,6 +29,9 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     @Value("${app.oauth2.frontend-success-uri:http://localhost:5173/oauth/success}")
     private String frontendSuccessUri;
 
+    @Value("${app.oauth2.profile-complete-uri:http://localhost:5173/profile/complete}")
+    private String profileCompleteUri;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
@@ -47,10 +50,17 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         String issuedToken = UUID.randomUUID().toString();
 
-        String redirectUrl = UriComponentsBuilder.fromUriString(frontendSuccessUri)
+        Boolean needsProfileCompletion = principal.getAttribute("needsProfileCompletion");
+
+        String baseRedirect = Boolean.TRUE.equals(needsProfileCompletion)
+                ? profileCompleteUri
+                : frontendSuccessUri;
+
+        String redirectUrl = UriComponentsBuilder.fromUriString(baseRedirect)
                 .queryParam("status", "success")
                 .queryParam("token", issuedToken)
                 .queryParam("email", email)
+                .queryParam("needsProfileCompletion", Boolean.TRUE.equals(needsProfileCompletion))
                 .build(true)
                 .toUriString();
 

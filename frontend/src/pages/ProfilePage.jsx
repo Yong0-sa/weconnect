@@ -4,10 +4,15 @@ import {
   checkNicknameAvailability,
   fetchMyProfile,
   updateProfile,
-  verifyCurrentPassword,
   deleteAccount,
 } from "../api/profile";
 import "./ProfilePage.css";
+
+const PHONE_PLACEHOLDERS = ["010-0000-0000", "010-1234-1234"];
+const sanitizePhoneValue = (value) => {
+  if (!value) return "";
+  return PHONE_PLACEHOLDERS.includes(value) ? "" : value;
+};
 
 const INITIAL_PROFILE = {
   email: "grower@example.com",
@@ -75,9 +80,7 @@ function ProfilePage() {
   const [savedProfile, setSavedProfile] = useState(INITIAL_PROFILE);
   const [formData, setFormData] = useState({
     nickname: INITIAL_PROFILE.nickname,
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+    phone: sanitizePhoneValue(INITIAL_PROFILE.phone),
   });
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null);
@@ -89,26 +92,15 @@ function ProfilePage() {
   });
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [isEntryVerified, setIsEntryVerified] = useState(false);
-  const [showEntryModal, setShowEntryModal] = useState(true);
-  const [entryPassword, setEntryPassword] = useState("");
-  const [entryError, setEntryError] = useState("");
-  const [isVerifyingEntry, setIsVerifyingEntry] = useState(false);
   const [showWithdrawConfirmModal, setShowWithdrawConfirmModal] =
     useState(false);
-  const [showWithdrawPasswordModal, setShowWithdrawPasswordModal] =
-    useState(false);
   const [showFarewellModal, setShowFarewellModal] = useState(false);
-  const [withdrawPassword, setWithdrawPassword] = useState("");
-  const [withdrawPasswordError, setWithdrawPasswordError] = useState("");
-  const [isVerifyingWithdraw, setIsVerifyingWithdraw] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [farewellError, setFarewellError] = useState("");
 
   const trimmedNickname = (formData.nickname || "").trim();
   const memberTypeLabel = savedProfile.memberType || "PERSONAL";
-  const isLocked = !isEntryVerified;
-  const isFormDisabled = isSaving || isLoadingProfile || isLocked;
+  const isFormDisabled = isSaving || isLoadingProfile;
 
   useEffect(() => {
     let active = true;
@@ -146,8 +138,9 @@ function ProfilePage() {
     setFormData((prev) => ({
       ...prev,
       nickname: savedProfile.nickname || "",
+      phone: sanitizePhoneValue(savedProfile.phone),
     }));
-  }, [savedProfile.nickname]);
+  }, [savedProfile.nickname, savedProfile.phone]);
 
   const getFieldError = (field, value, nextState = formData) => {
     const trimmed = value?.toString().trim() ?? "";
@@ -155,25 +148,11 @@ function ProfilePage() {
       case "nickname":
         if (!trimmed) return "닉네임을 입력해 주세요.";
         return "";
-      case "currentPassword":
-        if (!nextState.newPassword) return "";
-        if (!trimmed) return "현재 비밀번호를 입력해 주세요.";
-        return "";
-      case "newPassword":
-        if (!trimmed) return "";
-        if (trimmed.length < 8) return "비밀번호는 8자 이상이어야 합니다.";
-        if (
-          nextState.currentPassword &&
-          trimmed === nextState.currentPassword.trim()
-        ) {
-          return "현재 비밀번호와 다른 비밀번호를 입력해 주세요.";
+      case "phone":
+        if (!trimmed) return "전화번호를 입력해 주세요.";
+        if (!/^\d{2,3}-\d{3,4}-\d{4}$/.test(trimmed)) {
+          return "전화번호는 010-1234-5678 형식으로 입력해 주세요.";
         }
-        return "";
-      case "confirmPassword":
-        if (!nextState.newPassword) return "";
-        if (!trimmed) return "비밀번호를 다시 입력해 주세요.";
-        if (trimmed !== nextState.newPassword)
-          return "비밀번호가 일치하지 않습니다.";
         return "";
       default:
         return "";
@@ -181,10 +160,7 @@ function ProfilePage() {
   };
 
   const validateForm = () => {
-    const fields = ["nickname"];
-    if (formData.newPassword) {
-      fields.push("currentPassword", "newPassword", "confirmPassword");
-    }
+    const fields = ["nickname", "phone"];
 
     const newErrors = {};
     fields.forEach((field) => {
@@ -212,9 +188,9 @@ function ProfilePage() {
       }
     }
 
-    if (formData.newPassword) {
-      payload.newPassword = formData.newPassword.trim();
-      payload.currentPassword = formData.currentPassword?.trim();
+    const trimmedPhone = (formData.phone || "").trim();
+    if (trimmedPhone && trimmedPhone !== (savedProfile.phone || "").trim()) {
+      payload.phone = trimmedPhone;
     }
 
     return payload;
@@ -232,28 +208,6 @@ function ProfilePage() {
         } else {
           delete updated[name];
         }
-        if (name === "newPassword") {
-          const currentMsg = getFieldError(
-            "currentPassword",
-            nextState.currentPassword,
-            nextState
-          );
-          if (currentMsg) {
-            updated.currentPassword = currentMsg;
-          } else {
-            delete updated.currentPassword;
-          }
-          const confirmMsg = getFieldError(
-            "confirmPassword",
-            nextState.confirmPassword,
-            nextState
-          );
-          if (confirmMsg) {
-            updated.confirmPassword = confirmMsg;
-          } else {
-            delete updated.confirmPassword;
-          }
-        }
         return updated;
       });
       return nextState;
@@ -265,7 +219,7 @@ function ProfilePage() {
   };
 
   const handleCheckNickname = async () => {
-    if (isLoadingProfile || isLocked) return;
+    if (isLoadingProfile || isSaving) return;
     const message = getFieldError("nickname", formData.nickname);
     if (message) {
       setErrors((prev) => ({ ...prev, nickname: message }));
@@ -322,9 +276,7 @@ function ProfilePage() {
       setSavedProfile((prev) => ({ ...prev, ...hydrated }));
       setFormData({
         nickname: hydrated.nickname,
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
+        phone: sanitizePhoneValue(hydrated.phone),
       });
       setNicknameCheck({ state: "idle", message: "" });
       setErrors({});
@@ -342,10 +294,10 @@ function ProfilePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isLoadingProfile || isLocked) {
+    if (isLoadingProfile) {
       setStatus({
         type: "error",
-        message: "회원정보 보호를 위해 비밀번호를 먼저 확인해 주세요.",
+        message: "프로필을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.",
       });
       return;
     }
@@ -378,29 +330,6 @@ function ProfilePage() {
     setShowCancelModal(false);
   };
 
-  const handleEntryVerify = async () => {
-    if (!entryPassword.trim()) {
-      setEntryError("현재 비밀번호를 입력해 주세요.");
-      return;
-    }
-    setEntryError("");
-    setIsVerifyingEntry(true);
-    try {
-      await verifyCurrentPassword(entryPassword.trim());
-      setIsEntryVerified(true);
-      setShowEntryModal(false);
-      setEntryPassword("");
-    } catch (error) {
-      setEntryError(error.message || "비밀번호가 일치하지 않습니다.");
-    } finally {
-      setIsVerifyingEntry(false);
-    }
-  };
-
-  const handleEntryCancel = () => {
-    if (isVerifyingEntry) return;
-    navigate("/home");
-  };
 
   const handleWithdrawClick = () => {
     if (isDeletingAccount) return;
@@ -409,41 +338,11 @@ function ProfilePage() {
 
   const handleWithdrawConfirm = () => {
     setShowWithdrawConfirmModal(false);
-    setShowWithdrawPasswordModal(true);
-    setWithdrawPassword("");
-    setWithdrawPasswordError("");
+    setShowFarewellModal(true);
   };
 
   const handleWithdrawConfirmCancel = () => {
     setShowWithdrawConfirmModal(false);
-  };
-
-  const handleWithdrawPasswordCancel = () => {
-    if (isVerifyingWithdraw) return;
-    setShowWithdrawPasswordModal(false);
-    setWithdrawPassword("");
-    setWithdrawPasswordError("");
-  };
-
-  const handleWithdrawPasswordConfirm = async () => {
-    if (!withdrawPassword.trim()) {
-      setWithdrawPasswordError("현재 비밀번호를 입력해 주세요.");
-      return;
-    }
-    setWithdrawPasswordError("");
-    setIsVerifyingWithdraw(true);
-    try {
-      await verifyCurrentPassword(withdrawPassword.trim());
-      setShowWithdrawPasswordModal(false);
-      setShowFarewellModal(true);
-      setWithdrawPassword("");
-    } catch (error) {
-      setWithdrawPasswordError(
-        error.message || "비밀번호가 일치하지 않습니다."
-      );
-    } finally {
-      setIsVerifyingWithdraw(false);
-    }
   };
 
   const handleFarewellAction = async () => {
@@ -463,7 +362,7 @@ function ProfilePage() {
 
   return (
     <div className="profile-page">
-      <div className={`profile-card ${isLocked ? "profile-card--locked" : ""}`}>
+      <div className="profile-card">
         <header className="profile-card__header">
           <div>
             <p className="profile-card__eyebrow">회원정보 수정</p>
@@ -486,14 +385,6 @@ function ProfilePage() {
             </button>
           </div>
         </header>
-
-        {!isEntryVerified && (
-          <div className="profile-locked-banner">
-            회원님의 정보를 보호하기 위해 비밀번호 확인 전까지 수정이 잠겨
-            있어요.
-          </div>
-        )}
-
         <form
           id="profile-form"
           className="profile-form-table"
@@ -536,7 +427,21 @@ function ProfilePage() {
             <div className="profile-row">
               <div className="profile-row__label">휴대폰 번호</div>
               <div className="profile-row__content">
-                <div className="profile-row__value">{savedProfile.phone}</div>
+                <div className="profile-row__value profile-row__value--input">
+                  <input
+                    id="phone"
+                    className="profile-input"
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="010-1234-5678"
+                    disabled={isFormDisabled}
+                  />
+                </div>
+                {errors.phone && (
+                  <p className="input-error">{errors.phone}</p>
+                )}
               </div>
             </div>
 
@@ -561,7 +466,7 @@ function ProfilePage() {
                     disabled={
                       nicknameCheck.state === "checking" ||
                       isLoadingProfile ||
-                      isLocked
+                      isSaving
                     }
                   >
                     {nicknameCheck.state === "checking"
@@ -582,61 +487,6 @@ function ProfilePage() {
               </div>
             </div>
 
-            <div className="profile-row profile-row--stacked">
-              <div className="profile-row__label">비밀번호 변경</div>
-              <div className="profile-row__content">
-                <div className="profile-row__content--grid">
-                  <div className="password-field-group">
-                    <label htmlFor="currentPassword">현재 비밀번호</label>
-                    <input
-                      id="currentPassword"
-                      className="profile-input"
-                      type="password"
-                      name="currentPassword"
-                      value={formData.currentPassword}
-                      onChange={handleChange}
-                      placeholder="현재 비밀번호"
-                      disabled={isFormDisabled}
-                    />
-                    {errors.currentPassword && (
-                      <p className="input-error">{errors.currentPassword}</p>
-                    )}
-                  </div>
-                  <div className="password-field-group">
-                    <label htmlFor="newPassword">새 비밀번호</label>
-                    <input
-                      id="newPassword"
-                      className="profile-input"
-                      type="password"
-                      name="newPassword"
-                      value={formData.newPassword}
-                      onChange={handleChange}
-                      placeholder="8자 이상 입력해 주세요."
-                      disabled={isFormDisabled}
-                    />
-                    {errors.newPassword && (
-                      <p className="input-error">{errors.newPassword}</p>
-                    )}
-                  </div>
-                  <div className="password-field-group">
-                    <label htmlFor="confirmPassword">비밀번호 다시 입력</label>
-                    <input
-                      id="confirmPassword"
-                      className="profile-input"
-                      type="password"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      placeholder="비밀번호를 확인해 주세요."
-                      disabled={isFormDisabled}
-                    />
-                    {errors.confirmPassword && (
-                      <p className="input-error">{errors.confirmPassword}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="form-actions">
@@ -686,60 +536,6 @@ function ProfilePage() {
           </div>
         </div>
       )}
-      {showEntryModal && (
-        <div className="password-modal-overlay">
-          <div className="password-modal" role="dialog" aria-modal="true">
-            <div className="password-modal__header">비밀번호 확인</div>
-            <p className="password-modal__desc">
-              회원정보를 수정하기 전에 현재 비밀번호를 다시 입력해 주세요.
-            </p>
-            <label className="profile-label" htmlFor="entry-password">
-              현재 비밀번호
-            </label>
-            <div className="password-field">
-              <input
-                id="entry-password"
-                type="password"
-                value={entryPassword}
-                onChange={(e) => {
-                  setEntryPassword(e.target.value);
-                  setEntryError("");
-                }}
-                placeholder="현재 비밀번호"
-                autoFocus
-                disabled={isVerifyingEntry}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleEntryVerify();
-                  }
-                }}
-              />
-            </div>
-            {entryError && (
-              <p className="password-modal__error">{entryError}</p>
-            )}
-            <div className="password-modal__actions">
-              <button
-                type="button"
-                className="outline-btn"
-                onClick={handleEntryCancel}
-                disabled={isVerifyingEntry}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={handleEntryVerify}
-                disabled={isVerifyingEntry}
-              >
-                {isVerifyingEntry ? "확인 중..." : "확인"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {showWithdrawConfirmModal && (
         <div className="password-modal-overlay">
           <div className="password-modal" role="dialog" aria-modal="true">
@@ -766,81 +562,33 @@ function ProfilePage() {
           </div>
         </div>
       )}
-      {showWithdrawPasswordModal && (
+      {showFarewellModal && (
         <div className="password-modal-overlay">
           <div className="password-modal" role="dialog" aria-modal="true">
-            <div className="password-modal__header">
-              비밀번호를 입력해 주세요
-            </div>
+            <div className="password-modal__header">탈퇴 전 마지막 확인</div>
             <p className="password-modal__desc">
-              안전을 위해 현재 비밀번호를 다시 확인할게요.
+              탈퇴하면 모든 이용 기록과 저장된 데이터가 즉시 삭제되며 복구할
+              수 없어요. 정말 탈퇴하시겠어요?
             </p>
-            <label className="profile-label" htmlFor="withdraw-password">
-              현재 비밀번호
-            </label>
-            <div className="password-field">
-              <input
-                id="withdraw-password"
-                type="password"
-                value={withdrawPassword}
-                onChange={(e) => {
-                  setWithdrawPassword(e.target.value);
-                  setWithdrawPasswordError("");
-                }}
-                placeholder="현재 비밀번호"
-                disabled={isVerifyingWithdraw}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleWithdrawPasswordConfirm();
-                  }
-                }}
-              />
-            </div>
-            {withdrawPasswordError && (
-              <p className="password-modal__error">{withdrawPasswordError}</p>
+            {farewellError && (
+              <p className="password-modal__error">{farewellError}</p>
             )}
             <div className="password-modal__actions">
               <button
                 type="button"
                 className="outline-btn"
-                onClick={handleWithdrawPasswordCancel}
-                disabled={isVerifyingWithdraw}
+                onClick={() => setShowFarewellModal(false)}
+                disabled={isDeletingAccount}
               >
-                취소
+                아니오
               </button>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={handleWithdrawPasswordConfirm}
-                disabled={isVerifyingWithdraw}
-              >
-                {isVerifyingWithdraw ? "확인 중..." : "확인"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showFarewellModal && (
-        <div className="password-modal-overlay">
-          <div className="password-modal" role="dialog" aria-modal="true">
-            <div className="password-modal__header">그동안 감사했어요!</div>
-            <p className="password-modal__desc">
-              지금까지의 여정에 함께해 주셔서 고맙습니다. 언제든 다시
-              찾아주세요.
-            </p>
-            {farewellError && (
-              <p className="password-modal__error">{farewellError}</p>
-            )}
-            <div className="password-modal__actions password-modal__actions--center">
               <button
                 type="button"
                 className="primary-btn"
                 onClick={handleFarewellAction}
                 disabled={isDeletingAccount}
               >
-                {isDeletingAccount ? "탈퇴 처리 중..." : "확인"}
+                {isDeletingAccount ? "탈퇴 처리 중..." : "네, 탈퇴할게요"}
               </button>
             </div>
           </div>

@@ -23,6 +23,8 @@ import java.util.*;
 @RequiredArgsConstructor
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
+    private static final String DEFAULT_PHONE_PLACEHOLDER = "010-0000-0000";
+
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -49,6 +51,10 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(member.getRole().name()));
         attributes.put("memberId", member.getUserId());
         attributes.put("nickname", member.getNickname());
+        boolean needsProfileCompletion = !StringUtils.hasText(member.getPhone())
+                || DEFAULT_PHONE_PLACEHOLDER.equals(member.getPhone())
+                || "010-1234-1234".equals(member.getPhone());
+        attributes.put("needsProfileCompletion", needsProfileCompletion);
 
         return new DefaultOAuth2User(authorities, attributes, "email");
     }
@@ -65,7 +71,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 .nickname(nickname)
                 .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
                 .name(name)
-                .phone("010-1234-1234")
+                .phone(DEFAULT_PHONE_PLACEHOLDER)
                 .role(UserRole.USER)
                 .build();
 
