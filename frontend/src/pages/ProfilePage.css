@@ -35,10 +35,26 @@
 }
 
 .profile-card__eyebrow {
-  font-size: 14px;
-  font-weight: 600;
-  color: #5f6b7c;
-  margin-bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #384568;
+  margin-bottom: 10px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, rgba(255, 206, 143, 0.45), #fff7ed);
+  box-shadow: 0 8px 18px rgba(255, 198, 145, 0.35);
+}
+
+.profile-card__eyebrow::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff8a05;
+  box-shadow: 0 0 0 4px rgba(255, 138, 5, 0.18);
 }
 
 .profile-card__title {
@@ -53,6 +69,7 @@
   flex-wrap: wrap;
   font-size: 14px;
   color: #5f6b7c;
+  align-items: center;
 }
 
 .profile-card__meta span {
@@ -60,6 +77,35 @@
   padding: 6px 12px;
   border-radius: 999px;
   font-weight: 600;
+}
+
+.withdraw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid #1b1b1b;
+  background: #141414;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 32px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.withdraw-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  box-shadow: none;
+}
+
+.withdraw-btn:not(:disabled):hover {
+  background: #000;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
 }
 
 .profile-locked-banner {
@@ -374,6 +420,10 @@
   justify-content: flex-end;
   gap: 12px;
   margin-top: 6px;
+}
+
+.password-modal__actions--center {
+  justify-content: center;
 }
 
 @keyframes modal-pop {

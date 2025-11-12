@@ -825,15 +825,6 @@ function ProfilePage() {
       {showFarewellModal && (
         <div className="password-modal-overlay">
           <div className="password-modal" role="dialog" aria-modal="true">
-            <button
-              type="button"
-              className="password-modal__close"
-              aria-label="모달 닫기"
-              onClick={handleFarewellAction}
-              disabled={isDeletingAccount}
-            >
-              ×
-            </button>
             <div className="password-modal__header">그동안 감사했어요!</div>
             <p className="password-modal__desc">
               지금까지의 여정에 함께해 주셔서 고맙습니다. 언제든 다시
@@ -842,7 +833,7 @@ function ProfilePage() {
             {farewellError && (
               <p className="password-modal__error">{farewellError}</p>
             )}
-            <div className="password-modal__actions">
+            <div className="password-modal__actions password-modal__actions--center">
               <button
                 type="button"
                 className="primary-btn"

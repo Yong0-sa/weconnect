@@ -66,6 +66,7 @@ class RAGResult:
 class RAGService:
     GREET_PATTERN = re.compile(r"^\s*(안녕|ㅎㅇ|하이|hi|hello|테스트|고마워|감사)\s*$", re.I)
 
+    #  모델/경로/임계값 등 공통 설정을 묶어서 이후 호출을 단순화
     def __init__(
         self,
         *,
@@ -79,13 +80,15 @@ class RAGService:
         openai_model: str = "gpt-4.1-mini",
         embedding_model: str = "text-embedding-3-small",
     ) -> None:
+        # .env를 로드하고 키 없으면 예외
         api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
+        if not api_key: 
             raise RAGServiceError("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
         self._client = OpenAI(api_key=api_key)
+        # ChromaDB PersistentClient로 컬렉션 open
         self._chroma = PersistentClient(path=db_path)
-        try:
+        try:  
             self._collection = self._chroma.get_collection(collection_name)
         except (NotFoundError, InvalidCollectionException) as exc:
             raise RetrievalError(
@@ -100,6 +103,7 @@ class RAGService:
         self._openai_model = openai_model
         self._embedding_model = embedding_model
 
+    # “유효성 검사 → 검색 → 프롬프트 구성 → LLM 호출 → 결과 포맷”을 원샷으로 제공.
     def ask(self, raw_query: str) -> RAGResult:
         query = (raw_query or "").strip()
         if not query:
@@ -129,6 +133,7 @@ class RAGService:
         answer = self._call_gpt(prompt)
         return RAGResult(answer=answer, pdf_links=pdf_links, prompt_type=prompt_type, embed_ids=embed_ids)
 
+    # Moderation(부적절 컨텐츠) 차단
     def _is_inappropriate(self, query: str) -> bool:
         moderation = self._client.moderations.create(model="omni-moderation-latest", input=query)
         return bool(moderation.results[0].flagged)
