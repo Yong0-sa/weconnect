@@ -66,7 +66,7 @@ public class ProfileController {
         Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
         if (memberId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("로그인 후 이용해주세요.");
+                    .body("로그인 후 이용해 주세요.");
         }
         try {
             Member updated = memberService.updateProfile(memberId, request);
