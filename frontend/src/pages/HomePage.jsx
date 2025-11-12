@@ -16,6 +16,7 @@ import AICropSearchPage from "./AICropSearchPage";
 import AIInfoSearchPage from "./AIInfoSearchPage";
 import FarmSearchModal from "./FarmSearchModal";
 import DiaryModal from "./DiaryModal";
+import CommunityModal from "./CommunityModal";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ function HomePage() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isFarmModalOpen, setIsFarmModalOpen] = useState(false);
   const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
+  const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -64,7 +66,7 @@ function HomePage() {
     { label: "농장 찾기", onClick: () => setIsFarmModalOpen(true) },
     { label: "AI 농사 정보 챗봇", onClick: () => handleAISelect("info") },
     { label: "작물 진단", onClick: () => handleAISelect("crop") },
-    { label: "커뮤니티", onClick: () => handleImageClick("/community") },
+    { label: "커뮤니티", onClick: () => setIsCommunityModalOpen(true) },
   ];
 
   const profileItems = [
@@ -299,7 +301,15 @@ function HomePage() {
         {/* 커뮤니티 */}
         <div
           className="clickable-image community-image"
-          onClick={() => handleImageClick("/community")}
+          onClick={() => setIsCommunityModalOpen(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsCommunityModalOpen(true);
+            }
+          }}
         >
           <img src={CommunityIcon} alt="커뮤니티" />
           <div className="image-label">커뮤니티</div>
@@ -383,6 +393,13 @@ function HomePage() {
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
             <AIInfoSearchPage onClose={() => setIsInfoModalOpen(false)} />
+          </div>
+        </div>
+      )}
+      {isCommunityModalOpen && (
+        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="crop-modal">
+            <CommunityModal onClose={() => setIsCommunityModalOpen(false)} />
           </div>
         </div>
       )}

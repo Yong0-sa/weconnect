@@ -63,6 +63,10 @@ function DiaryModal({ onClose }) {
       .toLowerCase()
       .includes(searchQuery.trim().toLowerCase());
   });
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    setSearchQuery(searchInput);
+  };
 
   return (
     <div className="diary-modal-card">
@@ -81,7 +85,7 @@ function DiaryModal({ onClose }) {
           <h2>재배 일기</h2>
         </div>
         <div className="diary-controls">
-          <div className="diary-search-group">
+          <form className="diary-search-group" onSubmit={handleSearchSubmit}>
             <input
               type="text"
               className="diary-search"
@@ -90,14 +94,13 @@ function DiaryModal({ onClose }) {
               onChange={(event) => setSearchInput(event.target.value)}
             />
             <button
-              type="button"
+              type="submit"
               className="diary-search-btn"
               aria-label="일기 검색"
-              onClick={() => setSearchQuery(searchInput)}
             >
               🔍
             </button>
-          </div>
+          </form>
           <button
             type="button"
             className={`diary-control-btn${isEditing ? " active" : ""}`}
