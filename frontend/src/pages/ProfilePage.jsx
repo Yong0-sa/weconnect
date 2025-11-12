@@ -14,6 +14,9 @@ const sanitizePhoneValue = (value) => {
   return PHONE_PLACEHOLDERS.includes(value) ? "" : value;
 };
 
+const LOGIN_REDIRECT_URL =
+  import.meta.env.VITE_LOGIN_REDIRECT_URL || "/login";
+
 const INITIAL_PROFILE = {
   email: "grower@example.com",
   nickname: "초록지기",
@@ -352,7 +355,14 @@ function ProfilePage() {
     try {
       await deleteAccount();
       setShowFarewellModal(false);
-      navigate("/login", { replace: true });
+      if (/^https?:\/\//i.test(LOGIN_REDIRECT_URL)) {
+        window.location.replace(LOGIN_REDIRECT_URL);
+      } else {
+        const nextPath = LOGIN_REDIRECT_URL.startsWith("/")
+          ? LOGIN_REDIRECT_URL
+          : `/${LOGIN_REDIRECT_URL}`;
+        navigate(nextPath, { replace: true });
+      }
     } catch (error) {
       setFarewellError(error.message || "탈퇴 처리에 실패했습니다.");
     } finally {
