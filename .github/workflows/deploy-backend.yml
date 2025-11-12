@@ -49,7 +49,17 @@ jobs:
           source: "backend/build/libs/${{ steps.jar.outputs.filename }}"
           target: "/tmp/"
 
-      # 6. App Server로 전송 및 재시작
+      # 6. .env 파일 전송 (Bastion으로)
+      - name: Copy .env to Bastion
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.BASTION_HOST }}
+          username: ${{ secrets.BASTION_USER }}
+          password: ${{ secrets.BASTION_PASSWORD }}
+          source: "backend/.env"
+          target: "/tmp/"
+
+      # 7. App Server로 전송 및 재시작
       - name: Deploy to App Server
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -58,4 +68,5 @@ jobs:
           password: ${{ secrets.BASTION_PASSWORD }}
           script: |
             sshpass -p '${{ secrets.BASTION_PASSWORD }}' scp -o StrictHostKeyChecking=no /tmp/backend/build/libs/${{ steps.jar.outputs.filename }} ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_1_IP }}:/app/backend/app.jar
+            sshpass -p '${{ secrets.BASTION_PASSWORD }}' scp -o StrictHostKeyChecking=no /tmp/backend/.env ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_1_IP }}:/app/backend/.env
             sshpass -p '${{ secrets.BASTION_PASSWORD }}' ssh -o StrictHostKeyChecking=no ${{ secrets.APP_SERVER_USER }}@${{ secrets.APP_SERVER_1_IP }} "sudo systemctl restart springboot"
