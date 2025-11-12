@@ -16,6 +16,7 @@ import AICropSearchPage from "./AICropSearchPage";
 import AIInfoSearchPage from "./AIInfoSearchPage";
 import FarmSearchModal from "./FarmSearchModal";
 import DiaryModal from "./DiaryModal";
+import ProfilePage from "./ProfilePage";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ function HomePage() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isFarmModalOpen, setIsFarmModalOpen] = useState(false);
   const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -68,7 +70,12 @@ function HomePage() {
   ];
 
   const profileItems = [
-    { label: "회원정보수정", onClick: () => handleImageClick("/profile") },
+    {
+      label: "회원정보수정",
+      onClick: () => {
+        setIsProfileModalOpen(true);
+      },
+    },
   ];
 
   useEffect(() => {
@@ -386,6 +393,10 @@ function HomePage() {
           </div>
         </div>
       )}
+      <ProfilePage
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </div>
   );
 }

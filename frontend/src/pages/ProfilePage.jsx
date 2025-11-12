@@ -78,7 +78,7 @@ const normalizeProfile = (data = {}) => ({
   updatedAt: data.updatedAt ?? null,
 });
 
-function ProfilePage() {
+function ProfilePage({ isOpen, onClose = () => {} }) {
   const navigate = useNavigate();
   const [savedProfile, setSavedProfile] = useState(INITIAL_PROFILE);
   const [formData, setFormData] = useState({
@@ -105,7 +105,22 @@ function ProfilePage() {
   const memberTypeLabel = savedProfile.memberType || "PERSONAL";
   const isFormDisabled = isSaving || isLoadingProfile;
 
+  const handleCloseModal = () => {
+    if (isSaving) return;
+    setShowCancelModal(false);
+    setShowWithdrawConfirmModal(false);
+    setShowFarewellModal(false);
+    onClose();
+  };
+
+  const handleOverlayClick = (event) => {
+    if (event.target === event.currentTarget) {
+      handleCloseModal();
+    }
+  };
+
   useEffect(() => {
+    if (!isOpen) return;
     let active = true;
     async function loadProfile() {
       setIsLoadingProfile(true);
@@ -135,7 +150,7 @@ function ProfilePage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isOpen]);
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -325,7 +340,7 @@ function ProfilePage() {
 
   const handleCancelConfirm = () => {
     setShowCancelModal(false);
-    navigate("/home");
+    handleCloseModal();
   };
 
   const handleCancelModalClose = () => {
@@ -370,9 +385,26 @@ function ProfilePage() {
     }
   };
 
+  if (!isOpen) {
+    return null;
+  }
+
   return (
-    <div className="profile-page">
+    <div
+      className="profile-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      onClick={handleOverlayClick}
+    >
       <div className="profile-card">
+        <button
+          type="button"
+          className="profile-modal__close"
+          aria-label="회원정보 수정 닫기"
+          onClick={handleCloseModal}
+        >
+          ×
+        </button>
         <header className="profile-card__header">
           <div>
             <p className="profile-card__eyebrow">회원정보 수정</p>
@@ -395,12 +427,13 @@ function ProfilePage() {
             </button>
           </div>
         </header>
-        <form
-          id="profile-form"
-          className="profile-form-table"
-          onSubmit={handleSubmit}
-          noValidate
-        >
+        <div className="profile-card__scroll">
+          <form
+            id="profile-form"
+            className="profile-form-table"
+            onSubmit={handleSubmit}
+            noValidate
+          >
           {status && (
             <div className={`profile-toast profile-toast--${status.type}`}>
               <span>{status.message}</span>
@@ -516,7 +549,8 @@ function ProfilePage() {
               {isSaving ? "저장 중..." : "변경 사항 저장"}
             </button>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
       {showCancelModal && (
         <div className="password-modal-overlay">
