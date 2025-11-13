@@ -1,18 +1,27 @@
 import { useEffect, useRef, useState } from "react";
+import { diagnoseCrop } from "../api/ai";
 import "./AICropSearchPage.css";
 
-const cropOptions = ["토마토", "감자", "파프리카"];
+const cropOptions = [
+  { value: "tomato", label: "토마토" },
+  { value: "potato", label: "감자" },
+  { value: "paprika", label: "파프리카" },
+];
 
 function AICropSearchPage({ onClose }) {
   const [selectedCrop, setSelectedCrop] = useState(cropOptions[0]);
-  const [showReport, setShowReport] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [uploadError, setUploadError] = useState("");
+  const [requestError, setRequestError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [diagnosis, setDiagnosis] = useState(null);
   const fileInputRef = useRef(null);
 
-  const handleDiagnose = () => {
-    if (!photoPreview) return;
-    setShowReport(true);
+  const cleanupPreview = (previewUrl) => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
   };
 
   const handleFileChange = (event) => {
@@ -24,25 +33,27 @@ function AICropSearchPage({ onClose }) {
       return;
     }
     setUploadError("");
+    setRequestError("");
+
     const file = files[0];
     const previewUrl = URL.createObjectURL(file);
+
     setPhotoPreview((prev) => {
-      if (prev) {
-        URL.revokeObjectURL(prev);
-      }
+      cleanupPreview(prev);
       return previewUrl;
     });
-    setShowReport(false);
+    setSelectedFile(file);
+    setDiagnosis(null);
     event.target.value = "";
   };
 
   const handleUploadClick = () => {
-    setShowReport(false);
     setUploadError("");
+    setRequestError("");
+    setDiagnosis(null);
+    setSelectedFile(null);
     setPhotoPreview((prev) => {
-      if (prev) {
-        URL.revokeObjectURL(prev);
-      }
+      cleanupPreview(prev);
       return null;
     });
     if (fileInputRef.current) {
@@ -51,13 +62,44 @@ function AICropSearchPage({ onClose }) {
     }
   };
 
+  const handleDiagnose = async () => {
+    if (!selectedFile) {
+      setUploadError("진단할 사진을 먼저 업로드해 주세요.");
+      return;
+    }
+    setIsLoading(true);
+    setRequestError("");
+    setDiagnosis(null);
+    try {
+      const formData = new FormData();
+      formData.append("cropType", selectedCrop.value);
+      formData.append("image", selectedFile);
+      const result = await diagnoseCrop(formData);
+      console.log("진단 결과:", result); // 디버깅용
+      if (!result || !result.success) {
+        const errorMsg = result?.message || "진단 결과를 받아오지 못했습니다.";
+        setRequestError(errorMsg);
+        console.error("진단 실패:", errorMsg, result); // 디버깅용
+        return;
+      }
+      setDiagnosis(result);
+    } catch (error) {
+      console.error("진단 요청 오류:", error); // 디버깅용
+      setRequestError(error.message || "진단 요청 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     return () => {
-      if (photoPreview) {
-        URL.revokeObjectURL(photoPreview);
-      }
+      cleanupPreview(photoPreview);
     };
   }, [photoPreview]);
+
+  const confidencePercent = diagnosis
+    ? Math.round((diagnosis.confidence || 0) * 100)
+    : null;
 
   return (
     <div className="ai-crop-page">
@@ -103,23 +145,49 @@ function AICropSearchPage({ onClose }) {
                 <p>이미지를 선택하거나 드래그하세요</p>
               </label>
             )}
-            {uploadError && <p className="upload-error">{uploadError}</p>}
+            {(uploadError || requestError) && (
+              <p className="upload-error">{uploadError || requestError}</p>
+            )}
           </div>
           <div className="ai-crop-right">
-            {showReport ? (
+            {diagnosis ? (
               <div className="diagnosis-report">
-                <h3>AI 진단 보고서</h3>
+                <h3>AI 진단 결과</h3>
                 <div className="report-meta">
-                  <span className="report-chip">{selectedCrop}</span>
-                  <button type="button" className="diary-share-btn">
+                  <span className="report-chip">{selectedCrop.label}</span>
+                  {confidencePercent !== null && (
+                    <span className="report-chip subtle">
+                      신뢰도 {confidencePercent}%
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="diary-share-btn"
+                    onClick={() =>
+                      alert("재배 일기 공유 기능은 추후 제공될 예정입니다.")
+                    }
+                  >
                     재배 일기로 공유하기
                   </button>
                 </div>
                 <div className="report-scroll-area">
-                  <p className="report-placeholder">
-                    LLM에서 생성된 진단 내용을 이 영역에 렌더링하세요. 긴 텍스트가
-                    들어와도 스크롤로 확인할 수 있도록 여유 공간을 확보했습니다.
-                  </p>
+                  <dl className="diagnosis-summary">
+                    <div>
+                      <dt>예측 결과</dt>
+                      <dd>{diagnosis.label || "결과를 확인할 수 없습니다."}</dd>
+                    </div>
+                    <div>
+                      <dt>상세 메시지</dt>
+                      <dd>{diagnosis.message || "추가 메시지가 없습니다."}</dd>
+                    </div>
+                    <div>
+                      <dt>관리 방법</dt>
+                      <dd>
+                        {diagnosis.careComment ||
+                          "관리 방법이 제공되지 않았습니다."}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
             ) : (
@@ -134,14 +202,14 @@ function AICropSearchPage({ onClose }) {
                     {cropOptions.map((crop) => (
                       <button
                         type="button"
-                        key={crop}
+                        key={crop.value}
                         className={`crop-btn${
-                          selectedCrop === crop ? " selected" : ""
+                          selectedCrop.value === crop.value ? " selected" : ""
                         }`}
                         onClick={() => setSelectedCrop(crop)}
-                        aria-pressed={selectedCrop === crop}
+                        aria-pressed={selectedCrop.value === crop.value}
                       >
-                        {crop}
+                        {crop.label}
                       </button>
                     ))}
                   </div>
@@ -150,9 +218,9 @@ function AICropSearchPage({ onClose }) {
                   <button
                     type="button"
                     className="history-btn"
-                    onClick={() => {
-                      /* TODO: hook up to diagnosis history view */
-                    }}
+                    onClick={() =>
+                      alert("진단 목록 기능은 추후 제공될 예정입니다.")
+                    }
                   >
                     진단 목록
                   </button>
@@ -160,9 +228,9 @@ function AICropSearchPage({ onClose }) {
                     type="button"
                     className="diagnose-btn"
                     onClick={handleDiagnose}
-                    disabled={!photoPreview}
+                    disabled={!photoPreview || isLoading}
                   >
-                    진단하기
+                    {isLoading ? "진단 중..." : "진단하기"}
                   </button>
                 </div>
               </>
