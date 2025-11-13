@@ -2,7 +2,11 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 export async function diagnoseCrop(formData) {
   try {
-    const res = await fetch(`${API_BASE}/api/ai/diagnosis`, {
+    const requestUrl = `${API_BASE}/api/ai/diagnosis`;
+    console.log("진단 API 요청 URL:", requestUrl); // 디버깅용
+    console.log("API_BASE 값:", API_BASE); // 디버깅용
+
+    const res = await fetch(requestUrl, {
       method: "POST",
       body: formData,
       credentials: "include",
