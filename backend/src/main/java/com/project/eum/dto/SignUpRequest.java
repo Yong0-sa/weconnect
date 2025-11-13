@@ -38,7 +38,4 @@ public class SignUpRequest {
     @NotNull
     private MemberType memberType;  // PERSONAL / FARMER
 
-    // 농장주 유형에서만 채워지는 선택 필드
-    private String farmName;
-    private String farmAddress;
 }

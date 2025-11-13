@@ -15,8 +15,6 @@ function SignUp() {
     confirmPassword: "",
     name: "",
     phone: "",
-    farmName: "",
-    farmAddress: "",
   });
   const [memberType, setMemberType] = useState("personal");
   const [errors, setErrors] = useState({});
@@ -78,16 +76,6 @@ function SignUp() {
           return "전화번호는 010-1234-5678 형식으로 입력해 주세요.";
         }
         return "";
-      case "farmName":
-        if (memberType === "farmer" && !trimmed) {
-          return "농장 이름을 입력해 주세요.";
-        }
-        return "";
-      case "farmAddress":
-        if (memberType === "farmer" && !trimmed) {
-          return "농장 주소를 입력해 주세요.";
-        }
-        return "";
       default:
         return "";
     }
@@ -130,13 +118,6 @@ function SignUp() {
   // 개인/농장주 토글 시 관련 상태를 정리
   const handleTypeChange = (type) => {
     setMemberType(type);
-    if (type === "personal") {
-      setFormData((prev) => ({ ...prev, farmName: "", farmAddress: "" }));
-      setErrors((prev) => {
-        const { farmName, farmAddress, ...rest } = prev;
-        return rest;
-      });
-    }
   };
 
   // 제출 전에 모든 필드를 재검증
@@ -149,9 +130,6 @@ function SignUp() {
       "name",
       "phone",
     ];
-    if (memberType === "farmer") {
-      fields.push("farmName", "farmAddress");
-    }
 
     const newErrors = {};
     fields.forEach((field) => {
@@ -173,8 +151,7 @@ function SignUp() {
       return;
     }
 
-    const { email, nickname, password, name, phone, farmName, farmAddress } =
-      formData;
+    const { email, nickname, password, name, phone } = formData;
 
     try {
       const isFarmer = memberType === "farmer";
@@ -185,8 +162,6 @@ function SignUp() {
         name,
         phone,
         memberType: isFarmer ? "FARMER" : "PERSONAL",
-        farmName: isFarmer ? farmName : null,
-        farmAddress: isFarmer ? farmAddress : null,
       };
       await signUp(payload);
       if (isSocialSignup) {
@@ -380,37 +355,6 @@ function SignUp() {
                 placeholder="010-1234-5678"
               />
               {errors.phone && <p className="input-error">{errors.phone}</p>}
-
-              <label className="signup-label" htmlFor="farmName">
-                농장 이름
-              </label>
-              <input
-                id="farmName"
-                className="signup-input"
-                type="text"
-                name="farmName"
-                value={formData.farmName}
-                onChange={handleChange}
-                placeholder="농장 이름을 입력해 주세요."
-              />
-              {errors.farmName && (
-                <p className="input-error">{errors.farmName}</p>
-              )}
-              <label className="signup-label" htmlFor="farmAddress">
-                농장 주소
-              </label>
-              <input
-                id="farmAddress"
-                className="signup-input"
-                type="text"
-                name="farmAddress"
-                value={formData.farmAddress || ""}
-                onChange={handleChange}
-                placeholder="농장 주소를 입력해 주세요."
-              />
-              {errors.farmAddress && (
-                <p className="input-error">{errors.farmAddress}</p>
-              )}
             </>
           )}
 
