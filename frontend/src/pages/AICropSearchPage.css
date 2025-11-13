@@ -244,6 +244,32 @@
   white-space: pre-line;
 }
 
+.diagnosis-summary {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.diagnosis-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diagnosis-summary dt {
+  font-weight: 700;
+  color: #2c3e50;
+  font-size: 15px;
+}
+
+.diagnosis-summary dd {
+  margin: 0;
+  line-height: 1.6;
+  color: #4f5965;
+  white-space: pre-line;
+}
+
 .diagnose-actions {
   display: flex;
   gap: 12px;
