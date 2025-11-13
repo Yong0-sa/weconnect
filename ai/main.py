@@ -37,6 +37,7 @@ class HistoryEntry:
     question: str
     answer: str
     pdf_links: List[str]
+    embed_ids: List[str]
     prompt_type: Literal["greet", "answer", "fallback"]
     created_at: datetime
 
@@ -54,6 +55,7 @@ class HistoryStore:
             question=question,
             answer=result.answer,
             pdf_links=result.pdf_links,
+            embed_ids=result.embed_ids or [],
             prompt_type=result.prompt_type,
             created_at=datetime.now(timezone.utc),
         )
@@ -75,6 +77,7 @@ class HistoryItem(BaseModel):
     question: str
     answer: str
     pdf_links: List[str]
+    embed_ids: List[str]
     prompt_type: Literal["greet", "answer", "fallback"]
     created_at: datetime
 
@@ -85,6 +88,7 @@ def _to_history_item(entry: HistoryEntry) -> HistoryItem:
         question=entry.question,
         answer=entry.answer,
         pdf_links=entry.pdf_links,
+        embed_ids=entry.embed_ids,
         prompt_type=entry.prompt_type,
         created_at=entry.created_at,
     )
