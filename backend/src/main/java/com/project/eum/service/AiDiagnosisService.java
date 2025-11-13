@@ -32,6 +32,7 @@ import java.io.IOException;
 public class AiDiagnosisService {
 
     private final DiagnosisRepository diagnosisRepository;
+    private final ObjectStorageService objectStorageService;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -92,7 +93,16 @@ public class AiDiagnosisService {
 
             String label = getLabel(cropType, predictedIndex, json);
             String careComment = getCareComment(label);
-            String photoUrl = getImageUrl(json);
+
+            // Object Storage에 이미지 업로드
+            String photoUrl;
+            try {
+                photoUrl = objectStorageService.uploadDiagnosisImage(image, userId);
+                log.info("이미지 업로드 성공: photoUrl={}", photoUrl);
+            } catch (Exception e) {
+                log.error("이미지 업로드 실패, 빈 문자열로 저장", e);
+                photoUrl = "";
+            }
 
             log.info("진단 결과: label={}, careComment 길이={}, photoUrl={}",
                     label, careComment != null ? careComment.length() : 0, photoUrl);

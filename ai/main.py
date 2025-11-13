@@ -204,7 +204,7 @@ def get_model(crop_type: str):
         raise ValueError(f"지원하지 않는 작물 타입: {crop_type}")
 
 
-def preprocess_image(image_bytes: bytes, target_size=(224, 224)):
+def preprocess_image(image_bytes: bytes, target_size=(300, 300)):
     """이미지를 모델 입력 형태로 전처리"""
     try:
         img = Image.open(io.BytesIO(image_bytes))
