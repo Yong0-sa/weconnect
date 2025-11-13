@@ -16,6 +16,8 @@ import org.springframework.core.io.Resource;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -104,9 +106,28 @@ public class AiDiagnosisService {
         } catch (IOException e) {
             log.error("파일 처리 중 오류 발생", e);
             return createErrorResponse(cropType, "파일 처리 중 오류가 발생했습니다: " + e.getMessage());
+        } catch (HttpClientErrorException e) {
+            log.error("AI 서버 HTTP 오류: URL={}, 상태코드={}, 응답={}",
+                    aiServerBaseUrl + "/" + cropEndpoint, e.getStatusCode(), e.getResponseBodyAsString(), e);
+            String errorMessage = "AI 서버 연결 실패";
+            if (e.getStatusCode().value() == 404) {
+                errorMessage = "AI 서버에서 해당 작물 타입의 진단 엔드포인트를 찾을 수 없습니다. 서버 설정을 확인해주세요.";
+            } else if (e.getStatusCode().value() == 400) {
+                errorMessage = "잘못된 요청입니다. 이미지 파일 형식을 확인해주세요.";
+            } else {
+                errorMessage = "AI 서버 오류 (" + e.getStatusCode().value() + "): " + e.getMessage();
+            }
+            return createErrorResponse(cropType, errorMessage);
+        } catch (ResourceAccessException e) {
+            log.error("AI 서버 연결 불가: URL={}, 작물타입={}", aiServerBaseUrl + "/" + cropEndpoint, cropType, e);
+            return createErrorResponse(cropType, "AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.");
         } catch (Exception e) {
             log.error("AI 서버 연결 실패: URL={}, 작물타입={}", aiServerBaseUrl + "/" + cropEndpoint, cropType, e);
-            return createErrorResponse(cropType, "AI 서버 연결 실패: " + e.getMessage());
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && errorMsg.contains("404")) {
+                return createErrorResponse(cropType, "AI 서버에서 해당 엔드포인트를 찾을 수 없습니다. (404 Not Found)");
+            }
+            return createErrorResponse(cropType, "AI 서버 연결 실패: " + errorMsg);
         }
     }
 
