@@ -35,6 +35,11 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="WeConnect AI Search API")
 
 # TensorFlow/Keras 모델 로드 (전역 변수로 한 번만 로드)
+# 모델이 없어도 서버는 시작되도록 처리
+pepperbell_model = None
+potato_model = None
+tomato_model = None
+
 try:
     from tensorflow import keras
     import os
@@ -42,15 +47,44 @@ try:
     MODEL_DIR = os.getenv("MODEL_DIR", "/app/ai/aiModel")
 
     logger.info(f"모델 로드 시작: {MODEL_DIR}")
-    pepperbell_model = keras.models.load_model(f'{MODEL_DIR}/pepperbell_finetuned_model.keras')
-    potato_model = keras.models.load_model(f'{MODEL_DIR}/potato_finetuned_model.keras')
-    tomato_model = keras.models.load_model(f'{MODEL_DIR}/tomato_finetuned_model_final2.keras')
-    logger.info("모델 로드 완료")
+
+    # 모델 파일 존재 여부 확인
+    import pathlib
+    model_dir_path = pathlib.Path(MODEL_DIR)
+
+    if model_dir_path.exists():
+        pepperbell_path = model_dir_path / "pepperbell_finetuned_model.keras"
+        potato_path = model_dir_path / "potato_finetuned_model.keras"
+        tomato_path = model_dir_path / "tomato_finetuned_model_final2.keras"
+
+        if pepperbell_path.exists():
+            pepperbell_model = keras.models.load_model(str(pepperbell_path))
+            logger.info("파프리카 모델 로드 완료")
+        else:
+            logger.warning(f"파프리카 모델 파일을 찾을 수 없습니다: {pepperbell_path}")
+
+        if potato_path.exists():
+            potato_model = keras.models.load_model(str(potato_path))
+            logger.info("감자 모델 로드 완료")
+        else:
+            logger.warning(f"감자 모델 파일을 찾을 수 없습니다: {potato_path}")
+
+        if tomato_path.exists():
+            tomato_model = keras.models.load_model(str(tomato_path))
+            logger.info("토마토 모델 로드 완료")
+        else:
+            logger.warning(f"토마토 모델 파일을 찾을 수 없습니다: {tomato_path}")
+    else:
+        logger.warning(f"모델 디렉토리가 존재하지 않습니다: {MODEL_DIR}")
+        logger.info("모델 없이 서버를 시작합니다. 작물 진단 기능은 사용할 수 없습니다.")
+
+except ImportError as e:
+    logger.warning(f"TensorFlow를 import할 수 없습니다: {e}")
+    logger.info("모델 없이 서버를 시작합니다. 작물 진단 기능은 사용할 수 없습니다.")
 except Exception as e:
-    logger.error(f"모델 로드 실패: {e}")
-    pepperbell_model = None
-    potato_model = None
-    tomato_model = None
+    logger.error(f"모델 로드 중 오류 발생: {e}")
+    logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+    logger.info("모델 없이 서버를 시작합니다. 작물 진단 기능은 사용할 수 없습니다.")
 
 @dataclass
 class HistoryEntry:
@@ -199,39 +233,52 @@ def predict(model, image_array):
 @app.post("/predict/potato")
 async def predict_potato(file: UploadFile = File(...)):
     """감자 질병 진단"""
+    logger.info("감자 진단 요청 수신")
     return await predict_crop("potato", file)
 
 
 @app.post("/predict/pepperbell")
 async def predict_pepperbell(file: UploadFile = File(...)):
     """파프리카 질병 진단"""
+    logger.info("파프리카 진단 요청 수신")
     return await predict_crop("paprika", file)
 
 
 @app.post("/predict/tomato")
 async def predict_tomato(file: UploadFile = File(...)):
     """토마토 질병 진단"""
+    logger.info("토마토 진단 요청 수신")
     return await predict_crop("tomato", file)
 
 
 async def predict_crop(crop_type: str, file: UploadFile):
     """작물 질병 진단 공통 함수"""
     try:
+        logger.info(f"진단 요청 처리 시작: 작물={crop_type}, 파일명={file.filename}")
+
         # 모델 확인
         model = get_model(crop_type)
         if model is None:
-            raise HTTPException(status_code=500, detail="모델이 로드되지 않았습니다.")
+            logger.error(f"모델이 로드되지 않았습니다: 작물={crop_type}")
+            raise HTTPException(
+                status_code=503,
+                detail=f"{crop_type} 모델이 로드되지 않았습니다. 서버 관리자에게 문의하세요."
+            )
 
         # 이미지 읽기
         image_bytes = await file.read()
         if not image_bytes:
             raise HTTPException(status_code=400, detail="이미지 파일이 비어있습니다.")
 
+        logger.info(f"이미지 읽기 완료: 크기={len(image_bytes)} bytes")
+
         # 이미지 전처리
         image_array = await run_in_threadpool(preprocess_image, image_bytes)
+        logger.info(f"이미지 전처리 완료: shape={image_array.shape}")
 
         # 예측 수행
         predicted_index, confidence = await run_in_threadpool(predict, model, image_array)
+        logger.info(f"예측 완료: 인덱스={predicted_index}, 신뢰도={confidence}")
 
         # 결과 반환
         result = {
@@ -244,6 +291,9 @@ async def predict_crop(crop_type: str, file: UploadFile):
         logger.info(f"진단 완료: 작물={crop_type}, 인덱스={predicted_index}, 신뢰도={confidence}")
         return result
 
+    except HTTPException:
+        # HTTPException은 그대로 전달
+        raise
     except ValueError as e:
         logger.error(f"값 오류: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -254,3 +304,4 @@ async def predict_crop(crop_type: str, file: UploadFile):
         logger.error(f"예상치 못한 오류: {type(e).__name__}: {e}")
         logger.error(f"상세 traceback:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"서버 내부 오류: {e}")
+
