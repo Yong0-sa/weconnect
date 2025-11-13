@@ -1,38 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./DiaryModal.css";
+import {
+  getDiaries,
+  createDiary,
+  updateDiary,
+  deleteDiary,
+  searchDiaries,
+} from "../api/diary";
 
-const initialEntries = [
-  {
-    id: 1,
-    date: "2025-03-12",
-    time: "오전 10:45",
-    title: "하우스 토마토 적심 작업",
-    summary: "첫 번째 꽃이 피어 곁순을 정리했다. 잎이 전반적으로 건강함.",
-    previewImg:
-      "https://images.unsplash.com/photo-1465406325909-7c4173b69c69?auto=format&fit=crop&w=400&q=60",
-    timestamp: new Date("2025-03-12T10:45:00").getTime(),
-  },
-  {
-    id: 2,
-    date: "2025-03-05",
-    time: "오후 2:10",
-    title: "관수 시스템 점검",
-    summary: "드립관 누수 발견. 즉시 교체 완료. 양액비율 1:800 유지.",
-    previewImg:
-      "https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?auto=format&fit=crop&w=400&q=60",
-    timestamp: new Date("2025-03-05T14:10:00").getTime(),
-  },
-  {
-    id: 3,
-    date: "2025-02-27",
-    time: "오전 9:00",
-    title: "잔디 밭 제초",
-    summary: "광폭 제초기로 외곽 제초 완료. 잡초 발생률 10% 이하.",
-    previewImg:
-      "https://images.unsplash.com/photo-1511697481400-61e89ef01c8d?auto=format&fit=crop&w=400&q=60",
-    timestamp: new Date("2025-02-27T09:00:00").getTime(),
-  },
-];
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 function DiaryModal({ onClose }) {
   const [isWriting, setIsWriting] = useState(false);
@@ -41,14 +17,134 @@ function DiaryModal({ onClose }) {
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [entries, setEntries] = useState(() =>
-    [...initialEntries].sort((a, b) => b.timestamp - a.timestamp)
-  );
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState({
     date: "",
     content: "",
     file: null,
+    title: "",
+    preview: null,
   });
+
+  // 백엔드 응답을 프론트엔드 형식으로 변환
+  const convertToEntry = (diary) => {
+    const createdAt = new Date(diary.createdAt);
+    // DB에 저장된 Base64 데이터 URL 그대로 사용 (data:image/jpeg;base64,... 형식)
+    const imageUrl = diary.photoUrl || null;
+    return {
+      id: diary.diaryId,
+      date: createdAt.toISOString().slice(0, 10),
+      time: createdAt.toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      title: diary.title || "새 일기",
+      summary: diary.content || "",
+      previewImg: imageUrl, // Base64 Data URL 그대로 사용
+      timestamp: createdAt.getTime(),
+    };
+  };
+
+  // 일기 목록 불러오기
+  const loadDiaries = async () => {
+    try {
+      setLoading(true);
+      const data = await getDiaries();
+      const convertedEntries = data.map(convertToEntry);
+      setEntries(convertedEntries.sort((a, b) => b.timestamp - a.timestamp));
+    } catch (error) {
+      console.error("일기 목록 불러오기 실패:", error);
+      alert(error.message || "일기 목록을 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 일기 목록 불러오기
+  useEffect(() => {
+    loadDiaries();
+  }, []);
+
+  // 검색 실행
+  const handleSearch = async () => {
+    if (!searchInput.trim()) {
+      loadDiaries();
+      setSearchQuery("");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const data = await searchDiaries(searchInput);
+      const convertedEntries = data.map(convertToEntry);
+      setEntries(convertedEntries.sort((a, b) => b.timestamp - a.timestamp));
+      setSearchQuery(searchInput);
+    } catch (error) {
+      console.error("일기 검색 실패:", error);
+      alert(error.message || "일기 검색에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 일기 작성/수정
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    try {
+      const diaryData = {
+        title: draft.title || null,
+        content: draft.content || null,
+      };
+
+      if (editingEntry) {
+        // 수정
+        await updateDiary(editingEntry.id, diaryData, draft.file);
+      } else {
+        // 작성
+        await createDiary(diaryData, draft.file);
+      }
+
+      // 목록 새로고침
+      await loadDiaries();
+
+      setDraft({ date: "", content: "", file: null, title: "", preview: null });
+      setIsWriting(false);
+      setEditingEntryId(null);
+      if (editingEntry) {
+        setIsEditing(false);
+      }
+    } catch (error) {
+      console.error("일기 저장 실패:", error);
+      console.error("에러 상세:", error.message, error.stack);
+      alert(error.message || "일기 저장에 실패했습니다.");
+    }
+  };
+
+  // 일기 삭제
+  const handleDelete = async (entryId) => {
+    if (!confirm("정말 삭제하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      await deleteDiary(entryId);
+      await loadDiaries();
+
+      if (selectedEntryId === entryId) {
+        setSelectedEntryId(null);
+      }
+            if (editingEntryId === entryId) {
+              setEditingEntryId(null);
+              setDraft({ date: "", content: "", file: null, title: "", preview: null });
+            }
+      setIsEditing(false);
+    } catch (error) {
+      console.error("일기 삭제 실패:", error);
+      alert(error.message || "일기 삭제에 실패했습니다.");
+    }
+  };
 
   const selectedEntry = selectedEntryId
     ? entries.find((entry) => entry.id === selectedEntryId)
@@ -57,16 +153,7 @@ function DiaryModal({ onClose }) {
     ? entries.find((entry) => entry.id === editingEntryId)
     : null;
   const isPanelOpen = isWriting || !!selectedEntry || !!editingEntry;
-  const filteredEntries = entries.filter((entry) => {
-    if (!searchQuery.trim()) return true;
-    return entry.summary
-      .toLowerCase()
-      .includes(searchQuery.trim().toLowerCase());
-  });
-  const handleSearchSubmit = (event) => {
-    event.preventDefault();
-    setSearchQuery(searchInput);
-  };
+  const filteredEntries = entries;
 
   return (
     <div className="diary-modal-card">
@@ -85,22 +172,28 @@ function DiaryModal({ onClose }) {
           <h2>재배 일기</h2>
         </div>
         <div className="diary-controls">
-          <form className="diary-search-group" onSubmit={handleSearchSubmit}>
+          <div className="diary-search-group">
             <input
               type="text"
               className="diary-search"
               placeholder="본문으로 일기 검색"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
+              onKeyPress={(event) => {
+                if (event.key === "Enter") {
+                  handleSearch();
+                }
+              }}
             />
             <button
-              type="submit"
+              type="button"
               className="diary-search-btn"
               aria-label="일기 검색"
+              onClick={handleSearch}
             >
               🔍
             </button>
-          </form>
+          </div>
           <button
             type="button"
             className={`diary-control-btn${isEditing ? " active" : ""}`}
@@ -111,12 +204,12 @@ function DiaryModal({ onClose }) {
           <button
             type="button"
             className="diary-write-btn"
-            onClick={() => {
-              setSelectedEntryId(null);
-              setEditingEntryId(null);
-              setDraft({ date: "", content: "", file: null });
-              setIsWriting(true);
-            }}
+                  onClick={() => {
+                    setSelectedEntryId(null);
+                    setEditingEntryId(null);
+                    setDraft({ date: "", content: "", file: null, title: "", preview: null });
+                    setIsWriting(true);
+                  }}
           >
             글쓰기
           </button>
@@ -125,70 +218,72 @@ function DiaryModal({ onClose }) {
       <section className={`diary-layout${isPanelOpen ? " panel-open" : ""}`}>
         <div className="diary-list-panel">
           <div className="diary-list">
-            {filteredEntries.map((entry) => (
-              <article
-                key={entry.id}
-                className={`diary-list-item${
-                  selectedEntryId === entry.id ? " selected" : ""
-                }${isEditing ? " editing" : ""}`}
-                onClick={() => {
-                  if (isEditing) return;
-                  setIsWriting(false);
-                  setEditingEntryId(null);
-                  setSelectedEntryId(entry.id);
-                }}
-              >
-                <div className="diary-list-info">
-                  <p className="diary-list-date">{entry.date}</p>
-                  <p className="diary-list-summary">{entry.summary}</p>
-                </div>
-                {entry.previewImg && (
-                  <div className="diary-list-thumb">
-                    <img src={entry.previewImg} alt={entry.title} />
+            {loading ? (
+              <div style={{ padding: "20px", textAlign: "center" }}>
+                로딩 중...
+              </div>
+            ) : filteredEntries.length === 0 ? (
+              <div style={{ padding: "20px", textAlign: "center" }}>
+                작성된 일기가 없습니다.
+              </div>
+            ) : (
+              filteredEntries.map((entry) => (
+                <article
+                  key={entry.id}
+                  className={`diary-list-item${
+                    selectedEntryId === entry.id ? " selected" : ""
+                  }${isEditing ? " editing" : ""}`}
+                  onClick={() => {
+                    if (isEditing) return;
+                    setIsWriting(false);
+                    setEditingEntryId(null);
+                    setSelectedEntryId(entry.id);
+                  }}
+                >
+                  <div className="diary-list-info">
+                    <p className="diary-list-date">{entry.date}</p>
+                    <p className="diary-list-summary">{entry.summary}</p>
                   </div>
-                )}
-                {isEditing && (
-                  <div className="diary-list-edit">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setIsWriting(false);
-                        setSelectedEntryId(null);
+                  {entry.previewImg && (
+                    <div className="diary-list-thumb">
+                      <img src={entry.previewImg} alt={entry.title} />
+                    </div>
+                  )}
+                  {isEditing && (
+                    <div className="diary-list-edit">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setIsWriting(false);
+                          setSelectedEntryId(null);
                         setEditingEntryId(entry.id);
                         setDraft({
                           date: entry.date,
                           content: entry.summary,
-                          file: entry.previewImg,
+                          file: null, // 파일 객체는 다시 선택해야 함
+                          preview: entry.previewImg, // 기존 이미지 미리보기
+                          title: entry.title,
                         });
-                      }}
-                    >
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      className="danger"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setEntries((prev) =>
-                          prev.filter((item) => item.id !== entry.id)
-                        );
-                        if (selectedEntryId === entry.id) {
-                          setSelectedEntryId(null);
-                        }
-                        if (editingEntryId === entry.id) {
-                          setEditingEntryId(null);
-                          setDraft({ date: "", content: "", file: null });
-                        }
-                        setIsEditing(false);
-                      }}
-                    >
-                      삭제
-                    </button>
-                  </div>
-                )}
-              </article>
-            ))}
+                        }}
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        className="danger"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleDelete(entry.id);
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))
+            )}
             {searchQuery && (
               <button
                 type="button"
@@ -196,6 +291,7 @@ function DiaryModal({ onClose }) {
                 onClick={() => {
                   setSearchQuery("");
                   setSearchInput("");
+                  loadDiaries();
                 }}
               >
                 리스트로 돌아가기
@@ -205,46 +301,21 @@ function DiaryModal({ onClose }) {
         </div>
         <div className={`diary-panel${isPanelOpen ? " open" : ""}`}>
           {isWriting || editingEntry ? (
-            <form
-              className="diary-write-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const baseDate = draft.date
-                  ? new Date(`${draft.date}T00:00:00`)
-                  : new Date();
-                const newEntry = {
-                  id: Date.now(),
-                  date: baseDate.toISOString().slice(0, 10),
-                  time: baseDate.toLocaleTimeString("ko-KR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }),
-                  title: "새 일기",
-                  summary: draft.content || "작성 내용 없음",
-                  previewImg: draft.file || null,
-                  timestamp: baseDate.getTime(),
-                };
-                setEntries((prev) => {
-                  const next = editingEntry
-                    ? prev.map((item) =>
-                        item.id === editingEntry.id
-                          ? { ...newEntry, id: editingEntry.id }
-                          : item
-                      )
-                    : [...prev, newEntry];
-                  return next.sort((a, b) => b.timestamp - a.timestamp);
-                });
-                setDraft({ date: "", content: "", file: null });
-                setIsWriting(false);
-                setEditingEntryId(null);
-                if (editingEntry) {
-                  setIsEditing(false);
-                }
-              }}
-            >
+            <form className="diary-write-form" onSubmit={handleSubmit}>
               <div className="diary-write-form__header">
                 <h3>{editingEntry ? "일기 수정" : "새 일기 작성"}</h3>
               </div>
+              <label>
+                제목
+                <input
+                  type="text"
+                  value={draft.title}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, title: event.target.value }))
+                  }
+                  placeholder="일기 제목을 입력하세요"
+                />
+              </label>
               <label>
                 작성일
                 <input
@@ -263,16 +334,26 @@ function DiaryModal({ onClose }) {
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (!file) {
-                      setDraft((prev) => ({ ...prev, file: null }));
+                      setDraft((prev) => ({ ...prev, file: null, preview: null }));
                       return;
                     }
+                    setDraft((prev) => ({ ...prev, file: file }));
                     const reader = new FileReader();
                     reader.onload = () => {
-                      setDraft((prev) => ({ ...prev, file: reader.result }));
+                      setDraft((prev) => ({ ...prev, preview: reader.result }));
                     };
                     reader.readAsDataURL(file);
                   }}
                 />
+                {draft.preview && (
+                  <div style={{ marginTop: "10px" }}>
+                    <img
+                      src={draft.preview}
+                      alt="미리보기"
+                      style={{ maxWidth: "200px", maxHeight: "200px" }}
+                    />
+                  </div>
+                )}
               </label>
               <label className="diary-content-field">
                 내용
@@ -293,7 +374,7 @@ function DiaryModal({ onClose }) {
                   onClick={() => {
                     setIsWriting(false);
                     setEditingEntryId(null);
-                    setDraft({ date: "", content: "", file: null });
+                    setDraft({ date: "", content: "", file: null, title: "", preview: null });
                   }}
                 >
                   취소
@@ -324,6 +405,7 @@ function DiaryModal({ onClose }) {
                     </div>
                   )}
                   <p className="diary-detail-date">{selectedEntry.date}</p>
+                  <h3>{selectedEntry.title}</h3>
                   <p className="diary-detail-summary">
                     {selectedEntry.summary}
                   </p>
