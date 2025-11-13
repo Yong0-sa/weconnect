@@ -27,5 +27,7 @@ public class DiaryResponse {
     private LocalDateTime createdAt;
     /** 수정 일시 */
     private LocalDateTime updatedAt;
+    /** 선택한 날짜 (시간은 00:00:00) */
+    private LocalDateTime selectAt;
 }
 

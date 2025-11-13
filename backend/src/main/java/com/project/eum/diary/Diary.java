@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -48,6 +49,10 @@ public class Diary {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /** 사용자가 선택한 날짜 (시간은 00:00:00으로 저장) */
+    @Column(name = "select_at")
+    private LocalDateTime selectAt;
+
     /**
      * 일기 제목 수정
      * @param title 새로운 제목
@@ -70,6 +75,14 @@ public class Diary {
      */
     public void updatePhotoUrl(String photoUrl) {
         this.photoUrl = photoUrl;
+    }
+
+    /**
+     * 선택한 날짜 수정 (시간은 00:00:00으로 설정)
+     * @param selectAt 새로운 선택 날짜
+     */
+    public void updateSelectAt(LocalDate selectAt) {
+        this.selectAt = selectAt != null ? selectAt.atStartOfDay() : null;
     }
 }
 

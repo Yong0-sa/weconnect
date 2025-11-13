@@ -29,7 +29,7 @@ public class DiaryService {
      */
     @Transactional(readOnly = true)
     public List<DiaryResponse> getDiaries(Long userId) {
-        List<Diary> diaries = diaryRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        List<Diary> diaries = diaryRepository.findByUserIdOrderBySelectAtDesc(userId);
         return diaries.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -93,6 +93,7 @@ public class DiaryService {
                 .title(request.getTitle())
                 .content(request.getContent())
                 .photoUrl(photoUrl)
+                .selectAt(request.getDate() != null ? request.getDate().atStartOfDay() : null) // 선택한 날짜를 00:00:00으로 설정
                 .build();
 
         Diary savedDiary = diaryRepository.save(diary);
@@ -123,6 +124,11 @@ public class DiaryService {
         }
         if (request.getContent() != null) {
             diary.updateContent(request.getContent());
+        }
+
+        // 선택한 날짜 업데이트
+        if (request.getDate() != null) {
+            diary.updateSelectAt(request.getDate());
         }
 
         // 이미지 업데이트
@@ -166,6 +172,7 @@ public class DiaryService {
                 .photoUrl(diary.getPhotoUrl())
                 .createdAt(diary.getCreatedAt())
                 .updatedAt(diary.getUpdatedAt())
+                .selectAt(diary.getSelectAt())
                 .build();
     }
 

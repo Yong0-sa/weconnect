@@ -8,7 +8,7 @@ import {
   searchDiaries,
 } from "../api/diary";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 function DiaryModal({ onClose }) {
   const [isWriting, setIsWriting] = useState(false);
@@ -29,20 +29,35 @@ function DiaryModal({ onClose }) {
 
   // 백엔드 응답을 프론트엔드 형식으로 변환
   const convertToEntry = (diary) => {
-    const createdAt = new Date(diary.createdAt);
+    // selectAt이 있으면 사용, 없으면 createdAt 사용
+    const dateToUse = diary.selectAt || diary.createdAt;
+
+    // 날짜 문자열에서 날짜 부분만 추출 (YYYY-MM-DD 형식)
+    let dateStr;
+    if (typeof dateToUse === 'string') {
+      // ISO 형식 문자열에서 날짜 부분만 추출
+      dateStr = dateToUse.split('T')[0];
+    } else {
+      // 이미 Date 객체인 경우
+      dateStr = dateToUse.toISOString().split('T')[0];
+    }
+
+    // 날짜 문자열을 직접 사용하여 시간대 문제 방지
+    const dateObj = new Date(dateStr + 'T00:00:00');
+
     // DB에 저장된 Base64 데이터 URL 그대로 사용 (data:image/jpeg;base64,... 형식)
     const imageUrl = diary.photoUrl || null;
     return {
       id: diary.diaryId,
-      date: createdAt.toISOString().slice(0, 10),
-      time: createdAt.toLocaleTimeString("ko-KR", {
+      date: dateStr, // 날짜 부분만 사용
+      time: dateObj.toLocaleTimeString("ko-KR", {
         hour: "2-digit",
         minute: "2-digit",
       }),
       title: diary.title || "새 일기",
       summary: diary.content || "",
       previewImg: imageUrl, // Base64 Data URL 그대로 사용
-      timestamp: createdAt.getTime(),
+      timestamp: dateObj.getTime(),
     };
   };
 
@@ -52,7 +67,15 @@ function DiaryModal({ onClose }) {
       setLoading(true);
       const data = await getDiaries();
       const convertedEntries = data.map(convertToEntry);
-      setEntries(convertedEntries.sort((a, b) => b.timestamp - a.timestamp));
+      // selectAt 기준으로 정렬 (이미 백엔드에서 정렬되어 오지만, 프론트엔드에서도 정렬)
+      setEntries(convertedEntries.sort((a, b) => {
+        // 날짜가 같으면 timestamp로 정렬
+        if (a.date === b.date) {
+          return b.timestamp - a.timestamp;
+        }
+        // 날짜 기준 내림차순
+        return b.date.localeCompare(a.date);
+      }));
     } catch (error) {
       console.error("일기 목록 불러오기 실패:", error);
       alert(error.message || "일기 목록을 불러오지 못했습니다.");
@@ -78,7 +101,15 @@ function DiaryModal({ onClose }) {
       setLoading(true);
       const data = await searchDiaries(searchInput);
       const convertedEntries = data.map(convertToEntry);
-      setEntries(convertedEntries.sort((a, b) => b.timestamp - a.timestamp));
+      // selectAt 기준으로 정렬 (이미 백엔드에서 정렬되어 오지만, 프론트엔드에서도 정렬)
+      setEntries(convertedEntries.sort((a, b) => {
+        // 날짜가 같으면 timestamp로 정렬
+        if (a.date === b.date) {
+          return b.timestamp - a.timestamp;
+        }
+        // 날짜 기준 내림차순
+        return b.date.localeCompare(a.date);
+      }));
       setSearchQuery(searchInput);
     } catch (error) {
       console.error("일기 검색 실패:", error);
@@ -96,6 +127,7 @@ function DiaryModal({ onClose }) {
       const diaryData = {
         title: draft.title || null,
         content: draft.content || null,
+        date: draft.date && draft.date.trim() !== "" ? draft.date : null, // 선택한 날짜 전송
       };
 
       if (editingEntry) {

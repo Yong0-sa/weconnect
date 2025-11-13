@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 async function handleResponse(res, fallbackMessage) {
   if (res.status === 401) {
@@ -59,6 +59,7 @@ export async function createDiary(diaryData, imageFile) {
   const diaryJson = JSON.stringify({
     title: diaryData.title || null,
     content: diaryData.content || null,
+    date: diaryData.date || null, // 선택한 날짜 전송
   });
   formData.append("diary", new Blob([diaryJson], { type: "application/json" }));
 
@@ -83,6 +84,7 @@ export async function updateDiary(diaryId, diaryData, imageFile) {
   const diaryJson = JSON.stringify({
     title: diaryData.title || null,
     content: diaryData.content || null,
+    date: diaryData.date || null, // 선택한 날짜 전송
   });
   formData.append("diary", new Blob([diaryJson], { type: "application/json" }));
 
