@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./HomePage.css";
 import { useNavigate } from "react-router-dom";
+import { useCoins } from "../contexts/CoinContext";
 import BackgroundImg from "../assets/backgroud 1.png";
 import AIIcon from "../assets/AI.png";
 import FarmSearchIcon from "../assets/농장찾기.png";
@@ -19,10 +20,12 @@ import DiaryModal from "./DiaryModal";
 import ProfilePage from "./ProfilePage";
 import CommunityModal from "./CommunityModal";
 import ChatModal from "./ChatModal";
+import ShopModal from "./ShopModal";
 import { logout as requestLogout } from "../api/auth";
 
 function HomePage() {
   const navigate = useNavigate();
+  const { coins } = useCoins();
   const [isAITooltipOpen, setIsAITooltipOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -33,6 +36,7 @@ function HomePage() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [isShopModalOpen, setIsShopModalOpen] = useState(false);
   const [initialChatContact, setInitialChatContact] = useState(null);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
@@ -216,7 +220,7 @@ function HomePage() {
 
         <div className="coin-label" aria-hidden="true">
           <span>
-            x<span>3</span>
+            x<span>{coins}</span>
           </span>
         </div>
 
@@ -328,7 +332,15 @@ function HomePage() {
         {/* 캐릭터 */}
         <div
           className="clickable-image character-image"
-          onClick={() => handleImageClick("/store")}
+          onClick={() => setIsShopModalOpen(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsShopModalOpen(true);
+            }
+          }}
         >
           <img src={CharacterIcon} alt="캐릭터" />
           <div className="image-label">캐릭터</div>
@@ -447,6 +459,13 @@ function HomePage() {
               onClose={handleCloseChatModal}
               initialContact={initialChatContact}
             />
+          </div>
+        </div>
+      )}
+      {isShopModalOpen && (
+        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="crop-modal">
+            <ShopModal onClose={() => setIsShopModalOpen(false)} />
           </div>
         </div>
       )}
