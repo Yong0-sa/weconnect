@@ -18,7 +18,7 @@ import java.util.List;
  * 사용자의 재배 일기 작성, 조회, 수정, 삭제 기능을 제공합니다.
  */
 @RestController
-@RequestMapping("/api/diary")
+@RequestMapping({"/api/diary","/diary"})
 @RequiredArgsConstructor
 public class DiaryController {
 
