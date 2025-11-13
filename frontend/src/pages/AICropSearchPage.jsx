@@ -75,13 +75,17 @@ function AICropSearchPage({ onClose }) {
       formData.append("cropType", selectedCrop.value);
       formData.append("image", selectedFile);
       const result = await diagnoseCrop(formData);
-      if (!result?.success) {
-        setRequestError(result?.message || "진단 결과를 받아오지 못했습니다.");
+      console.log("진단 결과:", result); // 디버깅용
+      if (!result || !result.success) {
+        const errorMsg = result?.message || "진단 결과를 받아오지 못했습니다.";
+        setRequestError(errorMsg);
+        console.error("진단 실패:", errorMsg, result); // 디버깅용
         return;
       }
       setDiagnosis(result);
     } catch (error) {
-      setRequestError(error.message);
+      console.error("진단 요청 오류:", error); // 디버깅용
+      setRequestError(error.message || "진단 요청 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }

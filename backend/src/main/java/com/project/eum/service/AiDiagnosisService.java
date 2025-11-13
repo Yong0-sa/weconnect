@@ -6,10 +6,13 @@ import com.project.eum.diagnosis.Diagnosis;
 import com.project.eum.diagnosis.DiagnosisRepository;
 import com.project.eum.dto.AiDiagnosisResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -21,6 +24,7 @@ import java.io.IOException;
  * AI 작물 진단 관련 비즈니스 로직을 처리하는 서비스
  * 외부 AI 서버와 통신하여 작물 질병을 진단하고 결과를 DB에 저장합니다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiDiagnosisService {
@@ -54,19 +58,33 @@ public class AiDiagnosisService {
 
         try {
             String aiServerUrl = aiServerBaseUrl + "/" + cropEndpoint;
+            log.info("AI 서버 진단 요청: URL={}, 작물타입={}, 사용자ID={}", aiServerUrl, cropType, userId);
+
             HttpEntity<MultiValueMap<String, Object>> request = createRequest(image);
             ResponseEntity<String> response = restTemplate.postForEntity(aiServerUrl, request, String.class);
+
+            log.info("AI 서버 응답 상태: {}", response.getStatusCode());
+            log.debug("AI 서버 응답 본문: {}", response.getBody());
+
+            if (response.getBody() == null || response.getBody().isBlank()) {
+                log.error("AI 서버 응답이 비어있습니다.");
+                return createErrorResponse(cropType, "AI 서버로부터 응답을 받지 못했습니다.");
+            }
 
             JsonNode json = objectMapper.readTree(response.getBody());
             int predictedIndex = json.path("predicted_index").asInt(-1);
             double confidence = json.path("confidence").asDouble(0.0);
             String message = json.path("message").asText("");
 
+            log.info("AI 서버 응답 파싱: predictedIndex={}, confidence={}, message={}",
+                    predictedIndex, confidence, message);
+
             if (message.isBlank()) {
                 message = "분석이 완료되었습니다.";
             }
 
             if (predictedIndex < 0) {
+                log.warn("AI 서버에서 오류 응답: predictedIndex={}, message={}", predictedIndex, message);
                 return createErrorResponse(cropType, message);
             }
 
@@ -74,13 +92,20 @@ public class AiDiagnosisService {
             String careComment = getCareComment(label);
             String photoUrl = getImageUrl(json);
 
+            log.info("진단 결과: label={}, careComment 길이={}, photoUrl={}",
+                    label, careComment != null ? careComment.length() : 0, photoUrl);
+
             saveDiagnosis(userId, cropType, label, careComment, photoUrl);
 
-            return new AiDiagnosisResponse(true, cropType, label, predictedIndex, confidence, message, careComment);
+            AiDiagnosisResponse result = new AiDiagnosisResponse(true, cropType, label, predictedIndex, confidence, message, careComment);
+            log.info("진단 완료: success={}, label={}", result.isSuccess(), result.getLabel());
+            return result;
 
         } catch (IOException e) {
+            log.error("파일 처리 중 오류 발생", e);
             return createErrorResponse(cropType, "파일 처리 중 오류가 발생했습니다: " + e.getMessage());
         } catch (Exception e) {
+            log.error("AI 서버 연결 실패: URL={}, 작물타입={}", aiServerBaseUrl + "/" + cropEndpoint, cropType, e);
             return createErrorResponse(cropType, "AI 서버 연결 실패: " + e.getMessage());
         }
     }
@@ -92,8 +117,16 @@ public class AiDiagnosisService {
      * @throws IOException 파일 읽기 오류 시
      */
     private HttpEntity<MultiValueMap<String, Object>> createRequest(MultipartFile file) throws IOException {
+        // MultipartFile을 Resource로 변환
+        Resource resource = new ByteArrayResource(file.getBytes()) {
+            @Override
+            public String getFilename() {
+                return file.getOriginalFilename();
+            }
+        };
+
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("file", file.getResource());
+        body.add("file", resource);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
