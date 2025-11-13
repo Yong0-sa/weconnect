@@ -149,7 +149,7 @@ function SignUp() {
       "name",
       "phone",
     ];
-    if (memberType === "farmer" && !isSocialSignup) {
+    if (memberType === "farmer") {
       fields.push("farmName", "farmAddress");
     }
 
@@ -177,18 +177,16 @@ function SignUp() {
       formData;
 
     try {
+      const isFarmer = memberType === "farmer";
       const payload = {
         email,
         nickname,
         password,
         name,
         phone,
-        memberType:
-          !isSocialSignup && memberType === "farmer" ? "FARMER" : "PERSONAL",
-        farmName:
-          !isSocialSignup && memberType === "farmer" ? farmName : null,
-        farmAddress:
-          !isSocialSignup && memberType === "farmer" ? farmAddress : null,
+        memberType: isFarmer ? "FARMER" : "PERSONAL",
+        farmName: isFarmer ? farmName : null,
+        farmAddress: isFarmer ? farmAddress : null,
       };
       await signUp(payload);
       if (isSocialSignup) {
@@ -291,37 +289,35 @@ function SignUp() {
             <p className="input-error">{errors.confirmPassword}</p>
           )}
 
-          {!isSocialSignup && (
-            <>
-              <label className="signup-label" htmlFor="memberType">
-                회원 유형
-              </label>
-              <div
-                className="member-type"
-                role="group"
-                aria-label="회원 유형 선택"
+          <>
+            <label className="signup-label" htmlFor="memberType">
+              회원 유형
+            </label>
+            <div
+              className="member-type"
+              role="group"
+              aria-label="회원 유형 선택"
+            >
+              <button
+                type="button"
+                className={`type-btn ${
+                  memberType === "personal" ? "active" : ""
+                }`}
+                onClick={() => handleTypeChange("personal")}
               >
-                <button
-                  type="button"
-                  className={`type-btn ${
-                    memberType === "personal" ? "active" : ""
-                  }`}
-                  onClick={() => handleTypeChange("personal")}
-                >
-                  개인
-                </button>
-                <button
-                  type="button"
-                  className={`type-btn ${
-                    memberType === "farmer" ? "active" : ""
-                  }`}
-                  onClick={() => handleTypeChange("farmer")}
-                >
-                  농장주
-                </button>
-              </div>
-            </>
-          )}
+                개인
+              </button>
+              <button
+                type="button"
+                className={`type-btn ${
+                  memberType === "farmer" ? "active" : ""
+                }`}
+                onClick={() => handleTypeChange("farmer")}
+              >
+                농장주
+              </button>
+            </div>
+          </>
 
           {memberType === "personal" && (
             <>

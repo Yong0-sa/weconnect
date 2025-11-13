@@ -8,4 +8,3 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface RagQueryLogRepository extends JpaRepository<RagQueryLog, Long> {
     Page<RagQueryLog> findByUserUserId(Long userId, Pageable pageable);
 }
-

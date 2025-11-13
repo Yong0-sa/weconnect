@@ -110,7 +110,6 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
 
   const handleCloseModal = () => {
     if (isSaving) return;
-    setShowCancelModal(false);
     setShowWithdrawConfirmModal(false);
     setShowFarewellModal(false);
     onClose();
