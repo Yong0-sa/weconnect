@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./FarmSearchModal.css";
 import { farms as mockFarms, regionOptions } from "../data/farms";
 
-function FarmSearchModal({ onClose }) {
+function FarmSearchModal({ onClose, onChatRequest }) {
   const [selectedSido, setSelectedSido] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightedId, setHighlightedId] = useState(null);
@@ -197,8 +197,19 @@ function FarmSearchModal({ onClose }) {
                     <p className="farm-phone">{farm.phone}</p>
                   </div>
                   <div className="farm-card-actions">
-                    <button type="button" className="farm-action secondary">
+                    <button
+                      type="button"
+                      className="farm-action secondary"
+                      onClick={() => {
+                        if (onChatRequest) {
+                          onChatRequest(farm);
+                        }
+                      }}
+                    >
                       채팅하기
+                    </button>
+                    <button type="button" className="farm-action request">
+                      신청하기
                     </button>
                     <button
                       type="button"

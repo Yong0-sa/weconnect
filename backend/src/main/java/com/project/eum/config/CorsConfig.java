@@ -17,7 +17,10 @@ public class CorsConfig {
     
     // 필요 시 특정 도메인만 등록 가능
     cfg.addAllowedOriginPattern("http://localhost:5173");
-    
+
+    cfg.addAllowedOriginPattern("http://*.smhrd.com");
+    cfg.addAllowedOriginPattern("https://*.smhrd.com");
+
     // 모든 헤더 허용
     cfg.addAllowedHeader("*");
     

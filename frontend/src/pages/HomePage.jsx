@@ -18,6 +18,7 @@ import FarmSearchModal from "./FarmSearchModal";
 import DiaryModal from "./DiaryModal";
 import ProfilePage from "./ProfilePage";
 import CommunityModal from "./CommunityModal";
+import ChatModal from "./ChatModal";
 import { logout as requestLogout } from "../api/auth";
 
 function HomePage() {
@@ -31,6 +32,8 @@ function HomePage() {
   const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [initialChatContact, setInitialChatContact] = useState(null);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -46,6 +49,16 @@ function HomePage() {
 
   const handleImageClick = (route) => {
     navigate(route);
+  };
+
+  const openChatModal = (contact = null) => {
+    setInitialChatContact(contact);
+    setIsChatModalOpen(true);
+  };
+
+  const handleCloseChatModal = () => {
+    setIsChatModalOpen(false);
+    setInitialChatContact(null);
   };
 
   const handleAISelect = (type) => {
@@ -210,13 +223,13 @@ function HomePage() {
         {/* 채팅 아이콘 */}
         <div
           className="icon-overlay chat-icon"
-          onClick={() => handleImageClick("/chat")}
+          onClick={() => openChatModal()}
           role="button"
           tabIndex={0}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
-              handleImageClick("/chat");
+              openChatModal();
             }
           }}
         >
@@ -393,7 +406,16 @@ function HomePage() {
       {isFarmModalOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
-            <FarmSearchModal onClose={() => setIsFarmModalOpen(false)} />
+            <FarmSearchModal
+              onClose={() => setIsFarmModalOpen(false)}
+              onChatRequest={(farm) => {
+                setIsFarmModalOpen(false);
+                openChatModal({
+                  id: `farm-${farm.id}`,
+                  name: `${farm.name} 농장주`,
+                });
+              }}
+            />
           </div>
         </div>
       )}
@@ -415,6 +437,16 @@ function HomePage() {
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
             <CommunityModal onClose={() => setIsCommunityModalOpen(false)} />
+          </div>
+        </div>
+      )}
+      {isChatModalOpen && (
+        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="crop-modal">
+            <ChatModal
+              onClose={handleCloseChatModal}
+              initialContact={initialChatContact}
+            />
           </div>
         </div>
       )}

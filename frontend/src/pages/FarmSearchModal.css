@@ -217,6 +217,13 @@
   color: #2c3e50;
 }
 
+.farm-action.request {
+  background: rgba(255, 196, 138, 0.2);
+  color: #b36200;
+  border: 1px solid rgba(255, 196, 138, 0.7);
+  box-shadow: 0 12px 24px rgba(255, 196, 138, 0.25);
+}
+
 .farm-action:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
