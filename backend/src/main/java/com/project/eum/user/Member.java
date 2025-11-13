@@ -1,6 +1,7 @@
 package com.project.eum.user;
 
 import com.project.eum.ai.entity.RagQueryLog;
+import com.project.eum.farm.Farm;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -69,4 +70,8 @@ public class Member {
     @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, orphanRemoval = true)
     @Builder.Default
     private List<RagQueryLog> ragQueryLogs = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "farm_id")
+    private Farm farm;
 }

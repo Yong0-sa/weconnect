@@ -22,6 +22,8 @@ import CommunityModal from "./CommunityModal";
 import ChatModal from "./ChatModal";
 import ShopModal from "./ShopModal";
 import { logout as requestLogout } from "../api/auth";
+import { fetchMyProfile } from "../api/profile";
+import FarmRegisterModal from "./FarmRegisterModal";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -38,6 +40,8 @@ function HomePage() {
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
   const [initialChatContact, setInitialChatContact] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [showFarmRegisterModal, setShowFarmRegisterModal] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -50,6 +54,33 @@ function HomePage() {
       navigate("/login", { replace: true });
     }
   }, [navigate]);
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadProfile() {
+      try {
+        const data = await fetchMyProfile();
+        if (ignore) return;
+        setProfile(data);
+        if (shouldPromptFarmRegistration(data)) {
+          setShowFarmRegisterModal(true);
+        }
+      } catch (error) {
+        console.error("프로필 정보를 불러오지 못했습니다.", error);
+      }
+    }
+    loadProfile();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const shouldPromptFarmRegistration = (data) => {
+    if (!data) return false;
+    const role = data.role;
+    const needsRole = role === "FARMER" || role === "ADMIN";
+    return needsRole && !data.farmId;
+  };
 
   const handleImageClick = (route) => {
     navigate(route);
@@ -473,6 +504,15 @@ function HomePage() {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
       />
+      {showFarmRegisterModal && (
+        <FarmRegisterModal
+          onClose={() => setShowFarmRegisterModal(false)}
+          onRegistered={(farm) => {
+            setProfile((prev) => (prev ? { ...prev, farmId: farm.farmId } : prev));
+            setShowFarmRegisterModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

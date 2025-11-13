@@ -53,13 +53,15 @@ public class AuthController {
         // log.info("session id={}", session.getId());
 
         String token = UUID.randomUUID().toString();
+        Long farmId = member.getFarm() != null ? member.getFarm().getFarmId() : null;
         return ResponseEntity.ok(
                 LoginResponse.success(
                         "로그인에 성공했습니다.",
                         token,
                         member.getUserId(),
                         member.getNickname(),
-                        member.getRole().name()
+                        member.getRole().name(),
+                        farmId
                 )
         );
     }

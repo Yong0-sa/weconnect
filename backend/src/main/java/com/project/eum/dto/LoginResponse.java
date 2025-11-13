@@ -9,6 +9,7 @@ public class LoginResponse {
     private Long userId;
     private String nickname;
     private String role;
+    private Long farmId;
 
     public LoginResponse() {
     }
@@ -19,7 +20,8 @@ public class LoginResponse {
             String token,
             Long userId,
             String nickname,
-            String role
+            String role,
+            Long farmId
     ) {
         this.success = success;
         this.message = message;
@@ -27,16 +29,17 @@ public class LoginResponse {
         this.userId = userId;
         this.nickname = nickname;
         this.role = role;
+        this.farmId = farmId;
     }
 
     // 헬퍼를 통해 응답 생성 코드를 단순화한다
-    public static LoginResponse success(String message, String token, Long userId, String nickname, String role) {
-        return new LoginResponse(true, message, token, userId, nickname, role);
+    public static LoginResponse success(String message, String token, Long userId, String nickname, String role, Long farmId) {
+        return new LoginResponse(true, message, token, userId, nickname, role, farmId);
     }
 
     // 실패 시에는 민감한 정보를 포함하지 않는다
     public static LoginResponse failure(String message) {
-        return new LoginResponse(false, message, null, null, null, null);
+        return new LoginResponse(false, message, null, null, null, null, null);
     }
 
     public boolean isSuccess() {
@@ -85,5 +88,13 @@ public class LoginResponse {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public Long getFarmId() {
+        return farmId;
+    }
+
+    public void setFarmId(Long farmId) {
+        this.farmId = farmId;
     }
 }
