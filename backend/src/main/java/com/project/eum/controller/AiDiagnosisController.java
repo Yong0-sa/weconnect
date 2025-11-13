@@ -15,7 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
  * 작물 이미지를 분석하여 질병을 진단하고 관리 방법을 제공합니다.
  */
 @RestController
-@RequestMapping("/api/ai")
+@RequestMapping({"/api/ai", "/ai"})  // nginx가 /api/를 제거하고 전달하므로 /ai도 지원
 @RequiredArgsConstructor
 public class AiDiagnosisController {
 
@@ -45,7 +45,7 @@ public class AiDiagnosisController {
 
         // 서비스 호출
         AiDiagnosisResponse response = aiDiagnosisService.diagnose(cropType, image, memberId);
-        
+
         // 응답 반환
         if (response.isSuccess()) {
             return ResponseEntity.ok(response);
