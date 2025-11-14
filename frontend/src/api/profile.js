@@ -56,3 +56,11 @@ export async function deleteAccount() {
   });
   return handleResponse(res, "회원 탈퇴를 완료하지 못했습니다.");
 }
+
+export async function acknowledgeFarmPrompt() {
+  const res = await fetch(`${API_BASE}/api/profile/farm-prompt/shown`, {
+    method: "POST",
+    credentials: "include",
+  });
+  return handleResponse(res, "알림 상태를 업데이트하지 못했습니다.");
+}

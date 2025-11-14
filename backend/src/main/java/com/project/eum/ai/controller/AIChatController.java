@@ -20,13 +20,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * AI 챗봇 대화(질문/응답) 관련 HTTP 요청을 처리하는 컨트롤러.
+ * 
+ * - POST /api/ai/chat        : 사용자의 질문을 받아 AI 서버에 질의하고, 결과를 로그로 남긴 뒤 응답을 반환
+ * - GET  /api/ai/chat/history: 사용자의 대화(질의) 이력을 조회
+ *
+ * 세션에 로그인된 사용자 ID가 있어야만 접근할 수 있음.
+ */
 @RestController
 @RequestMapping({"/api/ai/chat", "/ai/chat"})
 @RequiredArgsConstructor
 public class AIChatController {
 
+    // 실제 비즈니스 로직(AI 서버 호출, RAG 로그 저장/조회 등)을 담당
     private final AIChatService aiChatService;
 
+    
     @PostMapping
     public ResponseEntity<?> ask(@Valid @RequestBody AIChatRequest request, HttpSession session) {
         Long userId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);

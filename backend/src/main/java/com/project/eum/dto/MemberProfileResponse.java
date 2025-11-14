@@ -12,6 +12,7 @@ public record MemberProfileResponse(
         String phone,
         String role,
         Long farmId,
+        boolean farmPromptShown,
         Long coinBalance,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -25,6 +26,7 @@ public record MemberProfileResponse(
                 member.getPhone(),
                 member.getRole() != null ? member.getRole().name() : null,
                 member.getFarm() != null ? member.getFarm().getFarmId() : null,
+                member.isFarmPromptShown(),
                 member.getCoinBalance(),
                 member.getCreatedAt(),
                 member.getUpdatedAt()
