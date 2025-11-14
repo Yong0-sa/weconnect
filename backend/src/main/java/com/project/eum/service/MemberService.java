@@ -175,6 +175,14 @@ public class MemberService {
         memberRepository.delete(member);
     }
 
+    @Transactional
+    public void markFarmPromptShown(Long memberId) {
+        Member member = getMember(memberId);
+        if (!member.isFarmPromptShown()) {
+            member.setFarmPromptShown(true);
+        }
+    }
+
     @Transactional(readOnly = true)
     public boolean isEmailAvailable(String email) {
         String sanitized = sanitizeEmail(email);

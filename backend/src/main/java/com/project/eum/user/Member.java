@@ -74,4 +74,8 @@ public class Member {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "farm_id")
     private Farm farm;
+
+    @Column(name = "farm_prompt_shown", nullable = false)
+    @Builder.Default
+    private boolean farmPromptShown = false;
 }

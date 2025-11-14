@@ -1,0 +1,73 @@
+.farm-apply-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1200;
+  padding: 1.5rem;
+}
+
+.farm-apply-card {
+  width: min(420px, 100%);
+  background: #fff;
+  border-radius: 20px;
+  padding: 1.75rem;
+  box-shadow: 0 25px 70px rgba(9, 63, 33, 0.25);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.farm-apply-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #0f2a1f;
+}
+
+.farm-apply-eyebrow {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: #00a66b;
+  text-transform: uppercase;
+}
+
+.farm-apply-body {
+  margin: 0;
+  color: #3a3a3a;
+  line-height: 1.5;
+}
+
+.farm-apply-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.farm-apply-primary,
+.farm-apply-secondary {
+  border: none;
+  border-radius: 999px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.farm-apply-primary {
+  background: linear-gradient(120deg, #00be7d, #008a54);
+  color: #fff;
+}
+
+.farm-apply-secondary {
+  background: #edf1f3;
+  color: #1f2a2a;
+}
+
+.farm-apply-primary:disabled,
+.farm-apply-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

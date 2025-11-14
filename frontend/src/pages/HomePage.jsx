@@ -22,8 +22,9 @@ import CommunityModal from "./CommunityModal";
 import ChatModal from "./ChatModal";
 import ShopModal from "./ShopModal";
 import { logout as requestLogout } from "../api/auth";
-import { fetchMyProfile } from "../api/profile";
+import { acknowledgeFarmPrompt, fetchMyProfile } from "../api/profile";
 import FarmRegisterModal from "./FarmRegisterModal";
+import FarmApplyPromptModal from "./FarmApplyPromptModal";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -43,6 +44,8 @@ function HomePage() {
   const [initialChatContact, setInitialChatContact] = useState(null);
   const [profile, setProfile] = useState(null);
   const [showFarmRegisterModal, setShowFarmRegisterModal] = useState(false);
+  const [showFarmApplyPrompt, setShowFarmApplyPrompt] = useState(false);
+  const [isAcknowledgingFarmPrompt, setIsAcknowledgingFarmPrompt] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -66,6 +69,9 @@ function HomePage() {
         if (shouldPromptFarmRegistration(data)) {
           setShowFarmRegisterModal(true);
         }
+        if (shouldShowFarmApplyPrompt(data)) {
+          setShowFarmApplyPrompt(true);
+        }
       } catch (error) {
         console.error("프로필 정보를 불러오지 못했습니다.", error);
       }
@@ -81,6 +87,32 @@ function HomePage() {
     const role = data.role;
     const needsRole = role === "FARMER" || role === "ADMIN";
     return needsRole && !data.farmId;
+  };
+
+  const shouldShowFarmApplyPrompt = (data) => {
+    if (!data) return false;
+    return data.role === "USER" && !data.farmPromptShown;
+  };
+
+  const updateFarmPromptState = () => {
+    setProfile((prev) => (prev ? { ...prev, farmPromptShown: true } : prev));
+    setShowFarmApplyPrompt(false);
+  };
+
+  const handleFarmPrompt = async (nextAction) => {
+    if (isAcknowledgingFarmPrompt) return;
+    setIsAcknowledgingFarmPrompt(true);
+    try {
+      await acknowledgeFarmPrompt();
+      updateFarmPromptState();
+      if (nextAction === "apply") {
+        setIsFarmModalOpen(true);
+      }
+    } catch (error) {
+      console.error("농장 안내 상태를 갱신하지 못했습니다.", error);
+    } finally {
+      setIsAcknowledgingFarmPrompt(false);
+    }
   };
 
   const handleImageClick = (route) => {
@@ -525,6 +557,13 @@ function HomePage() {
             setProfile((prev) => (prev ? { ...prev, farmId: farm.farmId } : prev));
             setShowFarmRegisterModal(false);
           }}
+        />
+      )}
+      {showFarmApplyPrompt && (
+        <FarmApplyPromptModal
+          onApply={() => handleFarmPrompt("apply")}
+          onLater={() => handleFarmPrompt("later")}
+          disabled={isAcknowledgingFarmPrompt}
         />
       )}
     </div>
