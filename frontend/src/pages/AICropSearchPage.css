@@ -177,7 +177,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 100%;
+  height: fit-content;
 }
 
 .diagnosis-report h3 {
@@ -228,13 +228,11 @@
 }
 
 .report-scroll-area {
-  flex: 1;
-  min-height: 260px;
   padding: 16px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.65);
   border: 1px solid rgba(0, 0, 0, 0.05);
-  overflow-y: auto;
+  height: fit-content;
 }
 
 .report-placeholder {

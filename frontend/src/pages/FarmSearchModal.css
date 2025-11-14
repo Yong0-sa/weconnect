@@ -1,31 +1,52 @@
-.farm-modal-card {
+.farm-modal-shell {
   width: min(1100px, 92vw);
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.farm-modal-card {
+  width: 100%;
   max-height: 80vh;
   background: rgba(255, 255, 255, 0.96);
   border-radius: 24px;
+  box-shadow: 0 30px 55px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.farm-modal-content {
   padding: clamp(32px, 4vw, 48px);
   display: flex;
   flex-direction: column;
   gap: 24px;
-  position: relative;
-  box-shadow: 0 30px 55px rgba(0, 0, 0, 0.18);
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .farm-modal-close {
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: -46px;
+  right: 24px;
   width: 42px;
   height: 42px;
   border: none;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.55);
   color: #fff;
   font-size: 22px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+  transition: background 0.2s ease;
+}
+
+.farm-modal-close:hover {
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .farm-modal-header {
@@ -122,7 +143,8 @@
 .map-container {
   border: 2px dashed rgba(103, 188, 99, 0.5);
   border-radius: 20px;
-  min-height: 340px;
+  height: clamp(280px, 35vh, 480px);
+  min-height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;

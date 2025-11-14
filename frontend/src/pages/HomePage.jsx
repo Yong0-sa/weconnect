@@ -23,8 +23,9 @@ import ChatModal from "./ChatModal";
 import ShopModal from "./ShopModal";
 import MemberInfoManageModal from "./MemberInfoManageModal";
 import { logout as requestLogout } from "../api/auth";
-import { fetchMyProfile } from "../api/profile";
+import { acknowledgeFarmPrompt, fetchMyProfile } from "../api/profile";
 import FarmRegisterModal from "./FarmRegisterModal";
+import FarmApplyPromptModal from "./FarmApplyPromptModal";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ function HomePage() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isFarmModalOpen, setIsFarmModalOpen] = useState(false);
   const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
+  const [diaryModalInitialData, setDiaryModalInitialData] = useState(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isMemberInfoManageOpen, setIsMemberInfoManageOpen] = useState(false);
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
@@ -44,6 +46,8 @@ function HomePage() {
   const [initialChatContact, setInitialChatContact] = useState(null);
   const [profile, setProfile] = useState(null);
   const [showFarmRegisterModal, setShowFarmRegisterModal] = useState(false);
+  const [showFarmApplyPrompt, setShowFarmApplyPrompt] = useState(false);
+  const [isAcknowledgingFarmPrompt, setIsAcknowledgingFarmPrompt] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -67,6 +71,9 @@ function HomePage() {
         if (shouldPromptFarmRegistration(data)) {
           setShowFarmRegisterModal(true);
         }
+        if (shouldShowFarmApplyPrompt(data)) {
+          setShowFarmApplyPrompt(true);
+        }
       } catch (error) {
         console.error("프로필 정보를 불러오지 못했습니다.", error);
       }
@@ -82,6 +89,32 @@ function HomePage() {
     const role = data.role;
     const needsRole = role === "FARMER" || role === "ADMIN";
     return needsRole && !data.farmId;
+  };
+
+  const shouldShowFarmApplyPrompt = (data) => {
+    if (!data) return false;
+    return data.role === "USER" && !data.farmPromptShown;
+  };
+
+  const updateFarmPromptState = () => {
+    setProfile((prev) => (prev ? { ...prev, farmPromptShown: true } : prev));
+    setShowFarmApplyPrompt(false);
+  };
+
+  const handleFarmPrompt = async (nextAction) => {
+    if (isAcknowledgingFarmPrompt) return;
+    setIsAcknowledgingFarmPrompt(true);
+    try {
+      await acknowledgeFarmPrompt();
+      updateFarmPromptState();
+      if (nextAction === "apply") {
+        setIsFarmModalOpen(true);
+      }
+    } catch (error) {
+      console.error("농장 안내 상태를 갱신하지 못했습니다.", error);
+    } finally {
+      setIsAcknowledgingFarmPrompt(false);
+    }
   };
 
   const handleImageClick = (route) => {
@@ -450,7 +483,13 @@ function HomePage() {
       {isDiaryModalOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
-            <DiaryModal onClose={() => setIsDiaryModalOpen(false)} />
+            <DiaryModal
+              onClose={() => {
+                setIsDiaryModalOpen(false);
+                setDiaryModalInitialData(null);
+              }}
+              initialData={diaryModalInitialData}
+            />
           </div>
         </div>
       )}
@@ -473,7 +512,14 @@ function HomePage() {
       {isCropModalOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
-            <AICropSearchPage onClose={() => setIsCropModalOpen(false)} />
+            <AICropSearchPage
+              onClose={() => setIsCropModalOpen(false)}
+              onOpenDiaryModal={(diagnosisData) => {
+                setIsCropModalOpen(false);
+                setDiaryModalInitialData(diagnosisData);
+                setIsDiaryModalOpen(true);
+              }}
+            />
           </div>
         </div>
       )}
@@ -531,6 +577,13 @@ function HomePage() {
             );
             setShowFarmRegisterModal(false);
           }}
+        />
+      )}
+      {showFarmApplyPrompt && (
+        <FarmApplyPromptModal
+          onApply={() => handleFarmPrompt("apply")}
+          onLater={() => handleFarmPrompt("later")}
+          disabled={isAcknowledgingFarmPrompt}
         />
       )}
     </div>

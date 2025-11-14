@@ -8,7 +8,7 @@ const cropOptions = [
   { value: "paprika", label: "파프리카" },
 ];
 
-function AICropSearchPage({ onClose }) {
+function AICropSearchPage({ onClose, onOpenDiaryModal }) {
   const [selectedCrop, setSelectedCrop] = useState(cropOptions[0]);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -163,9 +163,21 @@ function AICropSearchPage({ onClose }) {
                   <button
                     type="button"
                     className="diary-share-btn"
-                    onClick={() =>
-                      alert("재배 일기 공유 기능은 추후 제공될 예정입니다.")
-                    }
+                    onClick={() => {
+                      // 재배일기 모달 열기 (진단 결과 데이터 전달)
+                      if (onOpenDiaryModal) {
+                        onOpenDiaryModal({
+                          title: `[${selectedCrop.label} 진단] ${diagnosis.label || ""}`,
+                          content: `작물: ${selectedCrop.label}\n질병: ${diagnosis.label || ""}\n\n관리 방법:\n${diagnosis.careComment || ""}`,
+                          image: selectedFile,
+                          imagePreview: photoPreview,
+                        });
+                      }
+                      // 작물 진단 모달 닫기
+                      if (onClose) {
+                        onClose();
+                      }
+                    }}
                   >
                     재배 일기로 공유하기
                   </button>
@@ -175,10 +187,6 @@ function AICropSearchPage({ onClose }) {
                     <div>
                       <dt>예측 결과</dt>
                       <dd>{diagnosis.label || "결과를 확인할 수 없습니다."}</dd>
-                    </div>
-                    <div>
-                      <dt>상세 메시지</dt>
-                      <dd>{diagnosis.message || "추가 메시지가 없습니다."}</dd>
                     </div>
                     <div>
                       <dt>관리 방법</dt>

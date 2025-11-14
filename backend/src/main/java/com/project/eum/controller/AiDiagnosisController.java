@@ -2,6 +2,7 @@ package com.project.eum.controller;
 
 import com.project.eum.config.SessionConst;
 import com.project.eum.dto.AiDiagnosisResponse;
+import com.project.eum.dto.DiaryResponse;
 import com.project.eum.service.AiDiagnosisService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +60,38 @@ public class AiDiagnosisController {
             return ResponseEntity.ok(response);
         } else {
             return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 진단 결과를 재배일기로 공유
+     * @param diagnosisId 진단 결과 ID
+     * @param session HTTP 세션
+     * @return 생성된 일기 정보
+     */
+    @PostMapping("/diagnosis/{diagnosisId}/share-to-diary")
+    public ResponseEntity<DiaryResponse> shareDiagnosisToDiary(
+            @PathVariable Long diagnosisId,
+            HttpSession session
+    ) {
+        log.info("진단 결과 재배일기 공유 요청: diagnosisId={}, sessionId={}", diagnosisId, session.getId());
+
+        Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+        if (memberId == null) {
+            log.warn("로그인하지 않은 사용자의 재배일기 공유 요청");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        try {
+            DiaryResponse diary = aiDiagnosisService.shareDiagnosisToDiary(diagnosisId, memberId);
+            log.info("진단 결과 재배일기 공유 완료: diaryId={}", diary.getDiaryId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(diary);
+        } catch (IllegalArgumentException e) {
+            log.warn("진단 결과 재배일기 공유 실패: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            log.error("진단 결과 재배일기 공유 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

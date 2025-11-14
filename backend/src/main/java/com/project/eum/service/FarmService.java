@@ -1,8 +1,10 @@
 package com.project.eum.service;
 
 import com.project.eum.dto.CreateFarmRequest;
+import com.project.eum.dto.FarmResponse;
 import com.project.eum.farm.Farm;
 import com.project.eum.farm.FarmRepository;
+import com.project.eum.service.dto.GeoCoordinate;
 import com.project.eum.user.Member;
 import com.project.eum.user.MemberRepository;
 import com.project.eum.user.UserRole;
@@ -13,6 +15,8 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +26,7 @@ public class FarmService {
 
     private final MemberRepository memberRepository;
     private final FarmRepository farmRepository;
+    private final KakaoAddressSearchClient kakaoAddressSearchClient;
 
     @Transactional
     public Farm registerFarm(Long ownerId, CreateFarmRequest request) {
@@ -36,20 +41,29 @@ public class FarmService {
             throw new IllegalStateException("이미 등록된 농장이 있습니다.");
         }
 
+        CoordinatePair coordinates = resolveCoordinates(request);
+
         Farm farm = Farm.builder()
                 .owner(owner)
                 .name(request.name().trim())
                 .city(resolveCity(request))
                 .address(request.address().trim())
                 .tel(resolveTel(request.tel()))
-                .latitude(resolveCoordinate(request.latitude()))
-                .longitude(resolveCoordinate(request.longitude()))
+                .latitude(coordinates.latitude())
+                .longitude(coordinates.longitude())
                 .build();
 
         Farm saved = farmRepository.save(farm);
         owner.setFarm(saved);
         memberRepository.save(owner);
         return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public List<FarmResponse> getAllFarms() {
+        return farmRepository.findAll().stream()
+                .map(FarmResponse::from)
+                .collect(Collectors.toList());
     }
 
     private boolean isFarmOwner(Member owner) {
@@ -91,10 +105,40 @@ public class FarmService {
         return BigDecimal.valueOf(value).setScale(8, RoundingMode.HALF_UP);
     }
 
+    private BigDecimal resolveCoordinate(BigDecimal value) {
+        if (value == null) {
+            return DEFAULT_COORDINATE;
+        }
+        return value.setScale(8, RoundingMode.HALF_UP);
+    }
+
+    private CoordinatePair resolveCoordinates(CreateFarmRequest request) {
+        if (request.latitude() != null && request.longitude() != null) {
+            return new CoordinatePair(
+                    resolveCoordinate(request.latitude()),
+                    resolveCoordinate(request.longitude())
+            );
+        }
+
+        return kakaoAddressSearchClient.findCoordinatesByAddress(request.address())
+                .map(this::convertCoordinate)
+                .orElseGet(() -> new CoordinatePair(DEFAULT_COORDINATE, DEFAULT_COORDINATE));
+    }
+
+    private CoordinatePair convertCoordinate(GeoCoordinate coordinate) {
+        return new CoordinatePair(
+                resolveCoordinate(coordinate.latitude()),
+                resolveCoordinate(coordinate.longitude())
+        );
+    }
+
     private String truncate(String value, int maxLength) {
         if (value.length() <= maxLength) {
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    private record CoordinatePair(BigDecimal latitude, BigDecimal longitude) {
     }
 }

@@ -113,4 +113,15 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
+
+    @PostMapping("/farm-prompt/shown")
+    public ResponseEntity<?> acknowledgeFarmPrompt(HttpSession session) {
+        Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("로그인 후 이용해 주세요.");
+        }
+        memberService.markFarmPromptShown(memberId);
+        return ResponseEntity.ok(Map.of("acknowledged", true));
+    }
 }

@@ -19,6 +19,11 @@ public class FarmController {
 
     private final FarmService farmService;
 
+    @GetMapping
+    public ResponseEntity<?> listFarms() {
+        return ResponseEntity.ok(farmService.getAllFarms());
+    }
+
     @PostMapping
     public ResponseEntity<?> registerFarm(@Valid @RequestBody CreateFarmRequest request, HttpSession session) {
         Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
