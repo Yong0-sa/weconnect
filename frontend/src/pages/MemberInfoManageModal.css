@@ -1,0 +1,294 @@
+.member-manage-modal {
+  --member-grid: minmax(100px, 0.5fr) minmax(200px, 1.15fr)
+    minmax(120px, 0.95fr) minmax(135px, 1fr) minmax(135px, 1fr)
+    minmax(135px, 1fr) minmax(135px, 1fr) auto;
+  width: min(1200px, 96vw);
+  background: #fff;
+  border-radius: 28px;
+  padding: 30px 34px 26px;
+  box-shadow: 0 30px 80px rgba(11, 23, 58, 0.35);
+  font-family: "Pretendard", "Noto Sans KR", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #141b2f;
+  position: relative;
+  border: 2px solid rgba(120, 81, 255, 0.35);
+}
+
+.member-manage-modal--edit-mode {
+  width: min(1280px, 96vw);
+  --member-grid: 32px minmax(125px, 1fr) minmax(200px, 1.15fr)
+    minmax(120px, 0.95fr) minmax(135px, 1fr) minmax(135px, 1fr)
+    minmax(135px, 1fr) minmax(135px, 1fr) minmax(60px, auto);
+}
+
+.member-manage-modal--create-mode {
+  --member-grid: minmax(125px, 1fr) minmax(200px, 1.15fr) minmax(120px, 0.95fr)
+    minmax(135px, 1fr) minmax(135px, 1fr) minmax(135px, 1fr) minmax(135px, 1fr)
+    minmax(60px, auto);
+}
+
+.member-manage-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.member-manage-eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #6f55c2;
+  margin-bottom: 6px;
+}
+
+.member-manage-modal__header h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.member-manage-description {
+  margin: 10px 0 0;
+  font-size: 15px;
+  color: #5c6281;
+}
+
+.member-manage-close {
+  border: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(111, 85, 194, 0.1);
+  color: #1b123b;
+  font-size: 24px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.member-manage-panel {
+  border: 2px solid #7e63ff;
+  border-radius: 22px;
+  padding: 14px 20px 12px;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.member-manage-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 16px;
+}
+
+.member-manage-count {
+  margin: 0;
+  font-size: 15px;
+}
+
+.member-manage-count strong {
+  color: #5c38ff;
+}
+
+.member-manage-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+  color: #4c2ad1;
+}
+
+.member-manage-link {
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.member-manage-link:hover {
+  text-decoration: underline;
+}
+
+.member-manage-table {
+  width: 100%;
+}
+
+.member-manage-row {
+  display: grid;
+  grid-template-columns: var(--member-grid);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(14, 5, 51, 0.08);
+  font-size: 15px;
+}
+
+.member-manage-row--head {
+  font-weight: 600;
+  color: #4c4e66;
+  border-bottom: 1px solid rgba(92, 56, 255, 0.4);
+  padding-bottom: 6px;
+}
+
+.member-manage-row--inline {
+  display: grid;
+  grid-template-columns: var(--member-grid);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(14, 5, 51, 0.08);
+}
+
+.member-manage-create-row {
+  margin-top: 0;
+}
+
+.member-manage-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.member-manage-checkbox input {
+  position: absolute;
+  opacity: 0;
+}
+
+.member-manage-checkbox span {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid rgba(43, 24, 113, 0.7);
+  border-radius: 4px;
+}
+
+.member-manage-checkbox input:checked + span {
+  background: #5c38ff;
+  box-shadow: inset 0 0 0 2px #fff;
+  border-color: #5c38ff;
+}
+
+.member-manage-checkbox--ghost {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  height: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.member-manage-cell {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  color: #1f2440;
+  padding: 0;
+  margin: 0;
+}
+
+.member-manage-cell input,
+.member-manage-cell select {
+  width: 90%;
+  border-radius: 10px;
+  border: 1px solid rgba(123, 99, 255, 0.4);
+  padding: 6px 8px;
+  font-size: 14px;
+  background: #fff;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.member-manage-cell input:focus,
+.member-manage-cell select:focus {
+  outline: 2px solid rgba(92, 56, 255, 0.3);
+  outline-offset: 0;
+}
+
+.member-manage-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(92, 56, 255, 0.12);
+  color: #4c28c9;
+}
+
+.member-manage-status--사용\ 중 {
+  background: rgba(96, 199, 143, 0.2);
+  color: #107349;
+}
+
+.member-manage-status--승인\ 대기 {
+  background: rgba(255, 202, 120, 0.28);
+  color: #a45800;
+}
+
+.member-manage-status--만료됨 {
+  background: rgba(241, 119, 135, 0.25);
+  color: #a61c3c;
+}
+
+.member-manage-cell--actions {
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.member-manage-inline-btn {
+  border-radius: 8px;
+  border: 1px solid rgba(61, 44, 120, 0.35);
+  background: #fff;
+  padding: 6px 12px;
+  font-size: 16px;
+  cursor: pointer;
+  color: #7b7f95;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.member-manage-inline-btn:hover {
+  background: rgba(241, 119, 135, 0.1);
+  border-color: #a61c3c;
+  color: #a61c3c;
+}
+
+.member-manage-inline-btn--primary {
+  background: #5c38ff;
+  border-color: #5c38ff;
+  color: #fff;
+}
+
+.member-manage-inline-btn--primary:hover {
+  background: #4c28c9;
+}
+
+.member-manage-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: #7b7f95;
+}
+
+@media (max-width: 768px) {
+  .member-manage-modal {
+    padding: 24px 20px 20px;
+    --member-grid: minmax(100px, 1fr) minmax(200px, 1.35fr)
+      repeat(4, minmax(110px, 1fr)) auto;
+  }
+  .member-manage-modal--edit-mode {
+    --member-grid: 26px minmax(100px, 1fr) minmax(200px, 1.35fr)
+      repeat(4, minmax(110px, 1fr)) minmax(60px, auto);
+  }
+  .member-manage-modal--create-mode {
+    --member-grid: minmax(100px, 1fr) minmax(200px, 1.35fr)
+      repeat(4, minmax(110px, 1fr)) minmax(60px, auto);
+  }
+  .member-manage-row {
+    font-size: 14px;
+  }
+}

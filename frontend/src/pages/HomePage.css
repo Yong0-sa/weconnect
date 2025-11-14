@@ -397,7 +397,7 @@
 /* 코인 수량 라벨 */
 .coin-label {
   margin-top: -0.3rem;
-  margin-left: -0.2rem;
+  margin-left: -0.6rem;
   position: absolute;
   left: calc(78.37% + 1.015%);
   top: calc(6.93% + 0.975%);

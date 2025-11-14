@@ -3,7 +3,7 @@ import { createContext, useContext, useState } from "react";
 const CoinContext = createContext();
 
 export function CoinProvider({ children }) {
-  const [coins, setCoins] = useState(3);
+  const [coins, setCoins] = useState(30);
 
   const purchaseItem = (price) => {
     if (coins >= price) {

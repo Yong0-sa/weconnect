@@ -21,6 +21,7 @@ import ProfilePage from "./ProfilePage";
 import CommunityModal from "./CommunityModal";
 import ChatModal from "./ChatModal";
 import ShopModal from "./ShopModal";
+import MemberInfoManageModal from "./MemberInfoManageModal";
 import { logout as requestLogout } from "../api/auth";
 import { fetchMyProfile } from "../api/profile";
 import FarmRegisterModal from "./FarmRegisterModal";
@@ -36,6 +37,7 @@ function HomePage() {
   const [isFarmModalOpen, setIsFarmModalOpen] = useState(false);
   const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isMemberInfoManageOpen, setIsMemberInfoManageOpen] = useState(false);
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
@@ -133,9 +135,15 @@ function HomePage() {
 
   const profileItems = [
     {
-      label: "회원정보수정",
+      label: "계정 관리",
       onClick: () => {
         setIsProfileModalOpen(true);
+      },
+    },
+    {
+      label: "회원 정보 관리",
+      onClick: () => {
+        setIsMemberInfoManageOpen(true);
       },
     },
     {
@@ -483,6 +491,16 @@ function HomePage() {
           </div>
         </div>
       )}
+      {isMemberInfoManageOpen && (
+        <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="crop-modal">
+            <MemberInfoManageModal
+              profile={profile}
+              onClose={() => setIsMemberInfoManageOpen(false)}
+            />
+          </div>
+        </div>
+      )}
       {isChatModalOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
@@ -508,7 +526,9 @@ function HomePage() {
         <FarmRegisterModal
           onClose={() => setShowFarmRegisterModal(false)}
           onRegistered={(farm) => {
-            setProfile((prev) => (prev ? { ...prev, farmId: farm.farmId } : prev));
+            setProfile((prev) =>
+              prev ? { ...prev, farmId: farm.farmId } : prev
+            );
             setShowFarmRegisterModal(false);
           }}
         />
