@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./HomePage.css";
 import { useNavigate } from "react-router-dom";
 import { useCoins } from "../contexts/CoinContext";
@@ -24,8 +24,22 @@ import ShopModal from "./ShopModal";
 import MemberInfoManageModal from "./MemberInfoManageModal";
 import { logout as requestLogout } from "../api/auth";
 import { acknowledgeFarmPrompt, fetchMyProfile } from "../api/profile";
+import { fetchChatRooms } from "../api/chat";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 import FarmRegisterModal from "./FarmRegisterModal";
 import FarmApplyPromptModal from "./FarmApplyPromptModal";
+
+const getInitialChatCheck = () => {
+  if (typeof window === "undefined") return Date.now();
+  const stored = window.localStorage.getItem("lastChatCheck");
+  return stored ? Number(stored) : Date.now();
+};
+
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
+).replace(/\/$/, "");
+const WS_ENDPOINT = `${API_BASE}/ws/chat`;
 
 function HomePage() {
   const navigate = useNavigate();
@@ -48,11 +62,66 @@ function HomePage() {
   const [showFarmRegisterModal, setShowFarmRegisterModal] = useState(false);
   const [showFarmApplyPrompt, setShowFarmApplyPrompt] = useState(false);
   const [isAcknowledgingFarmPrompt, setIsAcknowledgingFarmPrompt] = useState(false);
+  const [hasUnreadChats, setHasUnreadChats] = useState(false);
+  const [lastChatCheck, setLastChatCheck] = useState(() => getInitialChatCheck());
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
   const profileRef = useRef(null);
   const profileIconRef = useRef(null);
+  const notificationClientRef = useRef(null);
+  const notificationSubscriptionsRef = useRef(new Map());
+
+  const markChatsRead = useCallback(() => {
+    const now = Date.now();
+    setLastChatCheck(now);
+    setHasUnreadChats(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("lastChatCheck", String(now));
+    }
+  }, []);
+
+  const attachRoomSubscriptions = useCallback(
+    (rooms) => {
+      const client = notificationClientRef.current;
+      if (!client || !client.connected) return;
+      rooms.forEach((room) => {
+        if (notificationSubscriptionsRef.current.has(room.roomId)) {
+          return;
+        }
+        const subscription = client.subscribe(
+          `/topic/chat/${room.roomId}`,
+          (frame) => {
+            try {
+              JSON.parse(frame.body);
+            } catch (error) {
+              console.error("채팅 알림 파싱 실패", error);
+            }
+            if (!isChatModalOpen) {
+              setHasUnreadChats(true);
+            }
+          }
+        );
+        notificationSubscriptionsRef.current.set(room.roomId, subscription);
+      });
+    },
+    [isChatModalOpen]
+  );
+
+  const refreshUnreadChats = useCallback(async () => {
+    try {
+      const rooms = await fetchChatRooms();
+      attachRoomSubscriptions(rooms);
+      const hasNew = rooms.some((room) => {
+        const timestamp = new Date(room.lastMessageAt || room.updatedAt).getTime();
+        if (!Number.isFinite(timestamp)) return false;
+        return timestamp > lastChatCheck;
+      });
+      setHasUnreadChats(hasNew);
+    } catch (error) {
+      console.error("채팅방 목록을 확인하지 못했습니다.", error);
+    }
+  }, [lastChatCheck, attachRoomSubscriptions]);
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -124,11 +193,13 @@ function HomePage() {
   const openChatModal = (contact = null) => {
     setInitialChatContact(contact);
     setIsChatModalOpen(true);
+    markChatsRead();
   };
 
   const handleCloseChatModal = () => {
     setIsChatModalOpen(false);
     setInitialChatContact(null);
+    markChatsRead();
   };
 
   const handleAISelect = (type) => {
@@ -146,6 +217,47 @@ function HomePage() {
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev);
   };
+
+  useEffect(() => {
+    if (!profile) return;
+    refreshUnreadChats();
+    const interval = setInterval(() => {
+      if (!isChatModalOpen) {
+        refreshUnreadChats();
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [profile, isChatModalOpen, refreshUnreadChats]);
+
+  useEffect(() => {
+    if (!profile) return;
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS(WS_ENDPOINT),
+      reconnectDelay: 5000,
+      debug: () => {},
+    });
+
+    client.onConnect = () => {
+      notificationClientRef.current = client;
+      refreshUnreadChats();
+    };
+
+    client.onDisconnect = () => {
+      notificationSubscriptionsRef.current.forEach((subscription) => subscription.unsubscribe());
+      notificationSubscriptionsRef.current.clear();
+    };
+
+    client.activate();
+    notificationClientRef.current = client;
+
+    return () => {
+      notificationSubscriptionsRef.current.forEach((subscription) => subscription.unsubscribe());
+      notificationSubscriptionsRef.current.clear();
+      client.deactivate();
+      notificationClientRef.current = null;
+    };
+  }, [profile, refreshUnreadChats]);
 
   const handleLogout = async () => {
     try {
@@ -298,7 +410,9 @@ function HomePage() {
 
         {/* 채팅 아이콘 */}
         <div
-          className="icon-overlay chat-icon"
+          className={`icon-overlay chat-icon${
+            hasUnreadChats ? " chat-icon--unread" : ""
+          }`}
           onClick={() => openChatModal()}
           role="button"
           tabIndex={0}
@@ -310,6 +424,9 @@ function HomePage() {
           }}
         >
           <img src={ChatIcon} alt="채팅" />
+          {hasUnreadChats && (
+            <span className="chat-icon-badge" aria-label="읽지 않은 채팅" />
+          )}
         </div>
 
         {/* 마이페이지 아이콘 */}
