@@ -1,155 +1,259 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./ChatModal.css";
 import { farms as farmListData } from "../data/farms";
+import {
+  ensureChatRoom,
+  fetchChatMessages,
+  fetchChatRooms,
+  sendChatMessage,
+} from "../api/chat";
+import { fetchMyProfile } from "../api/profile";
 
-const baseChats = [
-  {
-    id: "owner",
-    name: "OO 농장주",
-    preview: "안녕하세요~",
-    lastTime: "AM 04:28",
-  },
-  {
-    id: "basic",
-    name: "기본 캐릭터",
-    preview: "언제든지 문의 주세요.",
-    lastTime: "어제",
-  },
-  {
-    id: "mentor",
-    name: "주말농장 멘토",
-    preview: "다음 모임은 이번 주 토요일입니다.",
-    lastTime: "3일 전",
-  },
-];
-
-const baseMessages = {
-  owner: [
-    {
-      id: "owner-1",
-      from: "partner",
-      text: "안녕하세요~",
-      time: "AM 04:28",
-    },
-  ],
-  basic: [
-    {
-      id: "basic-1",
-      from: "partner",
-      text: "언제든지 문의 주세요.",
-      time: "PM 02:10",
-    },
-  ],
-  mentor: [
-    {
-      id: "mentor-1",
-      from: "partner",
-      text: "다음 모임은 이번 주 토요일입니다.",
-      time: "AM 09:12",
-    },
-  ],
-};
-
-const formatTimeLabel = () => {
+const formatListTime = (timestamp) => {
+  if (!timestamp) return "";
+  const target = new Date(timestamp);
   const now = new Date();
-  const hours = now.getHours();
-  const minutes = now.getMinutes().toString().padStart(2, "0");
-  const period = hours < 12 ? "AM" : "PM";
-  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-  return `${period} ${displayHour.toString().padStart(2, "0")}:${minutes}`;
+  const diffMs = now - target;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < hour) {
+    const minutesAgo = Math.max(1, Math.floor(diffMs / minute));
+    return `${minutesAgo}분 전`;
+  }
+  if (diffMs < day) {
+    return target.toLocaleTimeString("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+  if (diffMs < day * 7) {
+    const daysAgo = Math.floor(diffMs / day);
+    return `${daysAgo}일 전`;
+  }
+  return target.toLocaleDateString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+  });
 };
+
+const formatMessageTime = (timestamp) => {
+  if (!timestamp) return "";
+  const target = new Date(timestamp);
+  return target.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const resolveRoomName = (room, currentUserId) => {
+  if (!room) return "채팅방";
+  if (currentUserId && room.userId === currentUserId) {
+    return room.farmerName || room.farmName || "농장주";
+  }
+  if (currentUserId && room.farmerId === currentUserId) {
+    return room.userName || room.userNickname || "회원";
+  }
+  return room.userName || room.farmerName || room.farmName || "채팅방";
+};
+
+const toBubbleMessage = (message, currentUserId) => ({
+  id: message.contentId ?? `${message.roomId}-${message.createdAt}`,
+  from:
+    currentUserId && message.senderId === currentUserId ? "me" : "partner",
+  text: message.content,
+  time: formatMessageTime(message.createdAt),
+});
 
 function ChatModal({ onClose, initialContact }) {
-  const [chatList, setChatList] = useState(baseChats);
-  const [messagesByChat, setMessagesByChat] = useState(baseMessages);
-  const [selectedChatId, setSelectedChatId] = useState(
-    baseChats[0]?.id ?? null
-  );
+  const [rooms, setRooms] = useState([]);
+  const [messagesByChat, setMessagesByChat] = useState({});
+  const [selectedChatId, setSelectedChatId] = useState(null);
   const [messageInput, setMessageInput] = useState("");
   const [activeSidebarView, setActiveSidebarView] = useState("chats");
-
-  const selectedChat = useMemo(
-    () => chatList.find((chat) => chat.id === selectedChatId),
-    [chatList, selectedChatId]
-  );
+  const [roomError, setRoomError] = useState("");
+  const [messageError, setMessageError] = useState("");
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isEnsuringRoom, setIsEnsuringRoom] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   const farmList = useMemo(() => farmListData, []);
 
-  const ensureChatForContact = useCallback(
-    (contact) => {
-      if (!contact?.name) return;
-
-      setChatList((prev) => {
-        const existing =
-          prev.find((chat) => chat.id === contact.id) ||
-          prev.find((chat) => chat.name === contact.name);
-
-        if (existing) {
-          setSelectedChatId(existing.id);
-          return prev;
-        }
-
-        const newId = contact.id || `farm-${Date.now()}`;
-      setMessagesByChat((msgs) => {
-        if (msgs[newId]) return msgs;
-        return {
-          ...msgs,
-          [newId]: [],
-        };
-      });
-        setSelectedChatId(newId);
-        return [
-        {
-          id: newId,
-          name: contact.name,
-          preview: "",
-          lastTime: "",
-        },
-          ...prev,
-        ];
-      });
-      setActiveSidebarView("chats");
+  const loadRooms = useCallback(
+    async ({ selectRoomId } = {}) => {
+      setIsLoadingRooms(true);
+      setRoomError("");
+      try {
+        const list = await fetchChatRooms();
+        setRooms(list);
+        setSelectedChatId((prev) => {
+          if (selectRoomId != null) return selectRoomId;
+          if (!list.length) return null;
+          if (prev && list.some((room) => room.roomId === prev)) {
+            return prev;
+          }
+          return list[0]?.roomId ?? null;
+        });
+      } catch (error) {
+        setRoomError(error.message || "채팅방 목록을 불러오지 못했습니다.");
+      } finally {
+        setIsLoadingRooms(false);
+      }
     },
-    [setMessagesByChat, setSelectedChatId]
+    []
+  );
+
+  const ensureChatForContact = useCallback(
+    async (contact) => {
+      if (!contact) return;
+      if (contact.roomId) {
+        await loadRooms({ selectRoomId: contact.roomId });
+        setActiveSidebarView("chats");
+        return;
+      }
+
+      if (!contact.farmId || !contact.farmerId || !contact.userId) {
+        setRoomError("채팅방을 생성할 정보가 부족합니다.");
+        setActiveSidebarView("chats");
+        return;
+      }
+
+      try {
+        setIsEnsuringRoom(true);
+        const room = await ensureChatRoom({
+          farmId: contact.farmId,
+          farmerId: contact.farmerId,
+          userId: contact.userId,
+        });
+        await loadRooms({ selectRoomId: room.roomId });
+        setActiveSidebarView("chats");
+      } catch (error) {
+        setRoomError(error.message || "채팅방을 생성하지 못했습니다.");
+      } finally {
+        setIsEnsuringRoom(false);
+      }
+    },
+    [loadRooms]
   );
 
   useEffect(() => {
-    if (initialContact?.name) {
+    let ignore = false;
+    async function loadProfile() {
+      try {
+        const profile = await fetchMyProfile();
+        if (!ignore) {
+          setCurrentUserId(profile?.userId ?? null);
+        }
+      } catch {
+        if (!ignore) {
+          setCurrentUserId(null);
+        }
+      }
+    }
+    loadProfile();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    loadRooms();
+  }, [loadRooms]);
+
+  useEffect(() => {
+    if (initialContact) {
       ensureChatForContact(initialContact);
     }
   }, [initialContact, ensureChatForContact]);
 
-  const handleSendMessage = () => {
+  useEffect(() => {
+    if (!selectedChatId) return;
+    let ignore = false;
+    setIsLoadingMessages(true);
+    setMessageError("");
+    fetchChatMessages(selectedChatId)
+      .then((messages) => {
+        if (ignore) return;
+        setMessagesByChat((prev) => ({
+          ...prev,
+          [selectedChatId]: messages,
+        }));
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setMessageError(error.message || "메시지를 불러오지 못했습니다.");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setIsLoadingMessages(false);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [selectedChatId]);
+
+  const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedChatId) return;
     const trimmed = messageInput.trim();
-    const newMessage = {
-      id: `${selectedChatId}-${Date.now()}`,
-      from: "me",
-      text: trimmed,
-      time: formatTimeLabel(),
-    };
-
-    setMessagesByChat((prev) => ({
-      ...prev,
-      [selectedChatId]: [...(prev[selectedChatId] || []), newMessage],
-    }));
-
-    setChatList((prev) =>
-      prev.map((chat) =>
-        chat.id === selectedChatId
-          ? {
-              ...chat,
-              preview: trimmed,
-              lastTime: "방금",
-            }
-          : chat
-      )
-    );
-
-    setMessageInput("");
+    setMessageError("");
+    setIsSendingMessage(true);
+    try {
+      const newMessage = await sendChatMessage(selectedChatId, trimmed);
+      setMessagesByChat((prev) => ({
+        ...prev,
+        [selectedChatId]: [...(prev[selectedChatId] || []), newMessage],
+      }));
+      setRooms((prev) =>
+        prev.map((room) =>
+          room.roomId === selectedChatId
+            ? {
+                ...room,
+                lastMessageAt: newMessage.createdAt,
+                updatedAt: newMessage.createdAt,
+              }
+            : room
+        )
+      );
+      setMessageInput("");
+    } catch (error) {
+      setMessageError(error.message || "메시지를 전송하지 못했습니다.");
+    } finally {
+      setIsSendingMessage(false);
+    }
   };
 
-  const messages = messagesByChat[selectedChatId] || [];
+  const chatList = useMemo(() => {
+    return rooms.map((room) => {
+      const history = messagesByChat[room.roomId] || [];
+      const lastMessage = history[history.length - 1];
+      return {
+        id: room.roomId,
+        name: resolveRoomName(room, currentUserId),
+        preview: lastMessage?.content || "",
+        lastTime: formatListTime(room.lastMessageAt || room.updatedAt),
+      };
+    });
+  }, [rooms, messagesByChat, currentUserId]);
+
+  const selectedChat = useMemo(
+    () => rooms.find((room) => room.roomId === selectedChatId) ?? null,
+    [rooms, selectedChatId]
+  );
+
+  const selectedChatName = useMemo(
+    () => resolveRoomName(selectedChat, currentUserId),
+    [selectedChat, currentUserId]
+  );
+
+  const messages = useMemo(() => {
+    const raw = messagesByChat[selectedChatId] || [];
+    return raw.map((message) => toBubbleMessage(message, currentUserId));
+  }, [messagesByChat, selectedChatId, currentUserId]);
 
   return (
     <div className="chat-modal-card">
@@ -207,6 +311,17 @@ function ChatModal({ onClose, initialContact }) {
                   <h3>채팅</h3>
                 </div>
                 <div className="chat-list-scroll">
+                  {isLoadingRooms && (
+                    <p className="chat-feedback">채팅방을 불러오는 중...</p>
+                  )}
+                  {!isLoadingRooms && !chatList.length && (
+                    <p className="chat-feedback">아직 시작한 대화가 없어요.</p>
+                  )}
+                  {roomError && (
+                    <p className="chat-feedback chat-feedback--error">
+                      {roomError}
+                    </p>
+                  )}
                   {chatList.map((chat) => (
                     <button
                       type="button"
@@ -214,14 +329,20 @@ function ChatModal({ onClose, initialContact }) {
                       className={`chat-list-item${
                         chat.id === selectedChatId ? " active" : ""
                       }`}
-                      onClick={() => setSelectedChatId(chat.id)}
+                      onClick={() => {
+                        setSelectedChatId(chat.id);
+                        setActiveSidebarView("chats");
+                      }}
                     >
                       <strong>{chat.name}</strong>
-                      <p>{chat.preview}</p>
+                      <p>{chat.preview || "메시지를 시작해 보세요."}</p>
                       <span className="chat-item-time">{chat.lastTime}</span>
                     </button>
                   ))}
                 </div>
+                {isEnsuringRoom && (
+                  <p className="chat-feedback">채팅방을 준비 중입니다...</p>
+                )}
               </>
             ) : (
               <>
@@ -241,6 +362,7 @@ function ChatModal({ onClose, initialContact }) {
                         ensureChatForContact({
                           id: `farm-${farm.id}`,
                           name: `${farm.name} 농장주`,
+                          farmId: farm.id,
                         })
                       }
                     >
@@ -260,20 +382,32 @@ function ChatModal({ onClose, initialContact }) {
           {selectedChat ? (
             <>
               <header className="chat-room-header">
-                <h3>{selectedChat.name}</h3>
+                <h3>{selectedChatName}</h3>
               </header>
               <div className="chat-room-scroll">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`chat-bubble-row ${message.from}`}
-                  >
-                    <div className="chat-bubble">
-                      <p>{message.text}</p>
-                      <span className="chat-bubble-time">{message.time}</span>
+                {isLoadingMessages ? (
+                  <p className="chat-feedback">메시지를 불러오는 중...</p>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`chat-bubble-row ${message.from}`}
+                    >
+                      <div className="chat-bubble">
+                        <p>{message.text}</p>
+                        <span className="chat-bubble-time">{message.time}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
+                {messageError && (
+                  <p className="chat-feedback chat-feedback--error">
+                    {messageError}
+                  </p>
+                )}
+                {!isLoadingMessages && !messages.length && (
+                  <p className="chat-feedback">아직 메시지가 없습니다.</p>
+                )}
               </div>
               <div className="chat-input-bar">
                 <input
@@ -287,9 +421,14 @@ function ChatModal({ onClose, initialContact }) {
                       handleSendMessage();
                     }
                   }}
+                  disabled={isSendingMessage}
                 />
-                <button type="button" onClick={handleSendMessage}>
-                  전송
+                <button
+                  type="button"
+                  onClick={handleSendMessage}
+                  disabled={isSendingMessage}
+                >
+                  {isSendingMessage ? "전송 중..." : "전송"}
                 </button>
               </div>
             </>

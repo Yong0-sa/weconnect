@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import ChatModal from "./ChatModal";
 import "./MemberInfoManageModal.css";
 
 const STATUS_OPTIONS = ["승인 대기", "사용 중", "만료됨"];
@@ -50,6 +51,8 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [createRows, setCreateRows] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [chatContact, setChatContact] = useState(null);
 
   const totalMembers = members.length;
   const allSelected = totalMembers > 0 && selectedIds.length === totalMembers;
@@ -195,6 +198,32 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
     setSelectedIds([]);
     setCreateRows([]);
     onClose();
+  };
+
+  const handleOpenChat = (member) => {
+    if (!member) return;
+    const parseId = (value) => {
+      if (value == null) return null;
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : null;
+    };
+    const nextContact = {
+      id: member.id,
+      name: member.name || member.nickname || member.email,
+      userId: parseId(member.userId ?? member.id),
+      farmerId: parseId(profile?.userId),
+      farmId: parseId(profile?.farmId),
+    };
+    if (member.roomId) {
+      nextContact.roomId = member.roomId;
+    }
+    setChatContact(nextContact);
+    setIsChatModalOpen(true);
+  };
+
+  const handleCloseChat = () => {
+    setIsChatModalOpen(false);
+    setChatContact(null);
   };
 
   const renderEditableInput = (key, value, onChange) => {
@@ -414,6 +443,13 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
                 </div>
               ))}
               <div className="member-manage-cell member-manage-cell--actions" role="cell">
+                <button
+                  type="button"
+                  className="member-manage-inline-btn member-manage-inline-btn--chat"
+                  onClick={() => handleOpenChat(member)}
+                >
+                  채팅
+                </button>
                 {isEditMode && (
                   <button
                     type="button"
@@ -433,6 +469,11 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
           </div>
         )}
       </section>
+      {isChatModalOpen && (
+        <div className="member-manage-chat-modal">
+          <ChatModal initialContact={chatContact} onClose={handleCloseChat} />
+        </div>
+      )}
     </div>
   );
 }

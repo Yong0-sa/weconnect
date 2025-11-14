@@ -177,6 +177,18 @@
   background: rgba(255, 255, 255, 0.75);
 }
 
+.chat-feedback {
+  margin: 0;
+  padding: 6px 0;
+  text-align: center;
+  font-size: 14px;
+  color: #30414a;
+}
+
+.chat-feedback--error {
+  color: #b04545;
+}
+
 .farm-list-scroll {
   flex: 1;
   overflow-y: auto;

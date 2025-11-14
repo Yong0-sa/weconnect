@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./FarmSearchModal.css";
 import { fetchFarms } from "../api/farm";
 import { regionOptions } from "../data/farms";
@@ -6,7 +6,7 @@ import { regionOptions } from "../data/farms";
 function FarmSearchModal({ onClose, onChatRequest }) {
   const [selectedSido, setSelectedSido] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [highlightedId, setHighlightedId] = useState(null);
+  const [selectedFarmId, setSelectedFarmId] = useState(null);
   const [farms, setFarms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,7 +15,24 @@ function FarmSearchModal({ onClose, onChatRequest }) {
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const listContainerRef = useRef(null);
-  const [visibleFarmIds, setVisibleFarmIds] = useState([]);
+  const focusMapOnFarm = useCallback((farm) => {
+    if (!window.kakao?.maps || !mapRef.current) {
+      return;
+    }
+    const targetPosition = new window.kakao.maps.LatLng(farm.lat, farm.lng);
+    mapRef.current.panTo(targetPosition);
+  }, []);
+
+  const handleFarmCardClick = useCallback(
+    (farm, event) => {
+      if (event?.target?.closest("button")) {
+        return;
+      }
+      setSelectedFarmId(farm.id);
+      focusMapOnFarm(farm);
+    },
+    [focusMapOnFarm]
+  );
 
   const filteredFarms = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -80,44 +97,13 @@ function FarmSearchModal({ onClose, onChatRequest }) {
   }, []);
 
   useEffect(() => {
-    const container = listContainerRef.current;
-    setVisibleFarmIds([]);
-    if (!container) {
+    if (selectedFarmId == null) {
       return;
     }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        setVisibleFarmIds((prev) => {
-          const next = new Set(prev);
-          let changed = false;
-          entries.forEach((entry) => {
-            const farmId = entry.target.dataset.farmId;
-            if (!farmId) {
-              return;
-            }
-            if (entry.isIntersecting && entry.intersectionRatio > 0) {
-              if (!next.has(farmId)) {
-                next.add(farmId);
-                changed = true;
-              }
-            } else if (next.delete(farmId)) {
-              changed = true;
-            }
-          });
-          return changed ? Array.from(next) : prev;
-        });
-      },
-      { root: container, threshold: 0.2 }
-    );
-
-    const cards = container.querySelectorAll("[data-farm-id]");
-    cards.forEach((card) => observer.observe(card));
-
-    return () => {
-      cards.forEach((card) => observer.unobserve(card));
-      observer.disconnect();
-    };
-  }, [filteredFarms]);
+    if (!filteredFarms.some((farm) => farm.id === selectedFarmId)) {
+      setSelectedFarmId(null);
+    }
+  }, [filteredFarms, selectedFarmId]);
 
   useEffect(() => {
     const existingScript = document.getElementById("kakao-map-sdk");
@@ -164,45 +150,44 @@ function FarmSearchModal({ onClose, onChatRequest }) {
 
     if (!filteredFarms.length) return;
 
-    const visibleSet = new Set(visibleFarmIds.map(String));
-    const markerTargets = filteredFarms.filter((farm) =>
-      visibleSet.has(String(farm.id))
-    );
-    const farmsForMarkers = markerTargets.length
-      ? markerTargets
-      : filteredFarms.slice(0, 8);
+    const createMarkerImage = (color) => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 24 32" fill="none"><path d="M12 32s9-10.059 9-17.333C21 6.477 16.97 2 12 2S3 6.477 3 14.667C3 21.941 12 32 12 32z" fill="${color}"/><circle cx="12" cy="14" r="4" fill="#fff"/></svg>`;
+      const src = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+      return new window.kakao.maps.MarkerImage(
+        src,
+        new window.kakao.maps.Size(34, 44),
+        { offset: new window.kakao.maps.Point(17, 44) }
+      );
+    };
 
-    if (!farmsForMarkers.length) {
-      return;
-    }
+    const blueMarkerImage = createMarkerImage("#2F7BFF");
+    const redMarkerImage = createMarkerImage("#FF4F5E");
 
     const bounds = new window.kakao.maps.LatLngBounds();
 
-    farmsForMarkers.forEach((farm) => {
+    filteredFarms.forEach((farm) => {
       const position = new window.kakao.maps.LatLng(farm.lat, farm.lng);
+      const isSelected = farm.id === selectedFarmId;
       const marker = new window.kakao.maps.Marker({
         position,
         map: mapRef.current,
+        image: isSelected ? redMarkerImage : blueMarkerImage,
+        zIndex: isSelected ? 2 : 1,
       });
 
-      window.kakao.maps.event.addListener(marker, "mouseover", () => {
-        setHighlightedId(farm.id);
-      });
-      window.kakao.maps.event.addListener(marker, "mouseout", () => {
-        setHighlightedId(null);
-      });
       window.kakao.maps.event.addListener(marker, "click", () => {
-        setHighlightedId(farm.id);
+        setSelectedFarmId(farm.id);
+        focusMapOnFarm(farm);
       });
 
       markersRef.current.push(marker);
       bounds.extend(position);
     });
 
-    if (!bounds.isEmpty()) {
+    if (!bounds.isEmpty() && selectedFarmId == null) {
       mapRef.current.setBounds(bounds, 60, 60, 60, 60);
     }
-  }, [filteredFarms, isMapReady, visibleFarmIds]);
+  }, [filteredFarms, isMapReady, selectedFarmId, focusMapOnFarm]);
 
   useEffect(() => {
     return () => {
@@ -289,10 +274,9 @@ function FarmSearchModal({ onClose, onChatRequest }) {
                       key={farm.id}
                       data-farm-id={farm.id}
                       className={`farm-card${
-                        highlightedId === farm.id ? " highlighted" : ""
+                        selectedFarmId === farm.id ? " highlighted" : ""
                       }`}
-                      onMouseEnter={() => setHighlightedId(farm.id)}
-                      onMouseLeave={() => setHighlightedId(null)}
+                      onClick={(event) => handleFarmCardClick(farm, event)}
                     >
                       <div>
                         <h4>{farm.name}</h4>
