@@ -70,6 +70,8 @@ function FarmSearchModal({ onClose, onChatRequest }) {
         if (!active) return;
         const normalized = (data || []).map((farm) => ({
           id: farm.farmId ?? farm.id,
+          farmId: farm.farmId ?? farm.id,
+          ownerId: farm.ownerId ?? farm.owner?.userId ?? null,
           name: farm.name ?? "이름 미정",
           address: farm.address ?? "",
           city: farm.city ?? "",

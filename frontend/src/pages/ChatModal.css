@@ -8,6 +8,7 @@
   flex-direction: column;
   position: relative;
   box-shadow: 0 40px 80px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
 .chat-modal-close {
@@ -189,6 +190,26 @@
   color: #b04545;
 }
 
+.chat-connection-badge {
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  width: fit-content;
+  align-self: center;
+}
+
+.chat-connection-badge.online {
+  background: rgba(118, 191, 147, 0.25);
+  color: #0f5132;
+}
+
+.chat-connection-badge.offline {
+  background: rgba(255, 221, 166, 0.4);
+  color: #8a5000;
+}
+
 .farm-list-scroll {
   flex: 1;
   overflow-y: auto;
@@ -241,6 +262,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
 }
 
 .chat-room-header {
@@ -272,7 +294,7 @@
 }
 
 .chat-bubble-row.me {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .chat-bubble {
@@ -285,6 +307,12 @@
 
 .chat-bubble-row.me .chat-bubble {
   background: #d9efdc;
+  margin-left: auto;
+}
+
+.chat-bubble-row.partner .chat-bubble {
+  background: #f3e8cc;
+  margin-right: auto;
 }
 
 .chat-bubble p {

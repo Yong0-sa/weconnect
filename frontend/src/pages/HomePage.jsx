@@ -499,10 +499,21 @@ function HomePage() {
             <FarmSearchModal
               onClose={() => setIsFarmModalOpen(false)}
               onChatRequest={(farm) => {
+                if (!profile?.userId) {
+                  alert("로그인 후 채팅을 이용해 주세요.");
+                  return;
+                }
+                if (!farm.ownerId) {
+                  alert("농장주 정보를 찾을 수 없습니다.");
+                  return;
+                }
                 setIsFarmModalOpen(false);
                 openChatModal({
                   id: `farm-${farm.id}`,
                   name: `${farm.name} 농장주`,
+                  farmId: farm.farmId ?? farm.id,
+                  farmerId: farm.ownerId,
+                  userId: profile?.userId,
                 });
               }}
             />

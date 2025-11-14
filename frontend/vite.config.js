@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    global: 'window',
+  },
   server: {
     // 개발 환경에서 Spring Boot API 프록시 설정
     proxy: {

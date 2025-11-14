@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./ChatModal.css";
 import { farms as farmListData } from "../data/farms";
 import {
@@ -8,6 +8,17 @@ import {
   sendChatMessage,
 } from "../api/chat";
 import { fetchMyProfile } from "../api/profile";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+
+if (typeof window !== "undefined" && typeof window.global === "undefined") {
+  window.global = window;
+}
+
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
+).replace(/\/$/, "");
+const WS_ENDPOINT = `${API_BASE}/ws/chat`;
 
 const formatListTime = (timestamp) => {
   if (!timestamp) return "";
@@ -79,6 +90,11 @@ function ChatModal({ onClose, initialContact }) {
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isEnsuringRoom, setIsEnsuringRoom] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [stompClient, setStompClient] = useState(null);
+  const [isWsConnected, setIsWsConnected] = useState(false);
+  const [wsError, setWsError] = useState("");
+  const subscriptionRef = useRef(null);
+  const chatScrollRef = useRef(null);
 
   const farmList = useMemo(() => farmListData, []);
 
@@ -139,6 +155,34 @@ function ChatModal({ onClose, initialContact }) {
     [loadRooms]
   );
 
+  const handleIncomingMessage = useCallback((payload) => {
+    if (!payload?.roomId) return;
+    setMessagesByChat((prev) => {
+      const existing = prev[payload.roomId] || [];
+      if (
+        payload.contentId &&
+        existing.some((message) => message.contentId === payload.contentId)
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [payload.roomId]: [...existing, payload],
+      };
+    });
+    setRooms((prev) =>
+      prev.map((room) =>
+        room.roomId === payload.roomId
+          ? {
+              ...room,
+              lastMessageAt: payload.createdAt,
+              updatedAt: payload.createdAt,
+            }
+          : room
+      )
+    );
+  }, []);
+
   useEffect(() => {
     let ignore = false;
     async function loadProfile() {
@@ -197,29 +241,101 @@ function ChatModal({ onClose, initialContact }) {
     };
   }, [selectedChatId]);
 
+  useEffect(() => {
+    const client = new Client({
+      webSocketFactory: () => new SockJS(WS_ENDPOINT),
+      reconnectDelay: 5000,
+      debug: () => {},
+    });
+
+    client.onConnect = () => {
+      setIsWsConnected(true);
+      setWsError("");
+    };
+    client.onDisconnect = () => {
+      setIsWsConnected(false);
+    };
+    client.onStompError = (frame) => {
+      setWsError(
+        frame.headers["message"] || "채팅 서버와 통신 중 오류가 발생했습니다."
+      );
+    };
+    client.onWebSocketClose = () => {
+      setIsWsConnected(false);
+    };
+
+    client.activate();
+    setStompClient(client);
+
+    return () => {
+      subscriptionRef.current?.unsubscribe();
+      subscriptionRef.current = null;
+      setIsWsConnected(false);
+      client.deactivate();
+      setStompClient(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!stompClient || !isWsConnected || !selectedChatId) {
+      return undefined;
+    }
+
+    if (subscriptionRef.current) {
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+
+    const destination = `/topic/chat/${selectedChatId}`;
+    const subscription = stompClient.subscribe(destination, (frame) => {
+      try {
+        const payload = JSON.parse(frame.body);
+        handleIncomingMessage(payload);
+      } catch (error) {
+        console.error("채팅 메시지 파싱 실패", error);
+      }
+    });
+    subscriptionRef.current = subscription;
+
+    return () => {
+      subscription.unsubscribe();
+      if (subscriptionRef.current === subscription) {
+        subscriptionRef.current = null;
+      }
+    };
+  }, [stompClient, isWsConnected, selectedChatId, handleIncomingMessage]);
+
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedChatId) return;
     const trimmed = messageInput.trim();
     setMessageError("");
     setIsSendingMessage(true);
     try {
-      const newMessage = await sendChatMessage(selectedChatId, trimmed);
-      setMessagesByChat((prev) => ({
-        ...prev,
-        [selectedChatId]: [...(prev[selectedChatId] || []), newMessage],
-      }));
-      setRooms((prev) =>
-        prev.map((room) =>
-          room.roomId === selectedChatId
-            ? {
-                ...room,
-                lastMessageAt: newMessage.createdAt,
-                updatedAt: newMessage.createdAt,
-              }
-            : room
-        )
-      );
-      setMessageInput("");
+      if (isWsConnected && stompClient?.connected) {
+        stompClient.publish({
+          destination: "/app/chat.send",
+          body: JSON.stringify({ roomId: selectedChatId, content: trimmed }),
+        });
+        setMessageInput("");
+      } else {
+        const newMessage = await sendChatMessage(selectedChatId, trimmed);
+        setMessagesByChat((prev) => ({
+          ...prev,
+          [selectedChatId]: [...(prev[selectedChatId] || []), newMessage],
+        }));
+        setRooms((prev) =>
+          prev.map((room) =>
+            room.roomId === selectedChatId
+              ? {
+                  ...room,
+                  lastMessageAt: newMessage.createdAt,
+                  updatedAt: newMessage.createdAt,
+                }
+              : room
+          )
+        );
+        setMessageInput("");
+      }
     } catch (error) {
       setMessageError(error.message || "메시지를 전송하지 못했습니다.");
     } finally {
@@ -254,6 +370,11 @@ function ChatModal({ onClose, initialContact }) {
     const raw = messagesByChat[selectedChatId] || [];
     return raw.map((message) => toBubbleMessage(message, currentUserId));
   }, [messagesByChat, selectedChatId, currentUserId]);
+
+  useEffect(() => {
+    if (!chatScrollRef.current) return;
+    chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+  }, [messages]);
 
   return (
     <div className="chat-modal-card">
@@ -343,6 +464,18 @@ function ChatModal({ onClose, initialContact }) {
                 {isEnsuringRoom && (
                   <p className="chat-feedback">채팅방을 준비 중입니다...</p>
                 )}
+                <p
+                  className={`chat-connection-badge ${
+                    isWsConnected ? "online" : "offline"
+                  }`}
+                >
+                  {isWsConnected ? "실시간 연결됨" : "실시간 연결 대기 중..."}
+                </p>
+                {wsError && (
+                  <p className="chat-feedback chat-feedback--error">
+                    {wsError}
+                  </p>
+                )}
               </>
             ) : (
               <>
@@ -384,7 +517,7 @@ function ChatModal({ onClose, initialContact }) {
               <header className="chat-room-header">
                 <h3>{selectedChatName}</h3>
               </header>
-              <div className="chat-room-scroll">
+              <div className="chat-room-scroll" ref={chatScrollRef}>
                 {isLoadingMessages ? (
                   <p className="chat-feedback">메시지를 불러오는 중...</p>
                 ) : (
