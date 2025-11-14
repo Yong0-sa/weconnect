@@ -10,8 +10,8 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
-function DiaryModal({ onClose }) {
-  const [isWriting, setIsWriting] = useState(false);
+function DiaryModal({ onClose, initialData = null }) {
+  const [isWriting, setIsWriting] = useState(!!initialData);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState(null);
   const [editingEntryId, setEditingEntryId] = useState(null);
@@ -19,12 +19,25 @@ function DiaryModal({ onClose }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState({
-    date: "",
-    content: "",
-    file: null,
-    title: "",
-    preview: null,
+  const [draft, setDraft] = useState(() => {
+    // initialData가 있으면 진단 결과로 초기화
+    if (initialData) {
+      const today = new Date().toISOString().split('T')[0];
+      return {
+        date: today,
+        content: initialData.content || "",
+        file: initialData.image || null,
+        title: initialData.title || "",
+        preview: initialData.imagePreview || null,
+      };
+    }
+    return {
+      date: "",
+      content: "",
+      file: null,
+      title: "",
+      preview: null,
+    };
   });
 
   // 백엔드 응답을 프론트엔드 형식으로 변환

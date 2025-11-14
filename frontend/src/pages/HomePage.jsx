@@ -35,6 +35,7 @@ function HomePage() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isFarmModalOpen, setIsFarmModalOpen] = useState(false);
   const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
+  const [diaryModalInitialData, setDiaryModalInitialData] = useState(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
@@ -442,7 +443,13 @@ function HomePage() {
       {isDiaryModalOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
-            <DiaryModal onClose={() => setIsDiaryModalOpen(false)} />
+            <DiaryModal
+              onClose={() => {
+                setIsDiaryModalOpen(false);
+                setDiaryModalInitialData(null);
+              }}
+              initialData={diaryModalInitialData}
+            />
           </div>
         </div>
       )}
@@ -465,7 +472,14 @@ function HomePage() {
       {isCropModalOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
-            <AICropSearchPage onClose={() => setIsCropModalOpen(false)} />
+            <AICropSearchPage
+              onClose={() => setIsCropModalOpen(false)}
+              onOpenDiaryModal={(diagnosisData) => {
+                setIsCropModalOpen(false);
+                setDiaryModalInitialData(diagnosisData);
+                setIsDiaryModalOpen(true);
+              }}
+            />
           </div>
         </div>
       )}

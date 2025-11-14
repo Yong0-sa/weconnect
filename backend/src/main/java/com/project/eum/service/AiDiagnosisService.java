@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.eum.diagnosis.Diagnosis;
 import com.project.eum.diagnosis.DiagnosisRepository;
 import com.project.eum.dto.AiDiagnosisResponse;
+import com.project.eum.dto.DiaryRequest;
+import com.project.eum.dto.DiaryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,12 +35,21 @@ public class AiDiagnosisService {
 
     private final DiagnosisRepository diagnosisRepository;
     private final ObjectStorageService objectStorageService;
+    private final DiaryService diaryService;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** AI 서버 URL (application.properties에서 설정) */
     @Value("${ai.predict.server.url:http://10.171.4.7:8000/predict}")
     private String aiServerBaseUrl;
+
+    /** Python 명령어 (application.properties에서 설정) */
+    @Value("${diagnosis.python-command:python}")
+    private String pythonCommand;
+
+    /** Python 스크립트 경로 (application.properties에서 설정) */
+    @Value("${diagnosis.script-path:src/main/resources/scripts/predict_crop.py}")
+    private String scriptPath;
 
     /**
      * 작물 진단 수행
@@ -107,10 +118,10 @@ public class AiDiagnosisService {
             log.info("진단 결과: label={}, careComment 길이={}, photoUrl={}",
                     label, careComment != null ? careComment.length() : 0, photoUrl);
 
-            saveDiagnosis(userId, cropType, label, careComment, photoUrl);
+            Long diagnosisId = saveDiagnosis(userId, cropType, label, careComment, photoUrl);
 
-            AiDiagnosisResponse result = new AiDiagnosisResponse(true, cropType, label, predictedIndex, confidence, message, careComment);
-            log.info("진단 완료: success={}, label={}", result.isSuccess(), result.getLabel());
+            AiDiagnosisResponse result = new AiDiagnosisResponse(true, cropType, label, predictedIndex, confidence, message, careComment, diagnosisId);
+            log.info("진단 완료: success={}, label={}, diagnosisId={}", result.isSuccess(), result.getLabel(), diagnosisId);
             return result;
 
         } catch (IOException e) {
@@ -306,8 +317,9 @@ public class AiDiagnosisService {
      * @param diseaseName 질병 이름
      * @param recommendation 관리 방법
      * @param photoUrl 이미지 URL
+     * @return 저장된 진단 결과 ID
      */
-    private void saveDiagnosis(Long userId, String cropName, String diseaseName, String recommendation, String photoUrl) {
+    private Long saveDiagnosis(Long userId, String cropName, String diseaseName, String recommendation, String photoUrl) {
         Diagnosis diagnosis = Diagnosis.builder()
                 .userId(userId)
                 .cropName(cropName)
@@ -315,7 +327,41 @@ public class AiDiagnosisService {
                 .diseaseName(diseaseName)
                 .recommendation(recommendation)
                 .build();
-        diagnosisRepository.save(diagnosis);
+        Diagnosis saved = diagnosisRepository.save(diagnosis);
+        return saved.getDiagnosisId();
+    }
+
+    /**
+     * 진단 결과를 재배일기로 공유
+     * @param diagnosisId 진단 결과 ID
+     * @param userId 사용자 ID
+     * @return 생성된 일기 정보
+     * @throws IllegalArgumentException 진단 결과를 찾을 수 없거나 본인의 진단 결과가 아닌 경우
+     */
+    @Transactional
+    public DiaryResponse shareDiagnosisToDiary(Long diagnosisId, Long userId) {
+        Diagnosis diagnosis = diagnosisRepository.findByDiagnosisIdAndUserId(diagnosisId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("진단 결과를 찾을 수 없습니다."));
+
+        // 진단 결과를 일기 형식으로 변환
+        String title = String.format("[%s 진단] %s", diagnosis.getCropName(), diagnosis.getDiseaseName());
+        String content = String.format(
+                "작물: %s\n질병: %s\n\n관리 방법:\n%s",
+                diagnosis.getCropName(),
+                diagnosis.getDiseaseName(),
+                diagnosis.getRecommendation()
+        );
+
+        DiaryRequest diaryRequest = new DiaryRequest();
+        diaryRequest.setTitle(title);
+        diaryRequest.setContent(content);
+        diaryRequest.setDate(java.time.LocalDate.now());
+
+        // 이미지는 photoUrl을 그대로 사용 (진단 결과의 photoUrl을 일기에 포함)
+        // photoUrl이 Base64 형식이면 DiaryService에서 처리
+        // 여기서는 photoUrl을 content에 포함시키거나, 별도로 처리하지 않음
+
+        return diaryService.createDiary(userId, diaryRequest, null);
     }
 
     /**
@@ -325,6 +371,6 @@ public class AiDiagnosisService {
      * @return 에러 응답
      */
     private AiDiagnosisResponse createErrorResponse(String cropType, String message) {
-        return new AiDiagnosisResponse(false, cropType, "", -1, 0.0, message, "");
+        return new AiDiagnosisResponse(false, cropType, "", -1, 0.0, message, "", null);
     }
 }

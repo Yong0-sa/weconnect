@@ -58,6 +58,34 @@ export async function sendAIQuestion(question, topK) {
   return handleResponse(res, "AI와 대화를 진행하지 못했습니다.");
 }
 
+// 📝 4️⃣ 진단 결과를 재배일기로 공유
+export async function shareDiagnosisToDiary(diagnosisId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/ai/diagnosis/${diagnosisId}/share-to-diary`, {
+      method: "POST",
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      let errorMessage = "";
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.message || errorData.error || `서버 오류 (${res.status})`;
+      } catch (e) {
+        const text = await res.text().catch(() => "");
+        errorMessage = text || `서버 오류 (${res.status})`;
+      }
+      throw new Error(errorMessage || "재배일기 공유에 실패했습니다.");
+    }
+
+    const result = await res.json();
+    return result;
+  } catch (error) {
+    console.error("재배일기 공유 요청 실패:", error);
+    throw error;
+  }
+}
+
 // 🌾 3️⃣ 작물 진단 요청
 export async function diagnoseCrop(formData) {
   try {
