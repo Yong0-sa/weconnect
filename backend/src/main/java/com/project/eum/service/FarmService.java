@@ -1,6 +1,7 @@
 package com.project.eum.service;
 
 import com.project.eum.dto.CreateFarmRequest;
+import com.project.eum.dto.FarmResponse;
 import com.project.eum.farm.Farm;
 import com.project.eum.farm.FarmRepository;
 import com.project.eum.service.dto.GeoCoordinate;
@@ -14,6 +15,8 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +57,13 @@ public class FarmService {
         owner.setFarm(saved);
         memberRepository.save(owner);
         return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public List<FarmResponse> getAllFarms() {
+        return farmRepository.findAll().stream()
+                .map(FarmResponse::from)
+                .collect(Collectors.toList());
     }
 
     private boolean isFarmOwner(Member owner) {

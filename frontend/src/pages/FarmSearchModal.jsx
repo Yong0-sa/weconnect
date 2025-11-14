@@ -1,21 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./FarmSearchModal.css";
-import { farms as mockFarms, regionOptions } from "../data/farms";
+import { fetchFarms } from "../api/farm";
+import { regionOptions } from "../data/farms";
 
 function FarmSearchModal({ onClose, onChatRequest }) {
   const [selectedSido, setSelectedSido] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightedId, setHighlightedId] = useState(null);
+  const [farms, setFarms] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const listContainerRef = useRef(null);
+  const [visibleFarmIds, setVisibleFarmIds] = useState([]);
 
   const filteredFarms = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
+    const source = farms;
 
     if (keyword) {
-      return mockFarms.filter(
+      return source.filter(
         (farm) =>
           farm.name.toLowerCase().includes(keyword) ||
           farm.address.toLowerCase().includes(keyword)
@@ -23,17 +30,94 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     }
 
     if (!selectedSido) {
-      return mockFarms;
+      return source;
     }
 
     const prefix = selectedSido.slice(0, 2);
-    return mockFarms.filter(
+    return source.filter(
       (farm) =>
         farm.address.startsWith(prefix) ||
         farm.address.includes(selectedSido) ||
         farm.name.includes(prefix)
     );
-  }, [selectedSido, searchTerm]);
+  }, [farms, selectedSido, searchTerm]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadFarms() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await fetchFarms();
+        if (!active) return;
+        const normalized = (data || []).map((farm) => ({
+          id: farm.farmId ?? farm.id,
+          name: farm.name ?? "이름 미정",
+          address: farm.address ?? "",
+          city: farm.city ?? "",
+          phone: farm.tel || "연락처 준비 중",
+          lat: Number(farm.latitude ?? 0),
+          lng: Number(farm.longitude ?? 0),
+        }));
+        setFarms(normalized);
+      } catch (err) {
+        if (active) {
+          setError(err.message || "농장 정보를 불러오지 못했습니다.");
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadFarms();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const container = listContainerRef.current;
+    setVisibleFarmIds([]);
+    if (!container) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setVisibleFarmIds((prev) => {
+          const next = new Set(prev);
+          let changed = false;
+          entries.forEach((entry) => {
+            const farmId = entry.target.dataset.farmId;
+            if (!farmId) {
+              return;
+            }
+            if (entry.isIntersecting && entry.intersectionRatio > 0) {
+              if (!next.has(farmId)) {
+                next.add(farmId);
+                changed = true;
+              }
+            } else if (next.delete(farmId)) {
+              changed = true;
+            }
+          });
+          return changed ? Array.from(next) : prev;
+        });
+      },
+      { root: container, threshold: 0.2 }
+    );
+
+    const cards = container.querySelectorAll("[data-farm-id]");
+    cards.forEach((card) => observer.observe(card));
+
+    return () => {
+      cards.forEach((card) => observer.unobserve(card));
+      observer.disconnect();
+    };
+  }, [filteredFarms]);
 
   useEffect(() => {
     const existingScript = document.getElementById("kakao-map-sdk");
@@ -80,9 +164,21 @@ function FarmSearchModal({ onClose, onChatRequest }) {
 
     if (!filteredFarms.length) return;
 
+    const visibleSet = new Set(visibleFarmIds.map(String));
+    const markerTargets = filteredFarms.filter((farm) =>
+      visibleSet.has(String(farm.id))
+    );
+    const farmsForMarkers = markerTargets.length
+      ? markerTargets
+      : filteredFarms.slice(0, 8);
+
+    if (!farmsForMarkers.length) {
+      return;
+    }
+
     const bounds = new window.kakao.maps.LatLngBounds();
 
-    filteredFarms.forEach((farm) => {
+    farmsForMarkers.forEach((farm) => {
       const position = new window.kakao.maps.LatLng(farm.lat, farm.lng);
       const marker = new window.kakao.maps.Marker({
         position,
@@ -106,7 +202,7 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     if (!bounds.isEmpty()) {
       mapRef.current.setBounds(bounds, 60, 60, 60, 60);
     }
-  }, [filteredFarms, isMapReady]);
+  }, [filteredFarms, isMapReady, visibleFarmIds]);
 
   useEffect(() => {
     return () => {
@@ -182,11 +278,16 @@ function FarmSearchModal({ onClose, onChatRequest }) {
                     : "전체 농장 목록"}
                 </p>
               </div>
-              <div className="farm-list-scroll">
-                {filteredFarms.length ? (
+              <div className="farm-list-scroll" ref={listContainerRef}>
+                {isLoading ? (
+                  <div className="farm-empty">농장 정보를 불러오는 중입니다...</div>
+                ) : error ? (
+                  <div className="farm-empty">{error}</div>
+                ) : filteredFarms.length ? (
                   filteredFarms.map((farm) => (
                     <article
                       key={farm.id}
+                      data-farm-id={farm.id}
                       className={`farm-card${
                         highlightedId === farm.id ? " highlighted" : ""
                       }`}
