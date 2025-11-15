@@ -8,6 +8,9 @@ import FarmSearchIcon from "../assets/농장찾기.png";
 import DiaryIcon from "../assets/재배일기.png";
 import CommunityIcon from "../assets/커뮤니티.png";
 import CharacterIcon from "../assets/캐릭터.png";
+import SeederEquipVideo from "../assets/모종삽동영상.webm";
+import PickaxeEquipVideo from "../assets/곡괭이동영상.webm";
+import TractorEquipVideo from "../assets/트랙터 동영상.webm";
 import MenuIcon from "../assets/menu_icon.png";
 import CoinIcon from "../assets/coin_icon.png";
 import ChatIcon from "../assets/chat_icon.png";
@@ -40,6 +43,11 @@ const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
 ).replace(/\/$/, "");
 const WS_ENDPOINT = `${API_BASE}/ws/chat`;
+const CHARACTER_VIDEO_MAP = {
+  1: SeederEquipVideo,
+  2: PickaxeEquipVideo,
+  3: TractorEquipVideo,
+};
 
 function HomePage() {
   const navigate = useNavigate();
@@ -60,6 +68,9 @@ function HomePage() {
   const [initialChatContact, setInitialChatContact] = useState(null);
   const [profile, setProfile] = useState(null);
   const [showFarmRegisterModal, setShowFarmRegisterModal] = useState(false);
+  const [equippedCharacterVideo, setEquippedCharacterVideo] = useState(null);
+  const [isCharacterHovered, setIsCharacterHovered] = useState(false);
+  const characterVideoRef = useRef(null);
   const [showFarmApplyPrompt, setShowFarmApplyPrompt] = useState(false);
   const [isAcknowledgingFarmPrompt, setIsAcknowledgingFarmPrompt] = useState(false);
   const [hasUnreadChats, setHasUnreadChats] = useState(false);
@@ -183,6 +194,58 @@ function HomePage() {
       console.error("농장 안내 상태를 갱신하지 못했습니다.", error);
     } finally {
       setIsAcknowledgingFarmPrompt(false);
+    }
+  };
+
+  const applyEquippedCharacterVideo = useCallback((value) => {
+    if (value == null || value === "") {
+      setEquippedCharacterVideo(null);
+      return;
+    }
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setEquippedCharacterVideo(null);
+      return;
+    }
+    setEquippedCharacterVideo(CHARACTER_VIDEO_MAP[parsed] || null);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    applyEquippedCharacterVideo(window.shopEquippedItemId ?? null);
+
+    const handleEquipmentChange = (event) => {
+      applyEquippedCharacterVideo(event.detail);
+    };
+
+    window.addEventListener("shopEquipmentChange", handleEquipmentChange);
+    return () => {
+      window.removeEventListener("shopEquipmentChange", handleEquipmentChange);
+    };
+  }, [applyEquippedCharacterVideo]);
+
+  const characterHasVideo = Boolean(equippedCharacterVideo);
+
+  const handleCharacterMouseEnter = () => {
+    if (!characterHasVideo) return;
+    setIsCharacterHovered(true);
+    const video = characterVideoRef.current;
+    if (video) {
+      video.currentTime = 0;
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {});
+      }
+    }
+  };
+
+  const handleCharacterMouseLeave = () => {
+    if (!characterHasVideo) return;
+    setIsCharacterHovered(false);
+    const video = characterVideoRef.current;
+    if (video) {
+      video.pause();
+      video.currentTime = 0;
     }
   };
 
@@ -520,10 +583,14 @@ function HomePage() {
 
         {/* 캐릭터 */}
         <div
-          className="clickable-image character-image"
+          className={`clickable-image character-image ${
+            characterHasVideo ? "character-image--has-video" : ""
+          }`}
           onClick={() => setIsShopModalOpen(true)}
           role="button"
           tabIndex={0}
+          onMouseEnter={characterHasVideo ? handleCharacterMouseEnter : undefined}
+          onMouseLeave={characterHasVideo ? handleCharacterMouseLeave : undefined}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
@@ -531,7 +598,26 @@ function HomePage() {
             }
           }}
         >
-          <img src={CharacterIcon} alt="캐릭터" />
+          <img
+            src={CharacterIcon}
+            alt="캐릭터"
+            className={`character-base-art ${
+              characterHasVideo && isCharacterHovered
+                ? "character-base-art--hidden"
+                : ""
+            }`}
+          />
+          {characterHasVideo && (
+            <video
+              ref={characterVideoRef}
+              className={`character-preview-video ${
+                isCharacterHovered ? "character-preview-video--visible" : ""
+              }`}
+              src={equippedCharacterVideo}
+              muted
+              playsInline
+            />
+          )}
           <div className="image-label">캐릭터</div>
         </div>
 
