@@ -11,6 +11,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 서비스 전반에서 사용하는 핵심 사용자 엔티티.
+ * - 로그인/권한/프로필/농장/AI 로그 등 공통 데이터 포함
+ */
 @Entity
 @Table(
         name = "users",
@@ -67,14 +71,28 @@ public class Member {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /* ============================================================
+       AI 질의 로그 (1:N)
+       - 유저가 AI 정보검색/RAG 질의할 때 저장됨
+       - 유저 삭제 시 함께 삭제(cascade + orphanRemoval)
+       ============================================================ */
     @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, orphanRemoval = true)
     @Builder.Default
     private List<RagQueryLog> ragQueryLogs = new ArrayList<>();
 
+    /* ============================================================
+       농장 정보 (N:1)
+       - 일반 사용자: null
+       - 농장주(FARMER): 본인의 Farm 연결
+       ============================================================ */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "farm_id")
     private Farm farm;
 
+    /* ============================================================
+       온보딩 플래그
+       - 첫 로그인 시 “농장 등록 안내 모달” 표시 여부 저장
+       ============================================================ */
     @Column(name = "farm_prompt_shown", nullable = false)
     @Builder.Default
     private boolean farmPromptShown = false;

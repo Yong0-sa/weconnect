@@ -8,6 +8,7 @@ import {
 } from "../api/profile";
 import "./ProfilePage.css";
 
+// 📌 UI에 들어가는 유틸/기본값
 const PHONE_PLACEHOLDERS = ["010-0000-0000", "010-1234-1234"];
 const sanitizePhoneValue = (value) => {
   if (!value) return "";
@@ -17,6 +18,7 @@ const sanitizePhoneValue = (value) => {
 const LOGIN_REDIRECT_URL =
   import.meta.env.VITE_LOGIN_REDIRECT_URL || "/login";
 
+// 더미 초기값 (로딩 전까지 표시)
 const INITIAL_PROFILE = {
   email: "grower@example.com",
   nickname: "초록지기",
@@ -30,6 +32,7 @@ const INITIAL_PROFILE = {
   updatedAt: null,
 };
 
+// 날짜 포맷
 const formatTimestamp = (value) => {
   if (!value) {
     return new Date().toLocaleString("ko-KR", {
@@ -56,6 +59,7 @@ const formatTimestamp = (value) => {
   });
 };
 
+// 서버 응답 → 화면용 프로필 형태로 맞춤
 const normalizeProfile = (data = {}) => ({
   email: data.email ?? "",
   nickname: data.nickname ?? "",
@@ -78,8 +82,13 @@ const normalizeProfile = (data = {}) => ({
   updatedAt: data.updatedAt ?? null,
 });
 
+// ------------------------------------------------------------
+// 📌 프로필 메인 컴포넌트
+// ------------------------------------------------------------
 function ProfilePage({ isOpen, onClose = () => {} }) {
   const navigate = useNavigate();
+
+  // ⭐ 서버에 저장된 값 / 현재 입력값
   const [savedProfile, setSavedProfile] = useState(INITIAL_PROFILE);
   const [formData, setFormData] = useState({
     name: INITIAL_PROFILE.name,
@@ -89,6 +98,8 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     newPassword: "",
     confirmPassword: "",
   });
+
+  // ⭐ UI / 검증 상태들
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -97,6 +108,8 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     state: "idle",
     message: "",
   });
+
+  // ⭐ 탈퇴 관련 UI state
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [showWithdrawConfirmModal, setShowWithdrawConfirmModal] =
     useState(false);
@@ -108,6 +121,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
   const memberTypeLabel = savedProfile.memberType || "PERSONAL";
   const isFormDisabled = isSaving || isLoadingProfile;
 
+  // 📌 모달 닫기
   const handleCloseModal = () => {
     if (isSaving) return;
     setShowWithdrawConfirmModal(false);
@@ -115,20 +129,24 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     onClose();
   };
 
+  // 클릭 시 오버레이 닫기
   const handleOverlayClick = (event) => {
     if (event.target === event.currentTarget) {
       handleCloseModal();
     }
   };
 
+  // 📌 프로필 불러오기 (모달 open 시)
   useEffect(() => {
     if (!isOpen) return;
+
     let active = true;
     async function loadProfile() {
       setIsLoadingProfile(true);
       try {
         const data = await fetchMyProfile();
         if (!active) return;
+
         const hydrated = normalizeProfile(data);
         setSavedProfile((prev) => ({
           ...prev,
@@ -148,12 +166,14 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
         }
       }
     }
+
     loadProfile();
     return () => {
       active = false;
     };
   }, [isOpen]);
 
+  // 📌 서버에서 받은 프로필 → form 입력값 초기화
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
@@ -163,8 +183,10 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     }));
   }, [savedProfile.name, savedProfile.nickname, savedProfile.phone]);
 
+  // 📌 입력 필드 검증
   const getFieldError = (field, value, nextState = formData) => {
     const trimmed = value?.toString().trim() ?? "";
+
     switch (field) {
       case "nickname":
         if (!trimmed) return "닉네임을 입력해 주세요.";
@@ -203,6 +225,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     }
   };
 
+  // 📌 전체 form 검증
   const validateForm = () => {
     const fields = ["name", "nickname", "phone"];
     if (formData.newPassword) {
@@ -225,6 +248,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  // 📌 서버 전송용 payload 생성
   const buildProfilePayload = () => {
     const payload = {};
 
@@ -253,10 +277,14 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     return payload;
   };
 
+  // 📌 입력 변화 처리
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => {
       const nextState = { ...prev, [name]: value };
+
+      // 해당 필드 즉시 검증
       setErrors((prevErrors) => {
         const updated = { ...prevErrors };
         const message = getFieldError(name, value, nextState);
@@ -266,6 +294,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
           delete updated[name];
         }
 
+        // 비밀번호 관련 상호 검증
         if (name === "newPassword") {
           const currentMsg = getFieldError(
             "currentPassword",
@@ -319,13 +348,16 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
       return nextState;
     });
 
+    // 닉네임 바뀌면 중복확인 초기화
     if (name === "nickname") {
       setNicknameCheck({ state: "idle", message: "" });
     }
   };
 
+  // 📌 닉네임 중복 확인
   const handleCheckNickname = async () => {
     if (isLoadingProfile || isSaving) return;
+
     const message = getFieldError("nickname", formData.nickname);
     if (message) {
       setErrors((prev) => ({ ...prev, nickname: message }));
@@ -339,8 +371,10 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
       state: "checking",
       message: "닉네임을 확인하고 있어요.",
     });
+
     try {
       const result = await checkNicknameAvailability(trimmedNickname);
+      
       const nicknameChanged =
         trimmedNickname && trimmedNickname !== savedProfile.nickname;
       if (result.available) {
@@ -372,6 +406,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     }
   };
 
+  // 📌 서버로 업데이트 요청
   const submitProfileUpdate = async (payload) => {
     setIsSaving(true);
     setStatus({ type: "info", message: "내 정보를 저장하고 있어요." });
@@ -379,6 +414,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     try {
       const updated = await updateProfile(payload);
       const hydrated = normalizeProfile(updated);
+
       setSavedProfile((prev) => ({ ...prev, ...hydrated }));
       setFormData({
         name: hydrated.name,
@@ -388,9 +424,11 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
         newPassword: "",
         confirmPassword: "",
       });
+
       setNicknameCheck({ state: "idle", message: "" });
       setErrors({});
       setLastSavedAt(formatTimestamp(hydrated.updatedAt));
+
       setStatus({ type: "success", message: "회원 정보가 저장되었어요." });
     } catch (error) {
       setStatus({
@@ -402,6 +440,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     }
   };
 
+  // 📌 최종 제출 버튼 클릭
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isLoadingProfile) {
@@ -411,6 +450,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
       });
       return;
     }
+
     if (!validateForm()) return;
 
     const payload = buildProfilePayload();
@@ -425,6 +465,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     await submitProfileUpdate(payload);
   };
 
+  // 📌 탈퇴 플로우: 1단계 → 2단계 확인 → 최종 삭제
   const handleWithdrawClick = () => {
     if (isDeletingAccount) return;
     setShowWithdrawConfirmModal(true);
@@ -441,11 +482,15 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
 
   const handleFarewellAction = async () => {
     if (isDeletingAccount) return;
+
     setFarewellError("");
     setIsDeletingAccount(true);
+
     try {
       await deleteAccount();
       setShowFarewellModal(false);
+
+      // 절대 URL이면 replace()
       if (/^https?:\/\//i.test(LOGIN_REDIRECT_URL)) {
         window.location.replace(LOGIN_REDIRECT_URL);
       } else {
@@ -461,6 +506,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     }
   };
 
+  // 📌 모달이 아예 닫혀있으면 렌더 X
   if (!isOpen) {
     return null;
   }

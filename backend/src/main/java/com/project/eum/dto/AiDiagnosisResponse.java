@@ -5,14 +5,29 @@ package com.project.eum.dto;
  */
 public class AiDiagnosisResponse {
 
+    // AI 진단 수행 성공 여부
     private boolean success;
+    
+    // 입력 이미지의 작물 종류
     private String cropType;
+
+    // 예측된 병해충 이름
     private String label;
+
+    // 모델이 예측한 클래스 인덱스
     private int predictedIndex;
+
+    // 모델 신뢰도(0.0 ~ 1.0)
     private double confidence;
+
+    // 사용자에게 보여줄 메시지
     private String message;
+
+    // 병해충 관리 팁
     private String careComment;
-    private Long diagnosisId;  // 진단 결과 ID (재배일기 공유용)
+
+    // 진단 결과 ID (재배일기 공유용)
+    private Long diagnosisId;  
 
     public AiDiagnosisResponse() {
     }

@@ -4,17 +4,25 @@ import { fetchFarms } from "../api/farm";
 import { regionOptions } from "../data/farms";
 
 function FarmSearchModal({ onClose, onChatRequest }) {
+
+  // 📌 검색/필터/선택 관련 상태
   const [selectedSido, setSelectedSido] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFarmId, setSelectedFarmId] = useState(null);
+
+  // 📌 농장 데이터 / 로딩 / 오류
   const [farms, setFarms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // 📌 지도 관련 상태/참조
   const [isMapReady, setIsMapReady] = useState(false);
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const listContainerRef = useRef(null);
+
+  // 📌 지도 중심을 특정 농장 좌표로 이동
   const focusMapOnFarm = useCallback((farm) => {
     if (!window.kakao?.maps || !mapRef.current) {
       return;
@@ -23,6 +31,10 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     mapRef.current.panTo(targetPosition);
   }, []);
 
+  // ============================================================
+  // 📌 농장 카드 클릭 → 지도 포커스 + 선택 농장 변경
+  //   (카드 내부 버튼 클릭은 무시)
+  // ============================================================
   const handleFarmCardClick = useCallback(
     (farm, event) => {
       if (event?.target?.closest("button")) {
@@ -34,10 +46,14 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     [focusMapOnFarm]
   );
 
+  // ============================================================
+  // 📌 검색 + 시/도 필터링
+  // ============================================================
   const filteredFarms = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
     const source = farms;
 
+    // 키워드 우선
     if (keyword) {
       return source.filter(
         (farm) =>
@@ -46,10 +62,12 @@ function FarmSearchModal({ onClose, onChatRequest }) {
       );
     }
 
+    // 시/도 필터 없으면 전체 표시
     if (!selectedSido) {
       return source;
     }
 
+    // 시/도 prefix 매칭
     const prefix = selectedSido.slice(0, 2);
     return source.filter(
       (farm) =>
@@ -59,6 +77,11 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     );
   }, [farms, selectedSido, searchTerm]);
 
+
+  // ============================================================
+  // 📌 농장 불러오기 (초기 1회)
+  //   - 응답을 화면에서 쓰기 좋은 형태로 정규화
+  // ============================================================
   useEffect(() => {
     let active = true;
 
@@ -66,8 +89,11 @@ function FarmSearchModal({ onClose, onChatRequest }) {
       try {
         setIsLoading(true);
         setError(null);
+
         const data = await fetchFarms();
         if (!active) return;
+
+        // 서버 데이터를 UI용 포맷으로 변환
         const normalized = (data || []).map((farm) => ({
           id: farm.farmId ?? farm.id,
           farmId: farm.farmId ?? farm.id,
@@ -79,6 +105,8 @@ function FarmSearchModal({ onClose, onChatRequest }) {
           lat: Number(farm.latitude ?? 0),
           lng: Number(farm.longitude ?? 0),
         }));
+
+
         setFarms(normalized);
       } catch (err) {
         if (active) {
@@ -98,6 +126,9 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     };
   }, []);
 
+  // ============================================================
+  // 📌 필터 변경 시, 선택된 농장이 목록에 없으면 선택 해제
+  // ============================================================
   useEffect(() => {
     if (selectedFarmId == null) {
       return;
@@ -107,6 +138,10 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     }
   }, [filteredFarms, selectedFarmId]);
 
+  // ============================================================
+  // 📌 카카오 지도 스크립트 동적 로드
+  //   - 이미 로드된 경우 로딩만 호출
+  // ============================================================
   useEffect(() => {
     const existingScript = document.getElementById("kakao-map-sdk");
     if (existingScript) {
@@ -120,11 +155,13 @@ function FarmSearchModal({ onClose, onChatRequest }) {
       return;
     }
 
+    // 신규 로드
     const script = document.createElement("script");
     script.id = "kakao-map-sdk";
     script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${
       import.meta.env.VITE_KAKAO_MAP_API_KEY
     }&autoload=false&libraries=services`;
+
     script.onload = () => {
       window.kakao.maps.load(() => setIsMapReady(true));
     };
@@ -135,11 +172,16 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     };
   }, []);
 
+  // ============================================================
+  // 📌 지도 초기화 + 마커 갱신
+  //   - farms 필터링 변화 시마다 재계산
+  // ============================================================
   useEffect(() => {
     if (!isMapReady || !mapContainerRef.current || !window.kakao?.maps) {
       return;
     }
 
+    // 1) 최초 지도 생성
     if (!mapRef.current) {
       mapRef.current = new window.kakao.maps.Map(mapContainerRef.current, {
         center: new window.kakao.maps.LatLng(37.5665, 126.978),
@@ -147,11 +189,13 @@ function FarmSearchModal({ onClose, onChatRequest }) {
       });
     }
 
+    // 2) 기존 마커 제거
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
 
     if (!filteredFarms.length) return;
 
+    // 마커 이미지 생성 함수
     const createMarkerImage = (color) => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 24 32" fill="none"><path d="M12 32s9-10.059 9-17.333C21 6.477 16.97 2 12 2S3 6.477 3 14.667C3 21.941 12 32 12 32z" fill="${color}"/><circle cx="12" cy="14" r="4" fill="#fff"/></svg>`;
       const src = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
@@ -167,9 +211,11 @@ function FarmSearchModal({ onClose, onChatRequest }) {
 
     const bounds = new window.kakao.maps.LatLngBounds();
 
+    // 3) 마커 생성 & 지도에 표시
     filteredFarms.forEach((farm) => {
       const position = new window.kakao.maps.LatLng(farm.lat, farm.lng);
       const isSelected = farm.id === selectedFarmId;
+
       const marker = new window.kakao.maps.Marker({
         position,
         map: mapRef.current,
@@ -177,6 +223,7 @@ function FarmSearchModal({ onClose, onChatRequest }) {
         zIndex: isSelected ? 2 : 1,
       });
 
+      // 마커 클릭 시 선택 + 지도 이동
       window.kakao.maps.event.addListener(marker, "click", () => {
         setSelectedFarmId(farm.id);
         focusMapOnFarm(farm);
@@ -186,11 +233,16 @@ function FarmSearchModal({ onClose, onChatRequest }) {
       bounds.extend(position);
     });
 
+    // 4) 선택된 농장이 없으면 전체 영역 맞추기
     if (!bounds.isEmpty() && selectedFarmId == null) {
       mapRef.current.setBounds(bounds, 60, 60, 60, 60);
     }
   }, [filteredFarms, isMapReady, selectedFarmId, focusMapOnFarm]);
 
+
+  // ============================================================
+  // 📌 unmount 시 마커 정리
+  // ============================================================
   useEffect(() => {
     return () => {
       markersRef.current.forEach((marker) => marker.setMap(null));

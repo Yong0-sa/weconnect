@@ -29,6 +29,10 @@ public class ObjectStorageService {
     private final String bucketName;
     private final String endpoint;
 
+    
+    /* ============================================================
+       생성자 — Object Storage 연결 설정
+       ============================================================ */
     public ObjectStorageService(
             @Value("${cloud.ncp.object-storage.endpoint}") String endpoint,
             @Value("${cloud.ncp.object-storage.region}") String region,
@@ -39,8 +43,10 @@ public class ObjectStorageService {
         this.endpoint = endpoint;
         this.bucketName = bucketName;
 
+        // 1) 인증 정보 생성
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
 
+        // 2) S3Client 생성 (NCP Object Storage compatible)
         this.s3Client = S3Client.builder()
                 .endpointOverride(URI.create(endpoint))
                 .region(Region.of(region))
@@ -75,14 +81,16 @@ public class ObjectStorageService {
                     .contentLength(file.getSize())
                     .build();
 
+            // 실제 업로드 실행
             s3Client.putObject(putRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            // 공개 URL 생성
+            // 업로드된 파일의 공개 URL 생성
             String publicUrl = String.format("%s/%s/%s", endpoint, bucketName, filename);
             log.info("Object Storage 업로드 완료: url={}", publicUrl);
 
             return publicUrl;
 
+        // 예외 처리
         } catch (IOException e) {
             log.error("Object Storage 업로드 실패: 파일 읽기 오류", e);
             throw new RuntimeException("이미지 업로드 중 오류가 발생했습니다: " + e.getMessage(), e);

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { diagnoseCrop } from "../api/ai";
 import "./AICropSearchPage.css";
 
+// 작물 선택 옵션
 const cropOptions = [
   { value: "tomato", label: "토마토" },
   { value: "potato", label: "감자" },
@@ -9,6 +10,7 @@ const cropOptions = [
 ];
 
 function AICropSearchPage({ onClose, onOpenDiaryModal }) {
+    // 상태 정의
   const [selectedCrop, setSelectedCrop] = useState(cropOptions[0]);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -18,20 +20,24 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
   const [diagnosis, setDiagnosis] = useState(null);
   const fileInputRef = useRef(null);
 
+  // 미리보기 URL 해제 (메모리 누수 방지)
   const cleanupPreview = (previewUrl) => {
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
   };
 
+  // 파일 선택 핸들러 - 한 장만 허용 - 미리보기 갱신
   const handleFileChange = (event) => {
     const files = event.target.files;
     if (!files?.length) return;
+
     if (files.length > 1) {
       setUploadError("사진은 한 장만 업로드할 수 있습니다.");
       event.target.value = "";
       return;
     }
+
     setUploadError("");
     setRequestError("");
 
@@ -47,34 +53,45 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
     event.target.value = "";
   };
 
+  // "다른 사진 선택" 버튼
+  // - 상태 초기화 + 다시 파일 선택 가능하도록
   const handleUploadClick = () => {
     setUploadError("");
     setRequestError("");
     setDiagnosis(null);
     setSelectedFile(null);
+
     setPhotoPreview((prev) => {
       cleanupPreview(prev);
       return null;
     });
+
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
       fileInputRef.current.click();
     }
   };
 
+  // AI 진단 요청
+  // - 작물명 + 이미지 FormData로 전송
+  // - 성공 시 diagnosis 상태 업데이트
   const handleDiagnose = async () => {
     if (!selectedFile) {
       setUploadError("진단할 사진을 먼저 업로드해 주세요.");
       return;
     }
+
     setIsLoading(true);
     setRequestError("");
     setDiagnosis(null);
+
     try {
       const formData = new FormData();
       formData.append("cropType", selectedCrop.value);
       formData.append("image", selectedFile);
+
       const result = await diagnoseCrop(formData);
+
       console.log("진단 결과:", result); // 디버깅용
       if (!result || !result.success) {
         const errorMsg = result?.message || "진단 결과를 받아오지 못했습니다.";
@@ -82,6 +99,7 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
         console.error("진단 실패:", errorMsg, result); // 디버깅용
         return;
       }
+
       setDiagnosis(result);
     } catch (error) {
       console.error("진단 요청 오류:", error); // 디버깅용
@@ -91,16 +109,19 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
     }
   };
 
+  // 컴포넌트 unmount 시 미리보기 URL 해제
   useEffect(() => {
     return () => {
       cleanupPreview(photoPreview);
     };
   }, [photoPreview]);
 
+  // 신뢰도(%) 계산
   const confidencePercent = diagnosis
     ? Math.round((diagnosis.confidence || 0) * 100)
     : null;
 
+  // UI 렌더링
   return (
     <div className="ai-crop-page">
       <div className="ai-crop-card">

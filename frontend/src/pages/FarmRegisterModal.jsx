@@ -2,6 +2,7 @@ import { useState } from "react";
 import { registerFarm } from "../api/farm";
 import "./FarmRegisterModal.css";
 
+// 기본 입력값
 const INITIAL_FORM = {
   name: "",
   address: "",
@@ -9,17 +10,25 @@ const INITIAL_FORM = {
 };
 
 function FarmRegisterModal({ onClose = () => {}, onRegistered = () => {} }) {
+  // ------------------------------------------------------------
+  // 📌 상태 관리: 폼 입력값 / 오류 / 제출 상태 / 알림 메시지
+  // ------------------------------------------------------------
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 📌 필드 단위 유효성 검사
   const getFieldError = (field, value) => {
     const trimmed = value.trim();
+
+    // 필수값 검사
     if (!trimmed) {
       if (field === "name") return "농장 이름을 입력해 주세요.";
       if (field === "address") return "농장 주소를 입력해 주세요.";
     }
+
+    // 전화번호 형식 검사 (입력한 경우에만)
     if (field === "tel" && trimmed) {
       if (!/^\d{2,4}-?\d{3,4}-?\d{4}$/.test(trimmed)) {
         return "전화번호는 01012345678 또는 010-1234-5678 형식으로 입력해 주세요.";
@@ -28,6 +37,11 @@ function FarmRegisterModal({ onClose = () => {}, onRegistered = () => {} }) {
     return "";
   };
 
+  // ------------------------------------------------------------
+  // 📌 전체 폼 유효성 검사
+  //   - 필드 오류 모아서 errors에 저장
+  //   - 모든 필드 통과 시 true
+  // ------------------------------------------------------------
   const validateForm = () => {
     const nextErrors = {};
     ["name", "address", "tel"].forEach((field) => {
@@ -40,9 +54,15 @@ function FarmRegisterModal({ onClose = () => {}, onRegistered = () => {} }) {
     return Object.keys(nextErrors).length === 0;
   };
 
+
+  // 📌 입력 변화 시 상태 업데이트 + 오류 자동 갱신
   const handleChange = (event) => {
     const { name, value } = event.target;
+
+    // 폼 값 업데이트
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // 기존 오류가 있다면 즉시 재검증
     if (errors[name]) {
       setErrors((prev) => {
         const next = { ...prev };
@@ -54,21 +74,31 @@ function FarmRegisterModal({ onClose = () => {}, onRegistered = () => {} }) {
     }
   };
 
+
+  // ------------------------------------------------------------
+  // 📌 제출 처리
+  //   - 유효성 검사 통과 → registerFarm API 호출
+  //   - 성공 시: 메시지 표시 + 상위 컴포넌트에 알림 + 닫기
+  // ------------------------------------------------------------
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) return;
+
     setIsSubmitting(true);
     setStatus(null);
+
     try {
       const payload = {
         name: formData.name.trim(),
         address: formData.address.trim(),
         tel: formData.tel.trim(),
       };
+
       const farm = await registerFarm(payload);
+
       setStatus({ type: "success", message: "농장 정보가 등록되었습니다." });
-      onRegistered(farm);
-      onClose();
+      onRegistered(farm);  // 부모에게 등록 완료 전달
+      onClose();           // 모달 닫기
     } catch (error) {
       setStatus({
         type: "error",

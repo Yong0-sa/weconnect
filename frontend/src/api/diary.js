@@ -1,11 +1,20 @@
+// API 기본 경로
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
+/* ------------------------------------------------------------
+   공통 응답 처리
+   - 401 → 로그인 요구
+   - JSON 파싱 시도 후 실패 시 text fallback
+   - 서버 에러 메시지 우선 사용
+------------------------------------------------------------- */
 async function handleResponse(res, fallbackMessage) {
   if (res.status === 401) {
     throw new Error("로그인이 필요합니다.");
   }
+
   if (!res.ok) {
     let errorMessage = fallbackMessage;
+
     try {
       const text = await res.text();
       if (text) {
@@ -21,7 +30,7 @@ async function handleResponse(res, fallbackMessage) {
     }
     throw new Error(errorMessage);
   }
-  return res.json();
+  return res.json(); // 정상 응답 JSON 반환
 }
 
 // 일기 목록 조회
@@ -76,7 +85,7 @@ export async function createDiary(diaryData, imageFile) {
   return handleResponse(res, "일기 작성에 실패했습니다.");
 }
 
-// 일기 수정
+// 일기 수정 (PUT + FormData)
 export async function updateDiary(diaryId, diaryData, imageFile) {
   const formData = new FormData();
 

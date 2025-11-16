@@ -10,7 +10,8 @@ const API_BASE_URL =
 function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  // 로그인 폼의 핵심 입력값
+
+  // 📌 로그인 입력 필드 + 상태 관리
   const [credentials, setCredentials] = useState({
     email: "",
     password: "",
@@ -20,7 +21,9 @@ function LoginPage() {
   const [toast, setToast] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 최초 렌더 시 저장된 이메일을 복원
+  // ============================================================
+  // 📌 최초 렌더링 시 localStorage에 저장된 이메일 복원
+  // ============================================================
   useEffect(() => {
     const storedEmail = localStorage.getItem("rememberedEmail");
     if (storedEmail) {
@@ -29,6 +32,10 @@ function LoginPage() {
     }
   }, []);
 
+  // ============================================================
+  // 📌 URL 파라미터(status, message)로 전달된 외부 토스트 표시
+  //    (회원가입 성공 → 로그인 페이지로 redirect 시 사용)
+  // ============================================================
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const status = params.get("status");
@@ -38,31 +45,43 @@ function LoginPage() {
         type: status === "success" ? "success" : "error",
         message,
       });
-      navigate(location.pathname, { replace: true });
+      navigate(location.pathname, { replace: true });  // 파라미터 제거
     }
   }, [location, navigate]);
 
-  // 이메일/비밀번호 각각에 대한 최소 검증
+
+  // ============================================================
+  // 📌 이메일/비밀번호 각각 최소 검증
+  // ============================================================
   const getFieldError = (field, value) => {
     const trimmed = value.trim();
+
     if (field === "email") {
       if (!trimmed) return "이메일을 입력해 주세요.";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
         return "올바른 이메일 형식을 입력해 주세요.";
       }
     }
+
     if (field === "password") {
       if (!trimmed) return "비밀번호를 입력해 주세요.";
       if (trimmed.length < 4) return "비밀번호는 8자 이상 입력해 주세요.";
     }
+
     return "";
   };
 
-  // 입력값 변경 시 상태 및 에러 메시지 갱신
+  // ============================================================
+  // 📌 입력 변경 시 상태 업데이트 + 유효성 재검증
+  //    - 이메일 저장 체크박스 선택 시 즉시 localStorage 반영
+  // ============================================================
   const handleChange = (event) => {
     const { name, value } = event.target;
+
     setCredentials((prev) => {
       const next = { ...prev, [name]: value };
+
+      // 필드 검증 갱신
       setErrors((prevErrors) => {
         const updated = { ...prevErrors };
         const msg = getFieldError(name, value);
@@ -70,20 +89,26 @@ function LoginPage() {
         else delete updated[name];
         return updated;
       });
+
       return next;
     });
+
+    // 이메일 저장 모드일 때만 즉시 반영
     if (name === "email" && rememberId) {
       const trimmed = value.trim();
       if (trimmed) localStorage.setItem("rememberedEmail", trimmed);
       else localStorage.removeItem("rememberedEmail");
     }
-    setToast(null);
+    setToast(null);  // 입력 시 이전 에러 토스트 삭제
   };
 
-  // 아이디 저장 체크박스 토글 처리
+  // ============================================================
+  // 📌 이메일 저장 체크박스 토글 시 localStorage 반영
+  // ============================================================
   const handleRememberToggle = (event) => {
     const { checked } = event.target;
     setRememberId(checked);
+
     if (checked) {
       const trimmedEmail = credentials.email.trim();
       if (trimmedEmail) {
@@ -94,7 +119,9 @@ function LoginPage() {
     }
   };
 
-  // 제출 전에 각 필드를 검사
+  // ============================================================
+  // 📌 제출 전 폼 전체 검증
+  // ============================================================
   const validateForm = () => {
     const fieldErrors = {};
     ["email", "password"].forEach((field) => {
@@ -105,7 +132,10 @@ function LoginPage() {
     return Object.keys(fieldErrors).length === 0;
   };
 
-  // 로그인 폼 제출 시 실행되는 비동기 흐름
+  // ============================================================
+  // 📌 로그인 요청 흐름
+  //    - 입력 검증 → fetch 요청 → 응답 처리 → 홈 이동
+  // ============================================================
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) {
@@ -115,11 +145,13 @@ function LoginPage() {
       });
       return;
     }
+
     setIsSubmitting(true);
     const payload = {
       email: credentials.email.trim(),
       password: credentials.password,
     };
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
@@ -129,7 +161,9 @@ function LoginPage() {
         credentials: "include",
         body: JSON.stringify(payload),
       });
+
       const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
         setToast({
           type: "error",
@@ -138,19 +172,24 @@ function LoginPage() {
         return;
       }
 
+      // JWT 사용 시 token 저장 지원
       if (data?.token) {
         localStorage.setItem("authToken", data.token);
       }
+
+      // 아이디 저장 처리
       if (rememberId && payload.email) {
         localStorage.setItem("rememberedEmail", payload.email);
       } else {
         localStorage.removeItem("rememberedEmail");
       }
+
       setToast({
         type: "success",
         message: data?.message || "로그인되었습니다.",
       });
       navigate("/home", { replace: true });
+
     } catch (error) {
       setToast({
         type: "error",
@@ -161,6 +200,9 @@ function LoginPage() {
     }
   };
 
+  // ============================================================
+  // 📌 소셜 로그인 (Google OAuth2)
+  // ============================================================
   const handleGoogleLogin = () => {
     window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
   };

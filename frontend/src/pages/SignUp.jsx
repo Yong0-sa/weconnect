@@ -7,7 +7,10 @@ import { signUp, login as loginRequest } from "../api/auth";
 function SignUp() {
   const navigate = useNavigate();
   const location = useLocation();
-  // 가입 폼에서 관리하는 모든 입력값
+
+  // ------------------------------------------------------------
+  // 📌 가입 폼 데이터 + 상태
+  // ------------------------------------------------------------
   const [formData, setFormData] = useState({
     email: "",
     nickname: "",
@@ -16,6 +19,7 @@ function SignUp() {
     name: "",
     phone: "",
   });
+
   const [memberType, setMemberType] = useState("personal");
   const [errors, setErrors] = useState({});
   const [isSocialSignup, setIsSocialSignup] = useState(false);
@@ -24,29 +28,40 @@ function SignUp() {
     message: "",
   });
 
+  // ------------------------------------------------------------
+  // 📌 소셜 로그인 후 진입 시 이메일/메시지 세팅
+  // ------------------------------------------------------------
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const status = params.get("status");
     const emailParam = params.get("email");
+
     if (status === "social_signup" && emailParam) {
       setIsSocialSignup(true);
+
       const provider = params.get("provider") || "SNS";
       const displayName = params.get("name") || "";
+
       setFormData((prev) => ({
         ...prev,
         email: emailParam,
       }));
+
       setSocialInfo({
         provider,
         message: `${provider.toUpperCase()} 계정으로 이메일이 고정되어 있어요. 아래 정보만 입력하면 가입이 완료됩니다.`,
       });
+
       setMemberType("personal");
     }
   }, [location.search]);
 
-  // 단일 필드 수준의 유효성 검사를 담당
+  // ------------------------------------------------------------
+  // 📌 단일 필드 검증
+  // ------------------------------------------------------------
   const getFieldError = (field, value, nextState = formData) => {
     const trimmed = value?.trim() ?? "";
+
     switch (field) {
       case "email":
         if (!trimmed) return "이메일을 입력해 주세요.";
@@ -54,40 +69,51 @@ function SignUp() {
           return "올바른 이메일 주소를 입력해 주세요.";
         }
         return "";
+
       case "nickname":
         if (!trimmed) return "닉네임을 입력해 주세요.";
         return "";
+
       case "password":
         if (!trimmed) return "비밀번호를 입력해 주세요.";
         if (trimmed.length < 8) return "비밀번호는 8자 이상이어야 합니다.";
         return "";
+
       case "confirmPassword":
         if (!trimmed) return "비밀번호를 다시 입력해 주세요.";
         if (trimmed !== nextState.password) {
           return "비밀번호가 일치하지 않습니다.";
         }
         return "";
+
       case "name":
         if (!trimmed) return "이름을 입력해 주세요.";
         return "";
+
       case "phone":
         if (!trimmed) return "전화번호를 입력해 주세요.";
         if (!/^\d{2,3}-\d{3,4}-\d{4}$/.test(trimmed)) {
           return "전화번호는 010-1234-5678 형식으로 입력해 주세요.";
         }
         return "";
+
       default:
         return "";
     }
   };
 
-  // 모든 입력 요소의 onChange 핸들러
+  // ------------------------------------------------------------
+  // 📌 입력 변경 핸들러 (실시간 검증 + 상태 업데이트)
+  // ------------------------------------------------------------
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => {
       const nextState = { ...prev, [name]: value };
+
       setErrors((prevErrors) => {
         const updated = { ...prevErrors };
+
         const fieldMessage = getFieldError(name, value, nextState);
         if (fieldMessage) {
           updated[name] = fieldMessage;
@@ -95,6 +121,7 @@ function SignUp() {
           delete updated[name];
         }
 
+        // 비밀번호 바꿀 때 confirmPassword 즉시 재검증
         if (name === "password") {
           const confirmMessage = getFieldError(
             "confirmPassword",
@@ -115,12 +142,16 @@ function SignUp() {
     });
   };
 
-  // 개인/농장주 토글 시 관련 상태를 정리
+  // ------------------------------------------------------------
+  // 📌 회원 유형(개인 / 농장주)
+  // ------------------------------------------------------------
   const handleTypeChange = (type) => {
     setMemberType(type);
   };
 
-  // 제출 전에 모든 필드를 재검증
+  // ------------------------------------------------------------
+  // 📌 폼 전체 검증
+  // ------------------------------------------------------------
   const validateForm = () => {
     const fields = [
       "email",
@@ -132,6 +163,7 @@ function SignUp() {
     ];
 
     const newErrors = {};
+
     fields.forEach((field) => {
       const message = getFieldError(field, formData[field]);
       if (message) {
@@ -143,7 +175,9 @@ function SignUp() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // 가입 폼 제출 핸들러
+  // ------------------------------------------------------------
+  // 📌 제출 핸들러 (회원가입 → 소셜 로그인 시 자동 로그인)
+  // ------------------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -155,6 +189,7 @@ function SignUp() {
 
     try {
       const isFarmer = memberType === "farmer";
+
       const payload = {
         email,
         nickname,
@@ -163,13 +198,19 @@ function SignUp() {
         phone,
         memberType: isFarmer ? "FARMER" : "PERSONAL",
       };
+
+      // 회원가입 요청
       await signUp(payload);
+
+      // 소셜 가입자의 경우 → 자동 로그인
       if (isSocialSignup) {
         try {
           const loginResponse = await loginRequest({ email, password });
+
           if (loginResponse?.token) {
             localStorage.setItem("authToken", loginResponse.token);
           }
+
           navigate("/home", { replace: true });
           return;
         } catch (loginErr) {
@@ -178,6 +219,8 @@ function SignUp() {
           return;
         }
       }
+
+      // 일반 가입자 → 로그인 화면 이동
       alert("회원가입 완료");
       navigate("/login");
     } catch (err) {

@@ -2,18 +2,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./AIInfoSearchPage.css";
 import { fetchAIHistory, sendAIQuestion } from "../api/ai";
 
+// 공통: 링크 URL 감지 정규식
 const LINK_PATTERN = /(https?:\/\/[^\s)]+)/g;
 
+// 📌 AI 응답 텍스트에서 “참고링크”/pdf 링크 제거
 const sanitizeAssistantMessage = (text, pdfLinks) => {
   if (!text) return "";
   const references = new Set(pdfLinks || []);
+
   const lines = text.split(/\n+/).map((line) => line.trim());
+
   return lines
     .filter((line) => {
       if (!line) return false;
+      // ‘참고 링크’ 문장 제거
       if (/^\[\s*참고\s*링크/i.test(line)) {
         return false;
       }
+      // pdfLinks에 존재하는 URL 제거
       for (const ref of references) {
         if (line.includes(ref)) {
           return false;
@@ -25,6 +31,7 @@ const sanitizeAssistantMessage = (text, pdfLinks) => {
 };
 
 function AIInfoSearchPage({ onClose }) {
+  // 기본 안내 메시지 (대화가 비어 있을 때 사용)
   const defaultMessage = useMemo(
     () => ({
       id: "ai-welcome",
@@ -35,18 +42,22 @@ function AIInfoSearchPage({ onClose }) {
     []
   );
 
-  const [history, setHistory] = useState([]);
-  const [localMessages, setLocalMessages] = useState([]);
-  const [pendingPair, setPendingPair] = useState(null);
-  const [query, setQuery] = useState("");
+  // 상태 관리
+  const [history, setHistory] = useState([]);  // DB에서 불러온 전체 대화 기록
+  const [localMessages, setLocalMessages] = useState([]);  // 서버 저장 실패한 로컬 메시지들
+  const [pendingPair, setPendingPair] = useState(null);  // "답변 생성 중…" 상태 표시
+  const [query, setQuery] = useState("");  // 입력창 텍스트
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [historyError, setHistoryError] = useState("");
 
+  // 스크롤/메시지 DOM 접근용 ref
   const historyRef = useRef(null);
   const messageRefs = useRef({});
 
+  // 메시지 DOM ref 저장
+  // side navigation에서 특정 메시지로 스크롤하기 위해 필요
   const setMessageRef = useCallback((id, node) => {
     if (!node) {
       delete messageRefs.current[id];
@@ -55,6 +66,7 @@ function AIInfoSearchPage({ onClose }) {
     messageRefs.current[id] = node;
   }, []);
 
+  // 📌 서버에서 AI 히스토리 불러오기
   const loadHistory = useCallback(async () => {
     setIsHistoryLoading(true);
     try {
@@ -68,14 +80,18 @@ function AIInfoSearchPage({ onClose }) {
     }
   }, []);
 
+  // 최초 1회: 대화 기록 로드
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
 
+  // 📌 DB 기록을 메시지 형태로 평탄화(flatten)
+  //   - 각 로그를 user/assistant 두 줄로 변환
   const flattenedHistory = useMemo(() => {
     if (!history?.length) {
       return [];
     }
+
     return history.flatMap((log) => {
       const timestamp = log.createdAt;
       return [
@@ -97,40 +113,52 @@ function AIInfoSearchPage({ onClose }) {
     });
   }, [history]);
 
+  // 📌 최종 표시할 메시지 목록
+  //  1) 서버 history
+  //  2) pending 메시지 (답변 생성 중…)
+  //  3) 실패한 로컬 메시지
+  //  4) 아무것도 없으면 defaultMessage
   const conversationMessages = useMemo(() => {
     const baseMessages = flattenedHistory.length ? flattenedHistory : [];
     const extras = [];
+
     if (pendingPair) {
       extras.push(pendingPair.userMessage, pendingPair.assistantMessage);
     }
     if (localMessages.length) {
       extras.push(...localMessages);
     }
+
     if (!baseMessages.length && !extras.length) {
       return [defaultMessage];
     }
     return [...baseMessages, ...extras];
   }, [flattenedHistory, pendingPair, localMessages, defaultMessage]);
 
+  // 📌 메시지가 추가될 때마다 스크롤 맨 아래 유지
   useEffect(() => {
     if (historyRef.current) {
       historyRef.current.scrollTop = historyRef.current.scrollHeight;
     }
   }, [conversationMessages]);
 
+  // 📌 질문 제출 → pending 표시 → 서버 요청 → 결과 업데이트
   const handleSubmit = async (event) => {
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed || isSending) return;
 
+    // 로컬ID로 임시 메시지 생성
     const localId = `local-${Date.now()}`;
     const timestamp = new Date().toISOString();
+
     const userMessage = {
       id: `${localId}-user`,
       role: "user",
       message: trimmed,
       timestamp,
     };
+
     const assistantMessage = {
       id: `${localId}-assistant`,
       role: "assistant",
@@ -139,15 +167,19 @@ function AIInfoSearchPage({ onClose }) {
       timestamp,
     };
 
+
     setPendingPair({ userMessage, assistantMessage });
     setQuery("");
     setIsSending(true);
 
     try {
       const response = await sendAIQuestion(trimmed);
+
+      // 성공 → pending 제거 + history에 추가
       setPendingPair(null);
       setHistory((prev) => [...prev, response]);
     } catch (error) {
+      // 실패 → 로컬 에러 메시지로 추가
       setPendingPair(null);
       const errorMessage = {
         ...assistantMessage,
@@ -161,14 +193,17 @@ function AIInfoSearchPage({ onClose }) {
     }
   };
 
+  // 사이드바 열기/닫기
   const handleSidebarToggle = () => {
     setIsSidebarOpen((prev) => !prev);
   };
 
+  // 사이드바에서 특정 로그 선택 → 해당 위치로 스크롤 이동
   const handleSidebarSelect = (logId) => {
     const target = messageRefs.current[`${logId}-user`];
     if (target && historyRef.current) {
       const offset = target.offsetTop - historyRef.current.offsetTop;
+
       historyRef.current.scrollTo({
         top: offset,
         behavior: "smooth",
@@ -177,6 +212,7 @@ function AIInfoSearchPage({ onClose }) {
     setIsSidebarOpen(false);
   };
 
+  // 시간 포맷팅 (HH:MM)
   const formatTimestamp = (value) => {
     if (!value) return "";
     const date = new Date(value);
@@ -184,6 +220,7 @@ function AIInfoSearchPage({ onClose }) {
     return date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
   };
 
+  // 프롬프트 분류 라벨
   const promptLabel = (promptType) => {
     if (!promptType) return "";
     switch (promptType) {
@@ -196,6 +233,7 @@ function AIInfoSearchPage({ onClose }) {
     }
   };
 
+  // 질문 요약(사이드바)
   const summarizeQuestion = (text) => {
     if (!text) return "질문 없음";
     return text.length > 32 ? `${text.slice(0, 32)}…` : text;
@@ -203,6 +241,7 @@ function AIInfoSearchPage({ onClose }) {
 
   const sidebarEntries = history.slice().reverse();
 
+  // 메시지 렌더링 유틸 (블록 단위 분할)
   const renderMessageBlocks = (text) => {
     if (!text) return [];
     return text
@@ -211,12 +250,15 @@ function AIInfoSearchPage({ onClose }) {
       .filter(Boolean);
   };
 
+  // 링크 자동 감지 → <a> 태그 변환
   const renderWithLinks = (text) => {
     const parts = text.split(LINK_PATTERN);
+
     return parts.map((segment, index) => {
       LINK_PATTERN.lastIndex = 0;
       if (LINK_PATTERN.test(segment)) {
         const label = segment.length > 50 ? `${segment.slice(0, 47)}…` : segment;
+        
         return (
           <a
             key={`lnk-${index}-${segment}`}
@@ -232,6 +274,7 @@ function AIInfoSearchPage({ onClose }) {
     });
   };
 
+  // pdfLinks 중복 제거
   const dedupePdfLinks = (entry) => {
     if (entry.role !== "assistant" || !entry.pdfLinks?.length) return [];
     return Array.from(new Set(entry.pdfLinks));

@@ -4,6 +4,10 @@ import com.project.eum.user.Member;
 
 import java.time.LocalDateTime;
 
+/**
+ * 회원 프로필 정보를 반환하는 DTO(record).
+ * - 기본 회원 정보 + 농장 여부 + 코인 + 생성/수정일 포함
+ */
 public record MemberProfileResponse(
         Long userId,
         String email,
@@ -17,6 +21,7 @@ public record MemberProfileResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
+    // Member 엔티티 → MemberProfileResponse 변환
     public static MemberProfileResponse from(Member member) {
         return new MemberProfileResponse(
                 member.getUserId(),

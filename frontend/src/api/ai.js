@@ -5,10 +5,16 @@ const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
 ).replace(/\/$/, "");
 
-// 공통 응답 처리 함수
+/* ------------------------------------------------------------
+   공통 응답 처리 함수
+   - JSON 파싱 시도 → 실패하면 text로 fallback
+   - 401 처리, 일반 에러 처리
+------------------------------------------------------------- */
 async function handleResponse(res, fallbackMessage) {
   const text = await res.text();
   let data = null;
+
+  // JSON 파싱 시도
   if (text) {
     try {
       data = JSON.parse(text);
@@ -17,17 +23,23 @@ async function handleResponse(res, fallbackMessage) {
     }
   }
 
+  // 인증 필요
   if (res.status === 401) {
     throw new Error("로그인이 필요합니다.");
   }
+
+  // 서버 오류 처리
   if (!res.ok) {
     throw new Error(data?.message || fallbackMessage);
   }
+
   return data;
 }
 
 // 🧠 1️⃣ AI 대화 기록 불러오기
 export async function fetchAIHistory(limit = 50) {
+
+  // limit 파라미터 적용
   const params = new URLSearchParams();
   if (limit) {
     params.set("limit", String(limit));
@@ -37,7 +49,7 @@ export async function fetchAIHistory(limit = 50) {
     `${API_BASE}/api/ai/chat/history${query ? `?${query}` : ""}`,
     {
       method: "GET",
-      credentials: "include",
+      credentials: "include",  // 세션 유지
     }
   );
   return handleResponse(res, "대화 기록을 불러오지 못했습니다.");
@@ -45,6 +57,8 @@ export async function fetchAIHistory(limit = 50) {
 
 // 💬 2️⃣ AI 질문 전송
 export async function sendAIQuestion(question, topK) {
+
+  // payload 구성
   const payload = { question };
   if (typeof topK === "number") {
     payload.topK = topK;
@@ -66,8 +80,10 @@ export async function shareDiagnosisToDiary(diagnosisId) {
       credentials: "include",
     });
 
+    // 실패 시 상세 메시지 추출
     if (!res.ok) {
       let errorMessage = "";
+
       try {
         const errorData = await res.json();
         errorMessage = errorData.message || errorData.error || `서버 오류 (${res.status})`;
@@ -75,6 +91,7 @@ export async function shareDiagnosisToDiary(diagnosisId) {
         const text = await res.text().catch(() => "");
         errorMessage = text || `서버 오류 (${res.status})`;
       }
+      
       throw new Error(errorMessage || "재배일기 공유에 실패했습니다.");
     }
 
@@ -93,6 +110,7 @@ export async function diagnoseCrop(formData) {
     console.log("진단 API 요청 URL:", requestUrl);
     console.log("API_BASE 값:", API_BASE);
 
+    // 이미지 업로드 요청
     const res = await fetch(requestUrl, {
       method: "POST",
       body: formData,
@@ -101,8 +119,10 @@ export async function diagnoseCrop(formData) {
 
     console.log("진단 API 응답 상태:", res.status, res.statusText);
 
+    // 오류 응답 처리
     if (!res.ok) {
       let errorMessage = "";
+
       try {
         const errorData = await res.json();
         errorMessage =
@@ -113,6 +133,7 @@ export async function diagnoseCrop(formData) {
         errorMessage = text || `서버 오류 (${res.status})`;
         console.error("진단 API 오류 텍스트:", text);
       }
+
       throw new Error(
         errorMessage ||
           "AI 진단 요청에 실패했습니다. 잠시 후 다시 시도해 주세요."
@@ -121,7 +142,9 @@ export async function diagnoseCrop(formData) {
 
     const result = await res.json();
     console.log("진단 API 성공 응답:", result);
+
     return result;
+
   } catch (error) {
     console.error("진단 API 요청 실패:", error);
     throw error;
