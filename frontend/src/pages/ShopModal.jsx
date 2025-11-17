@@ -5,7 +5,7 @@ import BaseCharacterImage from "../assets/캐릭터.png";
 import SeederImage from "../assets/모종삽.png";
 import PickaxeImage from "../assets/곡괭이.png";
 import TractorImage from "../assets/트랙터.png";
-import SeederEquippedImage from "../assets/호미 장착 캐릭터.png";
+import SeederEquippedImage from "../assets/호미 장착.png";
 import PickaxeEquippedImage from "../assets/곡괭이 장착.png";
 import TractorEquippedImage from "../assets/트랙터 장착.png";
 import { useCoins } from "../contexts/CoinContext";
@@ -96,9 +96,7 @@ function ShopModal({ onClose, userName = "사용자" }) {
     if (!purchaseItem(item.coinPrice)) return false;
     setItems((prev) =>
       prev.map((i) =>
-        i.id === itemId
-          ? { ...i, owned: true, quantity: i.quantity + 1 }
-          : i
+        i.id === itemId ? { ...i, owned: true, quantity: i.quantity + 1 } : i
       )
     );
     return true;

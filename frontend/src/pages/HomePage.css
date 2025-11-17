@@ -238,7 +238,7 @@
   height: 37.77%;
 }
 
-/* 캐릭터 */
+/* 캐릭터 이미지 */
 .character-image {
   left: 18.21%;
   top: 35.5%;
@@ -247,7 +247,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
   position: absolute;
 }
 
@@ -263,15 +263,70 @@
   opacity: 0;
 }
 
+/* 아이템별 캐릭터 이미지 크기 조정 */
+.character-base-art--item-1 {
+  /* 모종삽 장착 캐릭터 - 필요시 크기 조정 */
+  transform: scale(1.1);
+}
+
+.character-base-art--item-2 {
+  /* 곡괭이 장착 캐릭터 - 필요시 크기 조정 */
+  transform: scale(1.25);
+}
+
+.character-base-art--item-3 {
+  /* 트랙터 장착 캐릭터 - 필요시 크기 조정 */
+  transform: scale(1.5);
+}
+
+/* 동영상 전용 영역 (기본 설정) */
+.character-video-area {
+  position: absolute;
+  pointer-events: auto; /* 호버 감지 활성화 */
+  overflow: visible;
+  z-index: 5; /* 캐릭터 이미지 위에 표시 */
+  cursor: pointer; /* 클릭 가능한 커서 */
+  /* 기본값 (아이템별로 오버라이드) */
+  left: 18.21%;
+  top: 35.5%;
+  width: 13.89%;
+  height: 39.94%;
+}
+
+/* 아이템 1번 - 모종삽 */
+.character-video-area--item-1 {
+  left: 18.21%;
+  top: 35.5%;
+  width: 13.89%;
+  height: 39.94%;
+}
+
+/* 아이템 2번 - 곡괭이 */
+.character-video-area--item-2 {
+  left: 11.5%;
+  top: 34%;
+  width: 30%;
+  height: 45%;
+}
+
+/* 아이템 3번 - 트랙터 */
+.character-video-area--item-3 {
+  left: 0%;
+  top: 32%;
+  width: 50%;
+  height: 50%;
+}
+
 .character-preview-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: transparent;
   opacity: 0;
   transition: opacity 0.2s ease;
-  pointer-events: none;
+  pointer-events: none; /* 비디오 자체는 클릭 불가 */
 }
 
 .character-preview-video--visible {

@@ -8,6 +8,9 @@ import FarmSearchIcon from "../assets/농장찾기.png";
 import DiaryIcon from "../assets/재배일기.png";
 import CommunityIcon from "../assets/커뮤니티.png";
 import CharacterIcon from "../assets/캐릭터.png";
+import SeederEquippedImage from "../assets/호미 장착.png";
+import PickaxeEquippedImage from "../assets/곡괭이 장착.png";
+import TractorEquippedImage from "../assets/트랙터 장착.png";
 import SeederEquipVideo from "../assets/모종삽동영상.webm";
 import PickaxeEquipVideo from "../assets/곡괭이동영상.webm";
 import TractorEquipVideo from "../assets/트랙터 동영상.webm";
@@ -49,6 +52,12 @@ const CHARACTER_VIDEO_MAP = {
   3: TractorEquipVideo,
 };
 
+const CHARACTER_IMAGE_MAP = {
+  1: SeederEquippedImage,
+  2: PickaxeEquippedImage,
+  3: TractorEquippedImage,
+};
+
 function HomePage() {
   const navigate = useNavigate();
   const { coins } = useCoins();
@@ -69,12 +78,16 @@ function HomePage() {
   const [profile, setProfile] = useState(null);
   const [showFarmRegisterModal, setShowFarmRegisterModal] = useState(false);
   const [equippedCharacterVideo, setEquippedCharacterVideo] = useState(null);
+  const [equippedItemId, setEquippedItemId] = useState(null);
   const [isCharacterHovered, setIsCharacterHovered] = useState(false);
   const characterVideoRef = useRef(null);
   const [showFarmApplyPrompt, setShowFarmApplyPrompt] = useState(false);
-  const [isAcknowledgingFarmPrompt, setIsAcknowledgingFarmPrompt] = useState(false);
+  const [isAcknowledgingFarmPrompt, setIsAcknowledgingFarmPrompt] =
+    useState(false);
   const [hasUnreadChats, setHasUnreadChats] = useState(false);
-  const [lastChatCheck, setLastChatCheck] = useState(() => getInitialChatCheck());
+  const [lastChatCheck, setLastChatCheck] = useState(() =>
+    getInitialChatCheck()
+  );
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -124,7 +137,9 @@ function HomePage() {
       const rooms = await fetchChatRooms();
       attachRoomSubscriptions(rooms);
       const hasNew = rooms.some((room) => {
-        const timestamp = new Date(room.lastMessageAt || room.updatedAt).getTime();
+        const timestamp = new Date(
+          room.lastMessageAt || room.updatedAt
+        ).getTime();
         if (!Number.isFinite(timestamp)) return false;
         return timestamp > lastChatCheck;
       });
@@ -200,14 +215,17 @@ function HomePage() {
   const applyEquippedCharacterVideo = useCallback((value) => {
     if (value == null || value === "") {
       setEquippedCharacterVideo(null);
+      setEquippedItemId(null);
       return;
     }
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) {
       setEquippedCharacterVideo(null);
+      setEquippedItemId(null);
       return;
     }
     setEquippedCharacterVideo(CHARACTER_VIDEO_MAP[parsed] || null);
+    setEquippedItemId(parsed);
   }, []);
 
   useEffect(() => {
@@ -307,7 +325,9 @@ function HomePage() {
     };
 
     client.onDisconnect = () => {
-      notificationSubscriptionsRef.current.forEach((subscription) => subscription.unsubscribe());
+      notificationSubscriptionsRef.current.forEach((subscription) =>
+        subscription.unsubscribe()
+      );
       notificationSubscriptionsRef.current.clear();
     };
 
@@ -315,7 +335,9 @@ function HomePage() {
     notificationClientRef.current = client;
 
     return () => {
-      notificationSubscriptionsRef.current.forEach((subscription) => subscription.unsubscribe());
+      notificationSubscriptionsRef.current.forEach((subscription) =>
+        subscription.unsubscribe()
+      );
       notificationSubscriptionsRef.current.clear();
       client.deactivate();
       notificationClientRef.current = null;
@@ -581,16 +603,12 @@ function HomePage() {
           <div className="image-label">농장 찾기</div>
         </div>
 
-        {/* 캐릭터 */}
+        {/* 캐릭터 이미지 (클릭으로 상점 열기) */}
         <div
-          className={`clickable-image character-image ${
-            characterHasVideo ? "character-image--has-video" : ""
-          }`}
+          className="clickable-image character-image"
           onClick={() => setIsShopModalOpen(true)}
           role="button"
           tabIndex={0}
-          onMouseEnter={characterHasVideo ? handleCharacterMouseEnter : undefined}
-          onMouseLeave={characterHasVideo ? handleCharacterMouseLeave : undefined}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
@@ -599,27 +617,53 @@ function HomePage() {
           }}
         >
           <img
-            src={CharacterIcon}
+            src={
+              equippedItemId
+                ? CHARACTER_IMAGE_MAP[equippedItemId]
+                : CharacterIcon
+            }
             alt="캐릭터"
             className={`character-base-art ${
+              equippedItemId ? `character-base-art--item-${equippedItemId}` : ""
+            } ${
               characterHasVideo && isCharacterHovered
                 ? "character-base-art--hidden"
                 : ""
             }`}
           />
-          {characterHasVideo && (
+          <div className="image-label">캐릭터</div>
+        </div>
+
+        {/* 동영상 전용 영역 (호버 시 동영상 재생, 클릭 시 상점 열기) */}
+        {characterHasVideo && (
+          <div
+            className={`character-video-area character-video-area--item-${
+              equippedItemId || "default"
+            }`}
+            onClick={() => setIsShopModalOpen(true)}
+            onMouseEnter={handleCharacterMouseEnter}
+            onMouseLeave={handleCharacterMouseLeave}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setIsShopModalOpen(true);
+              }
+            }}
+          >
             <video
               ref={characterVideoRef}
               className={`character-preview-video ${
                 isCharacterHovered ? "character-preview-video--visible" : ""
               }`}
               src={equippedCharacterVideo}
+              loop
               muted
               playsInline
             />
-          )}
-          <div className="image-label">캐릭터</div>
-        </div>
+          </div>
+        )}
 
         {/* 커뮤니티 */}
         <div
