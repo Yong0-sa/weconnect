@@ -1,322 +1,358 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ChatModal from "./ChatModal";
 import "./MemberInfoManageModal.css";
+import {
+  fetchOwnerContracts,
+  updateContractStatus,
+  deleteContract,
+} from "../api/farmContracts";
 
-const STATUS_OPTIONS = ["승인 대기", "사용 중", "만료됨"];
+const STATUS_DISPLAY = {
+  PENDING: "승인 대기",
+  APPROVED: "사용 중",
+  REJECTED: "거절됨",
+  EXPIRED: "만료됨",
+};
 
-const createEmptyDraft = () => ({
-  nickname: "",
-  email: "",
-  status: STATUS_OPTIONS[0],
-  name: "",
-  phone: "",
-  contractStart: "",
-  contractEnd: "",
-});
-
-const SAMPLE_MEMBERS = [
-  {
-    id: "1",
-    nickname: "그린러버",
-    email: "green@example.com",
-    status: "사용 중",
-    name: "홍길동",
-    phone: "010-1234-0000",
-    contractStart: "2025-01-15",
-    contractEnd: "2026-01-14",
-  },
-  {
-    id: "2",
-    nickname: "주말농부",
-    email: "garden@example.com",
-    status: "승인 대기",
-    name: "김채소",
-    phone: "010-5678-1111",
-    contractStart: "2024-10-01",
-    contractEnd: "2025-09-30",
-  },
+const columns = [
+  { key: "nickname", label: "닉네임" },
+  { key: "email", label: "이메일" },
+  { key: "status", label: "신청 상태" },
+  { key: "name", label: "이름" },
+  { key: "phone", label: "전화번호" },
+  { key: "startDate", label: "계약 시작일" },
+  { key: "endDate", label: "계약 종료일" },
 ];
 
-const buildDraftMap = (list, prevDrafts = {}) =>
-  list.reduce((acc, member) => {
-    acc[member.id] = prevDrafts[member.id]
-      ? { ...prevDrafts[member.id] }
-      : { ...member };
-    return acc;
-  }, {});
-
 function MemberInfoManageModal({ profile, onClose = () => {} }) {
-  const [members, setMembers] = useState(SAMPLE_MEMBERS);
-  const [rowDrafts, setRowDrafts] = useState(() => buildDraftMap(SAMPLE_MEMBERS));
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [createRows, setCreateRows] = useState([]);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [contracts, setContracts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [dateDrafts, setDateDrafts] = useState({});
+  const [editingRows, setEditingRows] = useState({});
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [chatContact, setChatContact] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
-  const totalMembers = members.length;
+  const totalMembers = contracts.length;
   const allSelected = totalMembers > 0 && selectedIds.length === totalMembers;
 
-  const columns = useMemo(
-    () => [
-      { key: "nickname", label: "닉네임" },
-      { key: "email", label: "이메일" },
-      { key: "status", label: "신청 상태" },
-      { key: "name", label: "이름" },
-      { key: "phone", label: "전화번호" },
-      { key: "contractStart", label: "계약 시작일" },
-      { key: "contractEnd", label: "계약 종료일" },
-    ],
-    []
-  );
+  const loadContracts = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await fetchOwnerContracts();
+      const normalized = Array.isArray(data) ? data : [];
+      setContracts(normalized);
+      setDateDrafts(
+        normalized.reduce((acc, contract) => {
+          acc[contract.contractId] = {
+            startDate: contract.startDate || "",
+            endDate: contract.endDate || "",
+          };
+          return acc;
+        }, {})
+      );
+      setEditingRows(
+        normalized.reduce((acc, contract) => {
+          acc[contract.contractId] = false;
+          return acc;
+        }, {})
+      );
+    } catch (err) {
+      setError(err?.message || "회원 정보를 불러오지 못했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    setRowDrafts((prev) => buildDraftMap(members, prev));
-  }, [members]);
+    loadContracts();
+  }, [loadContracts]);
 
-  const handleAddRow = () => {
-    if (isEditMode) return;
-    const newRow = {
-      id: `temp-${Date.now()}`,
-      data: createEmptyDraft(),
-    };
-    setCreateRows((prev) => [...prev, newRow]);
-    setSelectedIds([]);
-  };
-
-  const handleEnterEditMode = () => {
-    setIsEditMode(true);
-    setCreateRows([]);
-    setSelectedIds([]);
-  };
-
-  const handleConfirmEdit = () => {
-    setIsEditMode(false);
-    setSelectedIds([]);
-  };
-
-  const toggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(members.map((member) => member.id));
-    }
-  };
-
-  const toggleRowSelect = (id) => {
+  useEffect(() => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]
+      prev.filter((id) => contracts.some((contract) => contract.contractId === id))
     );
-  };
-
-  const handleRowInputChange = (memberId, field, value) => {
-    setRowDrafts((prev) => ({
-      ...prev,
-      [memberId]: {
-        ...prev[memberId],
-        [field]: value,
-      },
-    }));
-  };
-
-  const handleDeleteSelected = () => {
-    if (!isEditMode) return;
-    if (!selectedIds.length) {
-      alert("삭제할 회원을 선택해 주세요.");
-      return;
-    }
-    if (!window.confirm("선택한 회원을 삭제하시겠습니까?")) return;
-    setMembers((prev) => prev.filter((member) => !selectedIds.includes(member.id)));
-    setSelectedIds([]);
-  };
-
-  const handleSubmitRow = (memberId) => {
-    const draft = rowDrafts[memberId];
-    if (!draft) return;
-    if (!draft.nickname?.trim() || !draft.email?.trim()) {
-      alert("닉네임과 이메일은 필수입니다.");
-      return;
-    }
-    setMembers((prev) =>
-      prev.map((member) => (member.id === memberId ? { ...member, ...draft } : member))
-    );
-  };
-
-  const handleCreateRowChange = (rowId, field, value) => {
-    setCreateRows((prev) =>
-      prev.map((row) =>
-        row.id === rowId
-          ? {
-              ...row,
-              data: {
-                ...row.data,
-                [field]: value,
-              },
-            }
-          : row
-      )
-    );
-  };
-
-  const handleRemoveCreateRow = (rowId) => {
-    setCreateRows((prev) => prev.filter((row) => row.id !== rowId));
-  };
-
-  const handleSubmitAllRows = () => {
-    if (createRows.length === 0) {
-      alert("등록할 회원이 없습니다.");
-      return;
-    }
-
-    const invalidRows = createRows.filter(
-      (row) => !row.data.nickname?.trim() || !row.data.email?.trim()
-    );
-
-    if (invalidRows.length > 0) {
-      alert("모든 행의 닉네임과 이메일은 필수입니다.");
-      return;
-    }
-
-    const newMembers = createRows.map((row) => ({
-      ...row.data,
-      id: String(Date.now()) + Math.random(),
-    }));
-
-    setMembers((prev) => [...newMembers, ...prev]);
-    setRowDrafts((prev) => {
-      const newDrafts = { ...prev };
-      newMembers.forEach((member) => {
-        newDrafts[member.id] = { ...member };
+    setDateDrafts((prev) => {
+      const next = {};
+      contracts.forEach((contract) => {
+        const existing = prev[contract.contractId];
+        next[contract.contractId] = {
+          startDate: existing?.startDate ?? contract.startDate ?? "",
+          endDate: existing?.endDate ?? contract.endDate ?? "",
+        };
       });
-      return newDrafts;
+      return next;
     });
-    setCreateRows([]);
+    setEditingRows((prev) => {
+      const next = {};
+      contracts.forEach((contract) => {
+        next[contract.contractId] = Boolean(prev?.[contract.contractId] && contract.status !== "PENDING");
+      });
+      return next;
+    });
+  }, [contracts]);
+
+  const renderStatusBadge = (status) => {
+    const label = STATUS_DISPLAY[status] || status;
+    const classSuffix = (label || "")
+      .toString()
+      .trim()
+      .replace(/\s+/g, "-");
+    return (
+      <span
+        className={`member-manage-status member-manage-status--${classSuffix}`}
+      >
+        {label}
+      </span>
+    );
   };
 
-  const handleCloseModal = () => {
-    setIsEditMode(false);
-    setSelectedIds([]);
-    setCreateRows([]);
-    onClose();
-  };
-
-  const handleOpenChat = (member) => {
-    if (!member) return;
-    const parseId = (value) => {
-      if (value == null) return null;
-      const numeric = Number(value);
-      return Number.isFinite(numeric) ? numeric : null;
+  const renderCellValue = (contract, key) => {
+    if (!contract) return "-";
+    const draft = dateDrafts[contract.contractId] || {
+      startDate: contract.startDate || "",
+      endDate: contract.endDate || "",
     };
-    const nextContact = {
-      id: member.id,
-      name: member.name || member.nickname || member.email,
-      userId: parseId(member.userId ?? member.id),
-      farmerId: parseId(profile?.userId),
-      farmId: parseId(profile?.farmId),
-    };
-    if (member.roomId) {
-      nextContact.roomId = member.roomId;
+    const allowEdit = contract.status === "PENDING" || editingRows[contract.contractId];
+    switch (key) {
+      case "status":
+        return renderStatusBadge(contract.status);
+      case "startDate":
+        return allowEdit ? (
+          <input
+            type="date"
+            name="startDate"
+            value={draft.startDate}
+            onChange={(event) =>
+              handleDateChange(contract.contractId, "startDate", event.target.value)
+            }
+          />
+        ) : (
+          contract.startDate || "-"
+        );
+      case "endDate":
+        return allowEdit ? (
+          <input
+            type="date"
+            name="endDate"
+            value={draft.endDate}
+            onChange={(event) =>
+              handleDateChange(contract.contractId, "endDate", event.target.value)
+            }
+          />
+        ) : (
+          contract.endDate || "-"
+        );
+      case "nickname":
+        return contract.nickname || "-";
+      case "email":
+        return contract.email || "-";
+      case "name":
+        return contract.name || "-";
+      case "phone":
+        return contract.phone || "-";
+      default:
+        return contract[key] || "-";
     }
-    setChatContact(nextContact);
-    setIsChatModalOpen(true);
   };
+
+  const handleOpenChat = useCallback(
+    (contract) => {
+      if (!contract) return;
+      const parseId = (value) => {
+        if (value == null) return null;
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : null;
+      };
+      const nextContact = {
+        id: `contract-${contract.contractId}`,
+        name: contract.name || contract.nickname || contract.email,
+        userId: parseId(contract.userId),
+        farmerId: parseId(profile?.userId),
+        farmId: parseId(contract.farmId),
+      };
+      setChatContact(nextContact);
+      setIsChatModalOpen(true);
+    },
+    [profile?.userId]
+  );
 
   const handleCloseChat = () => {
     setIsChatModalOpen(false);
     setChatContact(null);
   };
 
-  const renderEditableInput = (key, value, onChange) => {
-    if (key === "status") {
-      return (
-        <select name={key} value={value} onChange={onChange}>
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+  const handleDateChange = (contractId, field, value) => {
+    setDateDrafts((prev) => ({
+      ...prev,
+      [contractId]: {
+        ...(prev[contractId] || { startDate: "", endDate: "" }),
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleToggleEdit = (contractId, next) => {
+    setEditingRows((prev) => ({
+      ...prev,
+      [contractId]: typeof next === "boolean" ? next : !prev[contractId],
+    }));
+  };
+
+  const handleSaveContract = async (contract) => {
+    if (!contract || updatingId) return;
+    const draft = dateDrafts[contract.contractId] || {};
+    try {
+      setUpdatingId(contract.contractId);
+      const payload = {
+        status: contract.status,
+        startDate: draft.startDate || null,
+        endDate: draft.endDate || null,
+        memo: contract.memo,
+      };
+      const updated = await updateContractStatus(contract.contractId, payload);
+      setContracts((prev) =>
+        prev.map((item) =>
+          item.contractId === updated.contractId ? updated : item
+        )
       );
+      setDateDrafts((prev) => ({
+        ...prev,
+        [contract.contractId]: {
+          startDate: updated.startDate || "",
+          endDate: updated.endDate || "",
+        },
+      }));
+      handleToggleEdit(contract.contractId, false);
+      alert("계약 기간이 저장되었습니다.");
+    } catch (error) {
+      alert(error?.message || "계약 기간을 저장하지 못했습니다.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleApprove = async (contract) => {
+    if (!contract || updatingId) return;
+    const draft = dateDrafts[contract.contractId] || {};
+    const resolvedStart = draft.startDate || "";
+    const resolvedEnd = draft.endDate || "";
+
+    if (!resolvedStart || !resolvedEnd) {
+      alert("계약 시작일과 종료일을 입력해 주세요.");
+      return;
     }
 
-    const inputProps = {
-      name: key,
-      value: value ?? "",
-      onChange,
-    };
+    try {
+      setUpdatingId(contract.contractId);
+      const payload = {
+        status: "APPROVED",
+        startDate: resolvedStart,
+        endDate: resolvedEnd,
+        memo: contract.memo,
+      };
+      const updated = await updateContractStatus(contract.contractId, payload);
+      setContracts((prev) =>
+        prev.map((item) =>
+          item.contractId === updated.contractId ? updated : item
+        )
+      );
+      setDateDrafts((prev) => ({
+        ...prev,
+        [contract.contractId]: {
+          startDate: updated.startDate || "",
+          endDate: updated.endDate || "",
+        },
+      }));
+      alert("승인되었습니다.");
+    } catch (err) {
+      alert(err?.message || "승인에 실패했습니다.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
-    if (key === "email") {
-      inputProps.type = "email";
-      inputProps.placeholder = "example@email.com";
-    } else if (key === "contractStart" || key === "contractEnd") {
-      inputProps.type = "date";
-    } else if (key === "phone") {
-      inputProps.type = "text";
-      inputProps.placeholder = "010-0000-0000";
+  const toggleSelect = (contractId) => {
+    setSelectedIds((prev) =>
+      prev.includes(contractId)
+        ? prev.filter((id) => id !== contractId)
+        : [...prev, contractId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds([]);
     } else {
-      inputProps.type = "text";
+      setSelectedIds(contracts.map((contract) => contract.contractId));
     }
-
-    return <input {...inputProps} />;
   };
 
-  const renderStaticValue = (member, key) => {
-    const value = member[key];
-    if (!value) return "-";
-    if (key === "status") {
-      return (
-        <span className={`member-manage-status member-manage-status--${value}`}>
-          {value}
-        </span>
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length || isBulkDeleting) return;
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`선택한 ${selectedIds.length}명의 신청을 삭제하시겠습니까?`)
+    ) {
+      return;
+    }
+    try {
+      setIsBulkDeleting(true);
+      for (const id of selectedIds) {
+        await deleteContract(id);
+      }
+      setContracts((prev) =>
+        prev.filter((contract) => !selectedIds.includes(contract.contractId))
       );
+      setDateDrafts((prev) => {
+        const next = { ...prev };
+        selectedIds.forEach((id) => {
+          delete next[id];
+        });
+        return next;
+      });
+      setEditingRows((prev) => {
+        const next = { ...prev };
+        selectedIds.forEach((id) => {
+          delete next[id];
+        });
+        return next;
+      });
+      setSelectedIds([]);
+      alert("삭제되었습니다.");
+    } catch (error) {
+      alert(error?.message || "삭제하지 못했습니다.");
+    } finally {
+      setIsBulkDeleting(false);
     }
-    return value;
   };
 
-  const renderCreateRow = (row) => (
-    <div className="member-manage-row member-manage-row--inline" role="row" key={row.id}>
-      {columns.map((column) => (
-        <div className="member-manage-cell" role="cell" key={column.key}>
-          {renderEditableInput(column.key, row.data[column.key], (event) =>
-            handleCreateRowChange(row.id, column.key, event.target.value)
-          )}
-        </div>
-      ))}
-      <div className="member-manage-cell member-manage-cell--actions" role="cell">
-        <button
-          type="button"
-          className="member-manage-inline-btn"
-          onClick={() => handleRemoveCreateRow(row.id)}
-        >
-          ×
-        </button>
-      </div>
-    </div>
-  );
-
-  const getModalClass = () => {
-    if (isEditMode) return 'member-manage-modal member-manage-modal--edit-mode';
-    if (createRows.length > 0) return 'member-manage-modal member-manage-modal--create-mode';
-    return 'member-manage-modal';
-  };
+  const headerTitle = useMemo(() => {
+    if (profile?.farmName) {
+      return `${profile.farmName} 회원 현황`;
+    }
+    return "회원 현황";
+  }, [profile?.farmName]);
 
   return (
-    <div className={getModalClass()}>
+    <div className="member-manage-modal">
       <header className="member-manage-modal__header">
         <div>
           <p className="member-manage-eyebrow">회원 정보 관리</p>
-          <h2>
-            {profile?.farmName ? `${profile.farmName} 회원` : "전체 회원"} 현황
-          </h2>
+          <h2>{headerTitle}</h2>
           <p className="member-manage-description">
-            회원 목록을 직접 관리하고 계약 기간을 업데이트할 수 있어요.
+            회원 목록을 확인하고 승인 상태를 관리할 수 있어요.
           </p>
         </div>
         <button
           type="button"
           className="member-manage-close"
           aria-label="회원 정보 관리 닫기"
-          onClick={handleCloseModal}
+          onClick={onClose}
         >
           ×
         </button>
@@ -325,149 +361,108 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
       <section className="member-manage-panel">
         <div className="member-manage-panel__head">
           <p className="member-manage-count">
-            전체 사용자 <strong>{totalMembers}명</strong>
+            전체 신청자 <strong>{totalMembers}명</strong>
           </p>
           <div className="member-manage-controls">
-            {isEditMode ? (
-              <>
-                <button
-                  type="button"
-                  className="member-manage-link"
-                  onClick={handleConfirmEdit}
-                >
-                  확인
-                </button>
-                <span aria-hidden="true">|</span>
-                <button
-                  type="button"
-                  className="member-manage-link"
-                  onClick={handleDeleteSelected}
-                >
-                  삭제
-                </button>
-              </>
-            ) : createRows.length > 0 ? (
-              <>
-                <button
-                  type="button"
-                  className="member-manage-link"
-                  onClick={handleAddRow}
-                >
-                  +
-                </button>
-                <span aria-hidden="true">|</span>
-                <button
-                  type="button"
-                  className="member-manage-link"
-                  onClick={handleSubmitAllRows}
-                >
-                  등록
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="member-manage-link"
-                  onClick={handleAddRow}
-                >
-                  +
-                </button>
-                <span aria-hidden="true">|</span>
-                <button
-                  type="button"
-                  className="member-manage-link"
-                  onClick={handleEnterEditMode}
-                >
-                  편집
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              className="member-manage-link"
+              onClick={handleBulkDelete}
+              disabled={!selectedIds.length || isBulkDeleting}
+            >
+              삭제
+            </button>
           </div>
         </div>
 
         <div className="member-manage-table" role="table" aria-label="회원 목록">
           <div className="member-manage-row member-manage-row--head" role="row">
-            {isEditMode && (
-              <label className="member-manage-checkbox">
-                <input
-                  type="checkbox"
-                  aria-label="전체 선택"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
-                />
-                <span />
-              </label>
-            )}
+            <label className="member-manage-checkbox">
+              <input
+                type="checkbox"
+                aria-label="전체 선택"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                disabled={!contracts.length}
+              />
+              <span />
+            </label>
             {columns.map((column) => (
               <div key={column.key} className="member-manage-cell" role="columnheader">
                 {column.label}
               </div>
             ))}
-            <div className="member-manage-cell member-manage-cell--actions" aria-hidden="true" />
+            <div
+              className="member-manage-cell member-manage-cell--actions"
+              aria-hidden="true"
+            />
           </div>
 
-          {members.length === 0 && createRows.length === 0 && (
+          {isLoading ? (
             <p className="member-manage-empty" role="row">
-              등록된 회원이 없습니다. 우측 상단 + 버튼으로 추가해 주세요.
+              회원 정보를 불러오는 중입니다...
             </p>
-          )}
-
-          {members.map((member) => (
-            <div className="member-manage-row" role="row" key={member.id}>
-              {isEditMode && (
+          ) : error ? (
+            <p className="member-manage-empty" role="row">
+              {error}
+            </p>
+          ) : contracts.length === 0 ? (
+            <p className="member-manage-empty" role="row">
+              아직 신청한 회원이 없습니다.
+            </p>
+          ) : (
+            contracts.map((contract) => (
+              <div className="member-manage-row" role="row" key={contract.contractId}>
                 <label className="member-manage-checkbox">
                   <input
                     type="checkbox"
-                    aria-label={`${member.name} 선택`}
-                    checked={selectedIds.includes(member.id)}
-                    onChange={() => toggleRowSelect(member.id)}
+                    aria-label={`${contract.name || contract.nickname || contract.email} 선택`}
+                    checked={selectedIds.includes(contract.contractId)}
+                    onChange={() => toggleSelect(contract.contractId)}
                   />
                   <span />
                 </label>
-              )}
-              {columns.map((column) => (
-                <div key={column.key} className="member-manage-cell" role="cell">
-                  {isEditMode
-                    ? renderEditableInput(
-                        column.key,
-                        rowDrafts[member.id]?.[column.key],
-                        (event) =>
-                          handleRowInputChange(
-                            member.id,
-                            column.key,
-                            event.target.value
-                          )
-                      )
-                    : renderStaticValue(member, column.key)}
-                </div>
-              ))}
-              <div className="member-manage-cell member-manage-cell--actions" role="cell">
-                <button
-                  type="button"
-                  className="member-manage-inline-btn member-manage-inline-btn--chat"
-                  onClick={() => handleOpenChat(member)}
-                >
-                  채팅
-                </button>
-                {isEditMode && (
+                {columns.map((column) => (
+                  <div key={column.key} className="member-manage-cell" role="cell">
+                    {renderCellValue(contract, column.key)}
+                  </div>
+                ))}
+                <div className="member-manage-cell member-manage-cell--actions" role="cell">
                   <button
                     type="button"
-                    className="member-manage-inline-btn member-manage-inline-btn--primary"
-                    onClick={() => handleSubmitRow(member.id)}
+                    className="member-manage-inline-btn member-manage-inline-btn--chat"
+                    onClick={() => handleOpenChat(contract)}
                   >
-                    등록
+                    채팅
                   </button>
-                )}
+                  {contract.status === "PENDING" ? (
+                    <button
+                      type="button"
+                      className="member-manage-inline-btn member-manage-inline-btn--primary"
+                      onClick={() => handleApprove(contract)}
+                      disabled={updatingId === contract.contractId}
+                    >
+                      승인
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="member-manage-inline-btn"
+                      onClick={() =>
+                        editingRows[contract.contractId]
+                          ? handleSaveContract(contract)
+                          : handleToggleEdit(contract.contractId, true)
+                      }
+                      disabled={updatingId === contract.contractId}
+                    >
+                      {editingRows[contract.contractId] ? "저장" : "수정"}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
-        {createRows.length > 0 && !isEditMode && (
-          <div className="member-manage-create-row">
-            {createRows.map((row) => renderCreateRow(row))}
-          </div>
-        )}
       </section>
       {isChatModalOpen && (
         <div className="member-manage-chat-modal">

@@ -1,5 +1,5 @@
 .member-manage-modal {
-  --member-grid: minmax(100px, 0.5fr) minmax(200px, 1.15fr)
+  --member-grid: 32px minmax(100px, 0.5fr) minmax(200px, 1.15fr)
     minmax(120px, 0.95fr) minmax(135px, 1fr) minmax(135px, 1fr)
     minmax(135px, 1fr) minmax(135px, 1fr) auto;
   width: min(1200px, 96vw);
@@ -11,7 +11,7 @@
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #141b2f;
   position: relative;
-  border: 2px solid rgba(120, 81, 255, 0.35);
+  border: 2px solid rgba(14, 135, 102, 0.45);
   overflow: visible;
 }
 
@@ -117,6 +117,7 @@
 
 .member-manage-table {
   width: 100%;
+  overflow-x: auto;
 }
 
 .member-manage-row {
@@ -199,7 +200,7 @@
 .member-manage-cell select {
   width: 90%;
   border-radius: 10px;
-  border: 1px solid rgba(123, 99, 255, 0.4);
+  border: 1px solid rgba(26, 131, 103, 0.4);
   padding: 6px 8px;
   font-size: 14px;
   background: #fff;
@@ -209,7 +210,7 @@
 
 .member-manage-cell input:focus,
 .member-manage-cell select:focus {
-  outline: 2px solid rgba(92, 56, 255, 0.3);
+  outline: 2px solid rgba(26, 131, 103, 0.45);
   outline-offset: 0;
 }
 
@@ -225,12 +226,12 @@
   color: #4c28c9;
 }
 
-.member-manage-status--사용\ 중 {
+.member-manage-status--사용-중 {
   background: rgba(96, 199, 143, 0.2);
   color: #107349;
 }
 
-.member-manage-status--승인\ 대기 {
+.member-manage-status--승인-대기 {
   background: rgba(255, 202, 120, 0.28);
   color: #a45800;
 }
@@ -238,6 +239,11 @@
 .member-manage-status--만료됨 {
   background: rgba(241, 119, 135, 0.25);
   color: #a61c3c;
+}
+
+.member-manage-status--거절됨 {
+  background: rgba(241, 119, 135, 0.3);
+  color: #99233b;
 }
 
 .member-manage-cell--actions {
@@ -255,32 +261,43 @@
   color: #7b7f95;
   font-weight: 600;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .member-manage-inline-btn:hover {
-  background: rgba(241, 119, 135, 0.1);
-  border-color: #a61c3c;
-  color: #a61c3c;
+  background: rgba(28, 133, 105, 0.1);
+  border-color: #1c8569;
+  color: #1c8569;
 }
 
 .member-manage-inline-btn--primary {
-  background: #5c38ff;
-  border-color: #5c38ff;
+  background: #1ea876;
+  border-color: #1ea876;
   color: #fff;
 }
 
 .member-manage-inline-btn--primary:hover {
-  background: #4c28c9;
+  background: #167c57;
 }
 
 .member-manage-inline-btn--chat {
-  border-color: rgba(92, 56, 255, 0.55);
-  color: #5c38ff;
+  border-color: rgba(30, 168, 118, 0.55);
+  color: #1ea876;
 }
 
 .member-manage-inline-btn--chat:hover {
-  background: rgba(92, 56, 255, 0.08);
-  color: #3818c9;
+  background: rgba(30, 168, 118, 0.08);
+  color: #127250;
+}
+
+.member-manage-inline-btn--danger {
+  border-color: rgba(226, 61, 78, 0.4);
+  color: #b83030;
+}
+
+.member-manage-inline-btn--danger:hover {
+  background: rgba(226, 61, 78, 0.12);
+  color: #8f1d1d;
 }
 
 .member-manage-empty {

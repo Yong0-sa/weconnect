@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./FarmSearchModal.css";
 import { fetchFarms } from "../api/farm";
+import { applyToFarm } from "../api/farmContracts";
 import { regionOptions } from "../data/farms";
 
 const DEFAULT_MAP_LEVEL = 3; // 약 100m 축척에 해당하는 카카오맵 레벨
@@ -11,6 +12,7 @@ function FarmSearchModal({ onClose, onChatRequest }) {
   const [selectedSido, setSelectedSido] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFarmId, setSelectedFarmId] = useState(null);
+  const [applyingFarmId, setApplyingFarmId] = useState(null);
 
   // 📌 농장 데이터 / 로딩 / 오류
   const [farms, setFarms] = useState([]);
@@ -47,6 +49,30 @@ function FarmSearchModal({ onClose, onChatRequest }) {
       focusMapOnFarm(farm);
     },
     [focusMapOnFarm]
+  );
+
+  const handleApplyFarm = useCallback(
+    async (farm) => {
+      if (!farm) return;
+      if (applyingFarmId) {
+        return;
+      }
+      const farmId = farm.farmId ?? farm.id;
+      if (!farmId) {
+        alert("농장 정보를 찾을 수 없습니다.");
+        return;
+      }
+      try {
+        setApplyingFarmId(farm.id);
+        await applyToFarm(farmId);
+        alert("신청이 접수되었습니다. 승인 여부는 회원 정보 관리에서 확인해 주세요.");
+      } catch (error) {
+        alert(error?.message || "신청을 완료하지 못했습니다.");
+      } finally {
+        setApplyingFarmId(null);
+      }
+    },
+    [applyingFarmId]
   );
 
   // ============================================================
@@ -352,7 +378,12 @@ function FarmSearchModal({ onClose, onChatRequest }) {
                         >
                           채팅하기
                         </button>
-                        <button type="button" className="farm-action request">
+                        <button
+                          type="button"
+                          className="farm-action request"
+                          onClick={() => handleApplyFarm(farm)}
+                          disabled={applyingFarmId === farm.id}
+                        >
                           신청하기
                         </button>
                         <button

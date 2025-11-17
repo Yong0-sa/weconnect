@@ -609,6 +609,12 @@ function HomePage() {
           onClick={() => setIsShopModalOpen(true)}
           role="button"
           tabIndex={0}
+          onMouseEnter={
+            characterHasVideo ? handleCharacterMouseEnter : undefined
+          }
+          onMouseLeave={
+            characterHasVideo ? handleCharacterMouseLeave : undefined
+          }
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
