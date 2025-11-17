@@ -13,18 +13,16 @@
 
 .community-close-btn {
   position: absolute;
-  top: 0px;
-  right: -45px;
-  border: none;
-  background: #f0f2f4;
-  font-size: 1.5rem;
-  cursor: pointer;
-  line-height: 1;
-  color: #555;
-  width: 42px;
-  height: 42px;
+  top: 20px;
+  right: 15px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
 }
 
 .community-header {
@@ -552,6 +550,13 @@
   font-size: 18px;
 }
 
+.post-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
 .detail-title-block {
   position: relative;
 }
@@ -581,11 +586,11 @@
 .detail-date {
   text-align: right;
   white-space: nowrap;
+  display: flex;
 }
 
 /* 게시글 수정/삭제 버튼 */
 .post-action-buttons {
-  position: absolute;
   right: 0;
   bottom: 0;
   display: flex;

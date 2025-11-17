@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
 import "./CommunityModal.css";
 import { farms } from "../data/farms";
 import {
@@ -57,6 +58,7 @@ function CommunityModal({ onClose }) {
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentInput, setCommentInput] = useState("");
   const [userNickname, setUserNickname] = useState("");
+  const [userId, setUserId] = useState(null); // 추가: 사용자 ID
   const [comments, setComments] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyInput, setReplyInput] = useState("");
@@ -71,11 +73,11 @@ function CommunityModal({ onClose }) {
   const [writeImage, setWriteImage] = useState(null);
   const [writeImagePreview, setWriteImagePreview] = useState(null);
   const [writeCategory, setWriteCategory] = useState("board");
-  const [localCommunityPosts, setLocalCommunityPosts] =
-    useState(allCommunityPosts);
+  const [localCommunityPosts, setLocalCommunityPosts] = useState(allCommunityPosts);
   const dropdownRef = useRef(null);
   const farmSearchInputRef = useRef(null);
   const imageInputRef = useRef(null);
+  const generateUniqueId = () => Date.now() + Math.random();
 
   // 선택된 농장의 게시글만 필터링
   const noticePosts = useMemo(() => {
@@ -93,7 +95,7 @@ function CommunityModal({ onClose }) {
       return (
         !search.trim() ||
         post.title.toLowerCase().includes(search.toLowerCase()) ||
-        post.excerpt.toLowerCase().includes(search.toLowerCase()) ||
+        post.content.toLowerCase().includes(search.toLowerCase()) ||
         post.tags.some((tag) =>
           tag.toLowerCase().includes(search.toLowerCase())
         )
@@ -106,7 +108,7 @@ function CommunityModal({ onClose }) {
       return (
         !search.trim() ||
         post.title.toLowerCase().includes(search.toLowerCase()) ||
-        post.excerpt.toLowerCase().includes(search.toLowerCase()) ||
+        post.content.toLowerCase().includes(search.toLowerCase()) ||
         post.tags.some((tag) =>
           tag.toLowerCase().includes(search.toLowerCase())
         )
@@ -127,9 +129,19 @@ function CommunityModal({ onClose }) {
     (showNotice ? filteredNoticePosts.length : 0) +
     (showBoard ? filteredBoardPosts.length : 0);
 
-  const handlePostClick = (post) => {
+  const handlePostClick = async (post) => {
     setSelectedPost(post);
     setCommentInput("");
+
+    try {
+        const response = await axios.get(`/api/comments?postId=${post.id}`);
+        setComments((prev) => ({
+          ...prev,
+          [post.id]: response.data,
+        }));
+      } catch (error) {
+        console.error("댓글 불러오기 실패:", error);
+      }
   };
 
   const handleSearch = (event) => {
@@ -137,16 +149,19 @@ function CommunityModal({ onClose }) {
     setSearch(searchInput);
   };
 
-  const handleCommentSubmit = () => {
+  const handleCommentSubmit = async () => {
     if (!commentInput.trim() || !selectedPost) return;
 
-    const newComment = {
-      id: Date.now(),
-      author: userNickname || "사용자",
-      content: commentInput.trim(),
-      createdAt: new Date().toISOString(),
-      replies: [],
-    };
+    const response = await axios.post("/api/comments", {
+        postId: selectedPost.id,
+        authorId: userId,
+        content: commentInput.trim(),
+        });
+    console.log(selectedPost.id, userId, commentInput.trim());
+
+    console.log(response.data);
+
+    const newComment = response.data;
 
     setComments((prev) => ({
       ...prev,
@@ -170,7 +185,7 @@ function CommunityModal({ onClose }) {
     if (!replyInput.trim() || !selectedPost) return;
 
     const newReply = {
-      id: Date.now(),
+      id: generateUniqueId(),
       author: userNickname || "사용자",
       content: replyInput.trim(),
       createdAt: new Date().toISOString(),
@@ -202,21 +217,41 @@ function CommunityModal({ onClose }) {
   const handleEditPost = () => {
     setEditingPost(true);
     setEditPostTitle(selectedPost.title);
-    setEditPostContent(selectedPost.excerpt);
+    setEditPostContent(selectedPost.content);
   };
 
-  const handleSavePost = () => {
+  const handleSavePost = async () => {
     if (!editPostTitle.trim() || !editPostContent.trim()) return;
 
-    // 실제로는 API 호출하여 서버에 저장
-    // 여기서는 임시로 selectedPost 업데이트 (백엔드 연동 시 수정 필요)
-    setSelectedPost({
-      ...selectedPost,
-      title: editPostTitle.trim(),
-      excerpt: editPostContent.trim(),
-    });
+    try {
+        // 1. PUT 요청: 백엔드 컨트롤러와 매핑
+        const response = await axios.put(
+          `/api/posts/${selectedPost.id}?requesterId=${userId}`,
+          {
+            title: editPostTitle.trim(),
+            content: editPostContent.trim(),
+          }
+        );
 
+    setSelectedPost((prev) => ({
+      ...prev,
+      title: editPostTitle.trim(),
+      content: editPostContent.trim(),
+    }));
+
+    setLocalCommunityPosts((prevPosts) =>
+          prevPosts.map((post) =>
+            post.id === selectedPost.id
+              ? { ...post, title: editPostTitle.trim(), content: editPostContent.trim() }
+              : post
+          )
+        );
     setEditingPost(false);
+    alert("글이 수정되었습니다!");
+  } catch (error) {
+      console.error("글 수정 실패:", error);
+      alert("글 수정 실패: " + (error.response?.data || error.message));
+      }
   };
 
   const handleCancelEditPost = () => {
@@ -225,19 +260,29 @@ function CommunityModal({ onClose }) {
     setEditPostContent("");
   };
 
-  const handleDeletePost = () => {
-    if (window.confirm("게시글을 삭제하시겠습니까?")) {
-      // 댓글과 함께 삭제
-      setComments((prev) => {
-        const newComments = { ...prev };
-        delete newComments[selectedPost.id];
-        return newComments;
-      });
+  const handleDeletePost = async () => {
+    if (!window.confirm("게시글을 삭제하시겠습니까?")) return;
 
-      // 실제로는 API 호출하여 서버에서 삭제
-      // 목록으로 돌아가기
-      setSelectedPost(null);
-    }
+     try {
+         await axios.delete(`/api/posts/${selectedPost.id}?requesterId=${userId}`);
+
+         setLocalCommunityPosts((prevPosts) =>
+         prevPosts.filter(post => post.id !== selectedPost.id)
+         );
+         setComments((prev) => {
+                 const newComments = { ...prev };
+                 delete newComments[selectedPost.id];
+                 return newComments;
+               });
+           setSelectedPost(null);
+
+           // 삭제 성공 시 알림
+           alert("게시글이 삭제되었습니다.")
+
+         } catch (error) {
+             console.error("게시글 삭제 실패:", error);
+             alert("삭제 실패: " + (error.response?.data || error.message));
+             }
   };
 
   // 댓글 수정/삭제
@@ -253,7 +298,6 @@ function CommunityModal({ onClose }) {
       const postComments = prev[selectedPost.id] || [];
 
       if (parentId) {
-        // 대댓글 수정
         const updatedComments = postComments.map((comment) => {
           if (comment.id === parentId) {
             return {
@@ -273,7 +317,6 @@ function CommunityModal({ onClose }) {
           [selectedPost.id]: updatedComments,
         };
       } else {
-        // 댓글 수정
         const updatedComments = postComments.map((comment) =>
           comment.id === commentId
             ? { ...comment, content: editCommentContent.trim() }
@@ -303,7 +346,6 @@ function CommunityModal({ onClose }) {
       const postComments = prev[selectedPost.id] || [];
 
       if (parentId) {
-        // 대댓글 삭제
         const updatedComments = postComments.map((comment) => {
           if (comment.id === parentId) {
             return {
@@ -321,7 +363,6 @@ function CommunityModal({ onClose }) {
           [selectedPost.id]: updatedComments,
         };
       } else {
-        // 댓글 삭제 (대댓글도 함께)
         const updatedComments = postComments.filter(
           (comment) => comment.id !== commentId
         );
@@ -357,47 +398,78 @@ function CommunityModal({ onClose }) {
     const file = event.target.files[0];
     if (file) {
       setWriteImage(file);
-      // 미리보기 생성
       const previewUrl = URL.createObjectURL(file);
       setWriteImagePreview(previewUrl);
     }
   };
 
-  const handleWriteSubmit = () => {
+  // ✅ 백엔드 API 연동 - 글쓰기 제출 (JSON만 전송)
+  const handleWriteSubmit = async () => {
     if (!writeTitle.trim() || !writeContent.trim()) {
       alert("제목과 내용을 입력해주세요.");
       return;
     }
 
-    // 새 게시글 생성
-    const newPost = {
-      id: Date.now(),
-      farmId: selectedFarm.id,
-      author: userNickname || "사용자",
-      role: "회원",
-      title: writeTitle.trim(),
-      excerpt: writeContent.trim(),
-      tags: [],
-      likes: 0,
-      replies: 0,
-      type: "tip", // 자유게시판은 tip 타입
-      createdAt: new Date().toISOString(),
-      image: writeImagePreview, // 실제로는 서버에서 받은 URL
+    try {
+      // 일단 JSON만 전송 (이미지 제외)
+      const response = await axios.post("/api/posts", {
+        title: writeTitle.trim(),
+        content: writeContent.trim(),
+        authorId: userId || userId,
+        farmId: selectedFarm.id,
+      });
+        console.log(userId)
+
+      alert("✅ 글쓰기 성공!");
+      console.log("서버 응답:", response.data);
+
+      const newPost = {
+        id: response.data.id || Date.now(),
+        farmId: selectedFarm.id,
+        userNickname: userNickname || "사용자",
+        authorId: userId,
+        role: "회원",
+        title: writeTitle.trim(),
+        content: writeContent.trim(),
+        tags: [],
+        likes: 0,
+        replies: 0,
+        type: "tip",
+        createdAt: new Date().toISOString(),
+        image: writeImagePreview, // 로컬 미리보기만 사용
+      };
+
+      setLocalCommunityPosts((prev) => [newPost, ...prev]);
+
+      setIsWriting(false);
+      setWriteTitle("");
+      setWriteContent("");
+      setWriteImage(null);
+      setWriteImagePreview(null);
+      setWriteCategory("board");
+
+    } catch (error) {
+      console.error("❌ 글쓰기 실패:", error);
+      console.error("응답 데이터:", error.response?.data);
+      console.error("응답 상태:", error.response?.status);
+      alert("글쓰기 실패: " + (error.response?.data || error.message));
+    }
+  };
+
+  // 게시글 전체 조회하기
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const response = await axios.get("/api/posts"); // 전체 글 조회
+        setLocalCommunityPosts(response.data); // 상태에 저장
+      } catch (error) {
+        console.error("게시글 가져오기 실패:", error);
+      }
     };
 
-    // 새 글을 배열 앞에 추가
-    setLocalCommunityPosts((prev) => [newPost, ...prev]);
+    fetchPosts();
+  }, []); // 빈 배열: 컴포넌트가 처음 마운트될 때만 실행
 
-    // 리스트 뷰로 돌아가기
-    setIsWriting(false);
-
-    // 초기화
-    setWriteTitle("");
-    setWriteContent("");
-    setWriteImage(null);
-    setWriteImagePreview(null);
-    setWriteCategory("board");
-  };
 
   // 사용자 정보 가져오기
   useEffect(() => {
@@ -405,9 +477,11 @@ function CommunityModal({ onClose }) {
       try {
         const profile = await fetchMyProfile();
         setUserNickname(profile.nickname || profile.name || "사용자");
+        setUserId(profile.userId || 1); // 사용자 ID 저장
       } catch (error) {
         console.error("사용자 정보 가져오기 실패:", error);
         setUserNickname("사용자");
+        setUserId(1); // 기본값
       }
     };
 
@@ -574,7 +648,6 @@ function CommunityModal({ onClose }) {
         <div className="community-feed">
           <div className="community-feed-card">
             {isWriting ? (
-              /* 글쓰기 패널 */
               <div className="community-detail-panel">
                 <div className="write-header">
                   <select
@@ -588,7 +661,6 @@ function CommunityModal({ onClose }) {
                 </div>
                 <div className="detail-separator" />
 
-                {/* 제목 입력 */}
                 <input
                   type="text"
                   className="write-title-input"
@@ -597,7 +669,6 @@ function CommunityModal({ onClose }) {
                   onChange={(e) => setWriteTitle(e.target.value)}
                 />
 
-                {/* 이미지 업로드 */}
                 <div className="write-image-section">
                   <input
                     ref={imageInputRef}
@@ -637,7 +708,6 @@ function CommunityModal({ onClose }) {
                   )}
                 </div>
 
-                {/* 본문 입력 */}
                 <textarea
                   className="write-content-textarea"
                   placeholder="내용을 입력하세요"
@@ -645,7 +715,6 @@ function CommunityModal({ onClose }) {
                   onChange={(e) => setWriteContent(e.target.value)}
                 />
 
-                {/* 버튼 영역 */}
                 <div className="write-buttons">
                   <button
                     type="button"
@@ -687,7 +756,7 @@ function CommunityModal({ onClose }) {
                 {showNotice &&
                   filteredNoticePosts.map((post) => (
                     <article
-                      key={post.id}
+                      key={`notice-${post.id}`}
                       className="community-post notice"
                       onClick={() => handlePostClick(post)}
                     >
@@ -697,7 +766,7 @@ function CommunityModal({ onClose }) {
                           <h3>{post.title}</h3>
                         </div>
                         <div className="post-meta-info">
-                          <span className="post-author">{post.author}</span>
+                          <span className="post-author">{post.userNickname}</span>
                           <span className="post-date">
                             {formatToDateString(post.createdAt)}
                           </span>
@@ -713,7 +782,7 @@ function CommunityModal({ onClose }) {
                 {showBoard &&
                   filteredBoardPosts.map((post) => (
                     <article
-                      key={post.id}
+                      key={`board-${post.id}`}
                       className="community-post"
                       onClick={() => handlePostClick(post)}
                     >
@@ -722,7 +791,7 @@ function CommunityModal({ onClose }) {
                           <h3>{post.title}</h3>
                         </div>
                         <div className="post-meta-info">
-                          <span className="post-author">{post.author}</span>
+                          <span className="post-author">{post.userNickname}</span>
                           <span className="post-date">
                             {formatToDateString(post.createdAt)}
                           </span>
@@ -799,33 +868,37 @@ function CommunityModal({ onClose }) {
                     </>
                   ) : (
                     <>
+                    <div className="post-detail">
                       <h4>{selectedPost.title}</h4>
+                      {selectedPost.authorId === userId && (
+                                              <div className="post-action-buttons">
+                                                <button
+                                                  type="button"
+                                                  onClick={handleEditPost}
+                                                  className="post-edit-btn"
+                                                >
+                                                  수정
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={handleDeletePost}
+                                                  className="post-delete-btn"
+                                                >
+                                                  삭제
+                                                </button>
+                                              </div>
+                                            )}
+                      </div>
                       <div className="detail-meta">
                         <span className="detail-author">
-                          {selectedPost.author}
+                          {selectedPost.userNickname}
                         </span>
                         <span className="detail-date">
                           {formatToDateString(selectedPost.createdAt)}
                         </span>
                       </div>
-                      {selectedPost.author === userNickname && (
-                        <div className="post-action-buttons">
-                          <button
-                            type="button"
-                            onClick={handleEditPost}
-                            className="post-edit-btn"
-                          >
-                            수정
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleDeletePost}
-                            className="post-delete-btn"
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      )}
+
+
                     </>
                   )}
                 </div>
@@ -847,23 +920,21 @@ function CommunityModal({ onClose }) {
                     placeholder="내용을 입력하세요"
                   />
                 ) : (
-                  <div className="detail-body">{selectedPost.excerpt}</div>
+                  <div className="detail-body">{selectedPost.content}</div>
                 )}
                 <div className="detail-separator" />
                 <div className="detail-comments">
-                  {/* 댓글 목록 */}
                   {comments[selectedPost.id] &&
                     comments[selectedPost.id].length > 0 && (
                       <div className="detail-comments-list">
-                        {comments[selectedPost.id].map((comment) => (
-                          <div key={comment.id} className="comment-wrapper">
-                            {/* 댓글 */}
+                        {comments[selectedPost.id].map((comment, index) => (
+                          <div key={`${comment.id}-${index}`} className="comment-wrapper">
                             <div className="detail-comment-item">
                               <div className="comment-header">
-                                <strong className="comment-author">
-                                  {comment.author}
+                                <strong className="comment-nickname">
+                                  {comment.nickname}
                                 </strong>
-                                {comment.author === userNickname && (
+                                {comment.nickname === userNickname && (
                                   <div className="comment-actions">
                                     <button
                                       type="button"
@@ -948,12 +1019,11 @@ function CommunityModal({ onClose }) {
                               )}
                             </div>
 
-                            {/* 대댓글 목록 */}
                             {comment.replies && comment.replies.length > 0 && (
                               <div className="reply-list">
                                 {comment.replies.map((reply) => (
                                   <div
-                                    key={reply.id}
+                                    key={`${reply.id}-${comment.id}`}
                                     className="detail-comment-item reply-item"
                                   >
                                     <div className="comment-header">
@@ -1047,7 +1117,6 @@ function CommunityModal({ onClose }) {
                               </div>
                             )}
 
-                            {/* 대댓글 입력창 */}
                             {replyingTo === comment.id && (
                               <div className="reply-input-wrapper">
                                 <div className="detail-comment-input reply-input">
@@ -1089,7 +1158,6 @@ function CommunityModal({ onClose }) {
                         ))}
                       </div>
                     )}
-                  {/* 댓글 입력창 */}
                   <div className="detail-comment-input">
                     <div className="comment-input-header">
                       <strong className="comment-input-nickname">

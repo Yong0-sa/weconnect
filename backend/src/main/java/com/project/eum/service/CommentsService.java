@@ -80,7 +80,7 @@ public class CommentsService {
             throw new IllegalArgumentException("작성자만 수정할 수 있습니다.");
         }
 
-        comment.setContent(comment.getContent());
+        comment.setContent(request.getContent());
         Comments savedComment = commentsRepository.save(comment);
 
 
@@ -90,9 +90,9 @@ public class CommentsService {
 
         return new CommentsResponseDto(
                 savedComment.getCommentId(),
-                postId,
-                authorId,
-                nickname,
+                savedComment.getPost().getPostId(),
+                savedComment.getAuthor().getUserId(),
+                savedComment.getAuthor().getNickname(),
                 savedComment.getContent(),
                 savedComment.getCreatedAt()
         );

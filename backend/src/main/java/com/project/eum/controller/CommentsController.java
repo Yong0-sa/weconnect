@@ -17,16 +17,19 @@ public class CommentsController {
 
     private final CommentsService commentsService;
 
+    // 댓글 보기
     @GetMapping
     public List<CommentsResponseDto> getComments(@RequestParam Long postId) {
         return commentsService.getCommentsByPostId(postId);
     }
 
+    // 댓글 작성
     @PostMapping
     public CommentsResponseDto createComment(@RequestBody CommentsRequest request) {
         return commentsService.createComment(request);
     }
 
+    // 댓글 수정
     @PutMapping("/{commentId}")
     public CommentsResponseDto updateComment(
             @PathVariable Long commentId,
@@ -36,6 +39,7 @@ public class CommentsController {
         return commentsService.updateComment(commentId, requesterId, request);
     }
 
+    // 댓글 삭제
     @DeleteMapping("/{commentId}")
     public ResponseEntity<String> deleteComment(
             @PathVariable Long commentId,
