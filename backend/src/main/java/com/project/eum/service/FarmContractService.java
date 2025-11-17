@@ -43,15 +43,18 @@ public class FarmContractService {
             throw new IllegalStateException("이미 농장에 소속되어 있습니다.");
         }
 
+        farmContractRepository.findFirstByUserUserIdAndStatusNot(userId, FarmContractStatus.EXPIRED)
+                .ifPresent(existing -> {
+                    throw new IllegalStateException("이미 다른 농장에 신청 중입니다. 기존 신청을 확인해 주세요.");
+                });
+
         Farm farm = farmRepository.findById(request.farmId())
                 .orElseThrow(() -> new IllegalArgumentException("농장 정보를 찾을 수 없습니다."));
         if (farm.getOwner().getUserId().equals(userId)) {
             throw new IllegalStateException("내 농장에는 신청할 수 없습니다.");
         }
 
-        if (farmContractRepository.existsByFarmFarmIdAndUserUserId(farm.getFarmId(), userId)) {
-            throw new IllegalStateException("이미 신청 내역이 있습니다.");
-        }
+
 
         FarmContract saved = farmContractRepository.save(
                 FarmContract.builder()
@@ -137,6 +140,18 @@ public class FarmContractService {
         }
 
         farmContractRepository.delete(contract);
+    }
+
+    @Transactional
+    public FarmContractResponse getCurrentContractForUser(Long userId) {
+        expireFinishedContracts();
+        memberRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+
+        return farmContractRepository
+                .findTopByUserUserIdAndStatusNotOrderByRequestedAtDesc(userId, FarmContractStatus.EXPIRED)
+                .map(FarmContractResponse::from)
+                .orElse(null);
     }
 
     private void expireFinishedContracts() {

@@ -56,3 +56,14 @@ export async function deleteContract(contractId) {
   }
   return handleResponse(res, "계약을 삭제하지 못했습니다.");
 }
+
+export async function fetchMyContractStatus() {
+  const res = await fetch(`${API_BASE}/api/farm-contracts/me`, {
+    method: "GET",
+    credentials: "include",
+  });
+  if (res.status === 404) {
+    return null;
+  }
+  return handleResponse(res, "계약 정보를 불러오지 못했습니다.");
+}

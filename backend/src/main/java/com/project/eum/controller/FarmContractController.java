@@ -90,4 +90,22 @@ public class FarmContractController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyContract(HttpSession session) {
+        Long userId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인 후 이용해 주세요.");
+        }
+
+        try {
+            FarmContractResponse response = farmContractService.getCurrentContractForUser(userId);
+            if (response == null) {
+                return ResponseEntity.ok("");
+            }
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
 }

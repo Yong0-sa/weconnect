@@ -7,6 +7,7 @@ import {
   deleteAccount,
 } from "../api/profile";
 import { fetchMyFarm, updateMyFarm } from "../api/farm";
+import { fetchMyContractStatus } from "../api/farmContracts";
 import "./ProfilePage.css";
 
 // 📌 UI에 들어가는 유틸/기본값
@@ -16,8 +17,7 @@ const sanitizePhoneValue = (value) => {
   return PHONE_PLACEHOLDERS.includes(value) ? "" : value;
 };
 
-const LOGIN_REDIRECT_URL =
-  import.meta.env.VITE_LOGIN_REDIRECT_URL || "/login";
+const LOGIN_REDIRECT_URL = import.meta.env.VITE_LOGIN_REDIRECT_URL || "/login";
 
 // 더미 초기값 (로딩 전까지 표시)
 const INITIAL_PROFILE = {
@@ -46,6 +46,13 @@ const mapFarmResponse = (data = {}) => ({
   address: data.address ?? "",
   tel: data.tel ?? "",
 });
+
+const CONTRACT_STATUS_LABELS = {
+  PENDING: "신청 중",
+  APPROVED: "사용 중",
+  REJECTED: "거절됨",
+  EXPIRED: "만료됨",
+};
 
 // 날짜 포맷
 const formatTimestamp = (value) => {
@@ -136,6 +143,8 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
   const [farmStatus, setFarmStatus] = useState(null);
   const [isLoadingFarm, setIsLoadingFarm] = useState(false);
   const [isSavingFarm, setIsSavingFarm] = useState(false);
+  const [contractInfo, setContractInfo] = useState(null);
+  const [contractStatusError, setContractStatusError] = useState(null);
 
   const trimmedNickname = (formData.nickname || "").trim();
   const memberTypeLabel = savedProfile.memberType || "PERSONAL";
@@ -191,6 +200,29 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     loadProfile();
     return () => {
       active = false;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let ignore = false;
+    async function loadContractStatus() {
+      try {
+        const data = await fetchMyContractStatus();
+        if (ignore) return;
+        setContractInfo(data);
+        setContractStatusError(null);
+      } catch (error) {
+        if (ignore) return;
+        setContractInfo(null);
+        setContractStatusError(
+          error?.message || "농장 신청 상태를 확인하지 못했습니다."
+        );
+      }
+    }
+    loadContractStatus();
+    return () => {
+      ignore = true;
     };
   }, [isOpen]);
 
@@ -470,7 +502,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
 
     try {
       const result = await checkNicknameAvailability(trimmedNickname);
-      
+
       const nicknameChanged =
         trimmedNickname && trimmedNickname !== savedProfile.nickname;
       if (result.available) {
@@ -673,301 +705,346 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
             ×
           </button>
           <header className="profile-card__header">
-          <div>
-            <p className="profile-card__eyebrow">회원정보 수정</p>
-            <h1 className="profile-card__title">
-              {savedProfile.name || "회원"}님의 계정
-            </h1>
-          </div>
-          <div className="profile-card__meta">
-            <span>
-              {memberTypeLabel === "FARMER" ? "농장주 회원" : "일반 회원"}
-            </span>
-            <button
-              type="button"
-              className="withdraw-btn"
-              onClick={handleWithdrawClick}
-              disabled={isDeletingAccount}
-              title={`최근 저장 ${lastSavedAt}`}
-            >
-              회원 탈퇴
-            </button>
-          </div>
-        </header>
-        <div className="profile-card__scroll">
-          <form id="profile-form" className="profile-form-table" onSubmit={handleSubmit} noValidate>
-            {status && (
-              <div className={`profile-toast profile-toast--${status.type}`}>
-                <span>{status.message}</span>
-                <button
-                  type="button"
-                  aria-label="알림 닫기"
-                  onClick={() => setStatus(null)}
-                >
-                  ×
-                </button>
-              </div>
-            )}
-            {isLoadingProfile && (
-              <p className="profile-loading" role="status">
-                회원 정보를 불러오는 중입니다...
-              </p>
-            )}
-
-            <div className="profile-info-table" aria-live="polite">
-              <div className="profile-row">
-                <div className="profile-row__label">아이디(이메일)</div>
-                <div className="profile-row__content">
-                  <div className="profile-row__value">{savedProfile.email}</div>
-                </div>
-              </div>
-
-              <div className="profile-row">
-                <div className="profile-row__label">이름</div>
-                <div className="profile-row__content">
-                  <div className="profile-row__value profile-row__value--input">
-                    <input
-                      id="name"
-                      className="profile-input"
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      placeholder="이름을 입력해 주세요."
-                      disabled={isFormDisabled}
-                    />
-                  </div>
-                  {errors.name && <p className="input-error">{errors.name}</p>}
-                </div>
-              </div>
-
-              <div className="profile-row">
-                <div className="profile-row__label">닉네임</div>
-                <div className="profile-row__content">
-                  <div className="profile-row__value profile-row__value--input">
-                    <input
-                      id="nickname"
-                      className="profile-input"
-                      type="text"
-                      name="nickname"
-                      value={formData.nickname}
-                      onChange={handleChange}
-                      placeholder="닉네임을 입력해 주세요."
-                      disabled={isFormDisabled}
-                    />
-                    <button
-                      type="button"
-                      className="profile-check-btn"
-                      onClick={handleCheckNickname}
-                      disabled={
-                        nicknameCheck.state === "checking" ||
-                        isLoadingProfile ||
-                        isSaving
-                      }
-                    >
-                      {nicknameCheck.state === "checking"
-                        ? "확인 중..."
-                        : "중복 확인"}
-                    </button>
-                  </div>
-                  {errors.nickname && (
-                    <p className="input-error">{errors.nickname}</p>
-                  )}
-                  {nicknameCheck.message && (
-                    <p
-                      className={`nickname-status nickname-status--${nicknameCheck.state}`}
-                    >
-                      {nicknameCheck.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="profile-row">
-                <div className="profile-row__label">휴대폰 번호</div>
-                <div className="profile-row__content">
-                  <div className="profile-row__value profile-row__value--input">
-                    <input
-                      id="phone"
-                      className="profile-input"
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="010-1234-5678"
-                      disabled={isFormDisabled}
-                    />
-                  </div>
-                  {errors.phone && <p className="input-error">{errors.phone}</p>}
-                </div>
-              </div>
-
-              {isFarmerAccount && (
-                <div className="profile-row profile-row--stacked farm-info-row">
-                  <div className="profile-row__label">농장 정보</div>
-                  <div className="profile-row__content">
-                    {farmStatus && (
-                      <div className={`farm-toast farm-toast--${farmStatus.type}`}>
-                        <span>{farmStatus.message}</span>
-                        <button
-                          type="button"
-                          aria-label="농장 알림 닫기"
-                          onClick={() => setFarmStatus(null)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    )}
-                    {isLoadingFarm ? (
-                      <p className="profile-loading" role="status">
-                        농장 정보를 불러오는 중입니다...
-                      </p>
-                    ) : (
-                      <>
-                        <div className="farm-fields-grid">
-                          <div className="farm-field">
-                            <label htmlFor="farmName">농장 이름</label>
-                            <input
-                              id="farmName"
-                              className="profile-input"
-                              type="text"
-                              name="name"
-                              value={farmForm.name}
-                              onChange={handleFarmInputChange}
-                              placeholder="농장 이름을 입력해 주세요."
-                              disabled={isSavingFarm || isLoadingFarm}
-                            />
-                            {farmErrors.name && (
-                              <p className="input-error">{farmErrors.name}</p>
-                            )}
-                          </div>
-                          <div className="farm-field">
-                            <label htmlFor="farmTel">농장 전화번호</label>
-                            <input
-                              id="farmTel"
-                              className="profile-input"
-                              type="text"
-                              name="tel"
-                              value={farmForm.tel}
-                              onChange={handleFarmInputChange}
-                              placeholder="061-123-4567"
-                              disabled={isSavingFarm || isLoadingFarm}
-                            />
-                            {farmErrors.tel && (
-                              <p className="input-error">{farmErrors.tel}</p>
-                            )}
-                          </div>
-                          <div className="farm-field farm-field--full">
-                            <label htmlFor="farmAddress">농장 주소</label>
-                            <input
-                              id="farmAddress"
-                              className="profile-input"
-                              type="text"
-                              name="address"
-                              value={farmForm.address}
-                              onChange={handleFarmInputChange}
-                              placeholder="시/군/구 포함 상세 주소를 입력해 주세요."
-                              disabled={isSavingFarm || isLoadingFarm}
-                            />
-                            {farmErrors.address && (
-                              <p className="input-error">
-                                {farmErrors.address}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <p className="profile-row__hint">
-                          저장하면 대표 지역과 좌표가 주소 기준으로 자동 갱신돼요.
-                        </p>
-                        <div className="farm-actions">
-                          <button
-                            type="button"
-                            className="secondary-btn"
-                            onClick={handleSaveFarmInfo}
-                            disabled={isSavingFarm || isLoadingFarm}
-                          >
-                            {isSavingFarm ? "저장 중..." : "농장 정보 저장"}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="profile-row profile-row--stacked">
-                <div className="profile-row__label">비밀번호 변경</div>
-                <div className="profile-row__content">
-                  <div className="profile-row__content--grid">
-                    <div className="password-field-group">
-                      <label htmlFor="currentPassword">현재 비밀번호</label>
-                      <input
-                        id="currentPassword"
-                        className="profile-input"
-                        type="password"
-                        name="currentPassword"
-                        value={formData.currentPassword}
-                        onChange={handleChange}
-                        placeholder="현재 비밀번호"
-                        disabled={isFormDisabled}
-                      />
-                      {errors.currentPassword && (
-                        <p className="input-error">{errors.currentPassword}</p>
-                      )}
-                    </div>
-                    <div className="password-field-group">
-                      <label htmlFor="newPassword">새 비밀번호</label>
-                      <input
-                        id="newPassword"
-                        className="profile-input"
-                        type="password"
-                        name="newPassword"
-                        value={formData.newPassword}
-                        onChange={handleChange}
-                        placeholder="8자 이상 입력해 주세요."
-                        disabled={isFormDisabled}
-                      />
-                      {errors.newPassword && (
-                        <p className="input-error">{errors.newPassword}</p>
-                      )}
-                    </div>
-                    <div className="password-field-group">
-                      <label htmlFor="confirmPassword">비밀번호 다시 입력</label>
-                      <input
-                        id="confirmPassword"
-                        className="profile-input"
-                        type="password"
-                        name="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        placeholder="비밀번호를 확인해 주세요."
-                        disabled={isFormDisabled}
-                      />
-                      {errors.confirmPassword && (
-                        <p className="input-error">{errors.confirmPassword}</p>
-                      )}
-                    </div>
-                  </div>
-                  <p className="profile-row__hint">
-                    새 비밀번호를 입력하지 않으면 비밀번호는 변경되지 않습니다.
-                  </p>
-                </div>
-              </div>
+            <div>
+              <p className="profile-card__eyebrow">회원정보 수정</p>
+              <h1 className="profile-card__title">
+                {savedProfile.name || "회원"}님의 계정
+              </h1>
             </div>
-
-            <div className="form-actions">
+            <div className="profile-card__meta">
+              <span>
+                {memberTypeLabel === "FARMER" ? "농장주 회원" : "일반 회원"}
+              </span>
               <button
-                type="submit"
-                className="primary-btn"
-                disabled={isFormDisabled}
+                type="button"
+                className="withdraw-btn"
+                onClick={handleWithdrawClick}
+                disabled={isDeletingAccount}
+                title={`최근 저장 ${lastSavedAt}`}
               >
-                {isSaving ? "저장 중..." : "변경 사항 저장"}
+                회원 탈퇴
               </button>
             </div>
-          </form>
+          </header>
+          <div className="profile-card__scroll">
+            <form
+              id="profile-form"
+              className="profile-form-table"
+              onSubmit={handleSubmit}
+              noValidate
+            >
+              {status && (
+                <div className={`profile-toast profile-toast--${status.type}`}>
+                  <span>{status.message}</span>
+                  <button
+                    type="button"
+                    aria-label="알림 닫기"
+                    onClick={() => setStatus(null)}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              {isLoadingProfile && (
+                <p className="profile-loading" role="status">
+                  회원 정보를 불러오는 중입니다...
+                </p>
+              )}
+
+              <div className="profile-info-table" aria-live="polite">
+                <div className="profile-row">
+                  <div className="profile-row__label">이용중인 농장</div>
+                  <div className="profile-row__content">
+                    <div className="profile-contract-status">
+                      {contractInfo ? (
+                        <>
+                          <span className="profile-contract-status__farm">
+                            {contractInfo.farmName || "농장명 미정"}
+                          </span>
+                          <span
+                            className={`profile-contract-status__badge profile-contract-status__badge--${contractInfo.status}`}
+                          >
+                            {CONTRACT_STATUS_LABELS[contractInfo.status] ||
+                              contractInfo.status}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="profile-contract-status__empty">
+                          {contractStatusError || ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="profile-row">
+                  <div className="profile-row__label">아이디(이메일)</div>
+                  <div className="profile-row__content">
+                    <div className="profile-row__value">
+                      {savedProfile.email}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-row">
+                  <div className="profile-row__label">이름</div>
+                  <div className="profile-row__content">
+                    <div className="profile-row__value profile-row__value--input">
+                      <input
+                        id="name"
+                        className="profile-input"
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        placeholder="이름을 입력해 주세요."
+                        disabled={isFormDisabled}
+                      />
+                    </div>
+                    {errors.name && (
+                      <p className="input-error">{errors.name}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="profile-row">
+                  <div className="profile-row__label">닉네임</div>
+                  <div className="profile-row__content">
+                    <div className="profile-row__value profile-row__value--input">
+                      <input
+                        id="nickname"
+                        className="profile-input"
+                        type="text"
+                        name="nickname"
+                        value={formData.nickname}
+                        onChange={handleChange}
+                        placeholder="닉네임을 입력해 주세요."
+                        disabled={isFormDisabled}
+                      />
+                      <button
+                        type="button"
+                        className="profile-check-btn"
+                        onClick={handleCheckNickname}
+                        disabled={
+                          nicknameCheck.state === "checking" ||
+                          isLoadingProfile ||
+                          isSaving
+                        }
+                      >
+                        {nicknameCheck.state === "checking"
+                          ? "확인 중..."
+                          : "중복 확인"}
+                      </button>
+                    </div>
+                    {errors.nickname && (
+                      <p className="input-error">{errors.nickname}</p>
+                    )}
+                    {nicknameCheck.message && (
+                      <p
+                        className={`nickname-status nickname-status--${nicknameCheck.state}`}
+                      >
+                        {nicknameCheck.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="profile-row">
+                  <div className="profile-row__label">휴대폰 번호</div>
+                  <div className="profile-row__content">
+                    <div className="profile-row__value profile-row__value--input">
+                      <input
+                        id="phone"
+                        className="profile-input"
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        placeholder="010-1234-5678"
+                        disabled={isFormDisabled}
+                      />
+                    </div>
+                    {errors.phone && (
+                      <p className="input-error">{errors.phone}</p>
+                    )}
+                  </div>
+                </div>
+
+                {isFarmerAccount && (
+                  <div className="profile-row profile-row--stacked farm-info-row">
+                    <div className="profile-row__label">농장 정보</div>
+                    <div className="profile-row__content">
+                      {farmStatus && (
+                        <div
+                          className={`farm-toast farm-toast--${farmStatus.type}`}
+                        >
+                          <span>{farmStatus.message}</span>
+                          <button
+                            type="button"
+                            aria-label="농장 알림 닫기"
+                            onClick={() => setFarmStatus(null)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                      {isLoadingFarm ? (
+                        <p className="profile-loading" role="status">
+                          농장 정보를 불러오는 중입니다...
+                        </p>
+                      ) : (
+                        <>
+                          <div className="farm-fields-grid">
+                            <div className="farm-field">
+                              <label htmlFor="farmName">농장 이름</label>
+                              <input
+                                id="farmName"
+                                className="profile-input"
+                                type="text"
+                                name="name"
+                                value={farmForm.name}
+                                onChange={handleFarmInputChange}
+                                placeholder="농장 이름을 입력해 주세요."
+                                disabled={isSavingFarm || isLoadingFarm}
+                              />
+                              {farmErrors.name && (
+                                <p className="input-error">{farmErrors.name}</p>
+                              )}
+                            </div>
+                            <div className="farm-field">
+                              <label htmlFor="farmTel">농장 전화번호</label>
+                              <input
+                                id="farmTel"
+                                className="profile-input"
+                                type="text"
+                                name="tel"
+                                value={farmForm.tel}
+                                onChange={handleFarmInputChange}
+                                placeholder="061-123-4567"
+                                disabled={isSavingFarm || isLoadingFarm}
+                              />
+                              {farmErrors.tel && (
+                                <p className="input-error">{farmErrors.tel}</p>
+                              )}
+                            </div>
+                            <div className="farm-field farm-field--full">
+                              <label htmlFor="farmAddress">농장 주소</label>
+                              <input
+                                id="farmAddress"
+                                className="profile-input"
+                                type="text"
+                                name="address"
+                                value={farmForm.address}
+                                onChange={handleFarmInputChange}
+                                placeholder="시/군/구 포함 상세 주소를 입력해 주세요."
+                                disabled={isSavingFarm || isLoadingFarm}
+                              />
+                              {farmErrors.address && (
+                                <p className="input-error">
+                                  {farmErrors.address}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <p className="profile-row__hint">
+                            저장하면 대표 지역과 좌표가 주소 기준으로 자동
+                            갱신돼요.
+                          </p>
+                          <div className="farm-actions">
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={handleSaveFarmInfo}
+                              disabled={isSavingFarm || isLoadingFarm}
+                            >
+                              {isSavingFarm ? "저장 중..." : "농장 정보 저장"}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="profile-row profile-row--stacked">
+                  <div className="profile-row__label">비밀번호 변경</div>
+                  <div className="profile-row__content">
+                    <div className="profile-row__content--grid">
+                      <div className="password-field-group">
+                        <label htmlFor="currentPassword">현재 비밀번호</label>
+                        <input
+                          id="currentPassword"
+                          className="profile-input"
+                          type="password"
+                          name="currentPassword"
+                          value={formData.currentPassword}
+                          onChange={handleChange}
+                          placeholder="현재 비밀번호"
+                          disabled={isFormDisabled}
+                        />
+                        {errors.currentPassword && (
+                          <p className="input-error">
+                            {errors.currentPassword}
+                          </p>
+                        )}
+                      </div>
+                      <div className="password-field-group">
+                        <label htmlFor="newPassword">새 비밀번호</label>
+                        <input
+                          id="newPassword"
+                          className="profile-input"
+                          type="password"
+                          name="newPassword"
+                          value={formData.newPassword}
+                          onChange={handleChange}
+                          placeholder="8자 이상 입력해 주세요."
+                          disabled={isFormDisabled}
+                        />
+                        {errors.newPassword && (
+                          <p className="input-error">{errors.newPassword}</p>
+                        )}
+                      </div>
+                      <div className="password-field-group">
+                        <label htmlFor="confirmPassword">
+                          비밀번호 다시 입력
+                        </label>
+                        <input
+                          id="confirmPassword"
+                          className="profile-input"
+                          type="password"
+                          name="confirmPassword"
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          placeholder="비밀번호를 확인해 주세요."
+                          disabled={isFormDisabled}
+                        />
+                        {errors.confirmPassword && (
+                          <p className="input-error">
+                            {errors.confirmPassword}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="profile-row__hint">
+                      새 비밀번호를 입력하지 않으면 비밀번호는 변경되지
+                      않습니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button
+                  type="submit"
+                  className="primary-btn"
+                  disabled={isFormDisabled}
+                >
+                  {isSaving ? "저장 중..." : "변경 사항 저장"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
 
       {showWithdrawConfirmModal && (
         <div className="password-modal-overlay">
@@ -1000,8 +1077,8 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
           <div className="password-modal" role="dialog" aria-modal="true">
             <div className="password-modal__header">탈퇴 전 마지막 확인</div>
             <p className="password-modal__desc">
-              탈퇴하면 모든 이용 기록과 저장된 데이터가 즉시 삭제되며 복구할
-              수 없어요. 정말 탈퇴하시겠어요?
+              탈퇴하면 모든 이용 기록과 저장된 데이터가 즉시 삭제되며 복구할 수
+              없어요. 정말 탈퇴하시겠어요?
             </p>
             {farewellError && (
               <p className="password-modal__error">{farewellError}</p>

@@ -96,6 +96,16 @@ function HomePage() {
   const notificationClientRef = useRef(null);
   const notificationSubscriptionsRef = useRef(new Map());
 
+  const canManageMembers = profile?.role === "FARMER" || profile?.role === "ADMIN";
+
+  const openMemberInfoManage = () => {
+    if (!canManageMembers) {
+      alert("농장주만 이용할 수 있는 기능입니다.");
+      return;
+    }
+    setIsMemberInfoManageOpen(true);
+  };
+
   const markChatsRead = useCallback(() => {
     const now = Date.now();
     setLastChatCheck(now);
@@ -376,12 +386,14 @@ function HomePage() {
         setIsProfileModalOpen(true);
       },
     },
-    {
-      label: "회원 정보 관리",
-      onClick: () => {
-        setIsMemberInfoManageOpen(true);
-      },
-    },
+    ...(canManageMembers
+      ? [
+          {
+            label: "회원 정보 관리",
+            onClick: openMemberInfoManage,
+          },
+        ]
+      : []),
     {
       label: "로그아웃",
       onClick: handleLogout,
@@ -807,7 +819,7 @@ function HomePage() {
           </div>
         </div>
       )}
-      {isMemberInfoManageOpen && (
+      {canManageMembers && isMemberInfoManageOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
             <MemberInfoManageModal

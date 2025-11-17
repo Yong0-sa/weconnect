@@ -247,6 +247,51 @@
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
+.farm-apply-status-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.farm-apply-status-modal__card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 28px 36px;
+  width: min(360px, 90vw);
+  text-align: center;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+}
+
+.farm-apply-status-modal__card h4 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  color: #1f2e36;
+}
+
+.farm-apply-status-modal__card p {
+  margin: 0 0 20px;
+  color: #4a4a4a;
+  line-height: 1.4;
+}
+
+.farm-apply-status-modal__close {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 24px;
+  background: #67bc63;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.farm-apply-status-modal__close:hover {
+  background: #4fa44b;
+}
+
 .farm-empty {
   text-align: center;
   padding: 32px 12px;

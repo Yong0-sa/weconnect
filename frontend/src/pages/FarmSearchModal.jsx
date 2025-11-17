@@ -13,6 +13,7 @@ function FarmSearchModal({ onClose, onChatRequest }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFarmId, setSelectedFarmId] = useState(null);
   const [applyingFarmId, setApplyingFarmId] = useState(null);
+  const [statusModal, setStatusModal] = useState(null);
 
   // 📌 농장 데이터 / 로딩 / 오류
   const [farms, setFarms] = useState([]);
@@ -54,20 +55,42 @@ function FarmSearchModal({ onClose, onChatRequest }) {
   const handleApplyFarm = useCallback(
     async (farm) => {
       if (!farm) return;
+      const farmId = farm.farmId ?? farm.id;
       if (applyingFarmId) {
+        setStatusModal({
+          title: "신청 중입니다",
+          message: "신청을 처리하고 있어요. 잠시만 기다려 주세요.",
+        });
         return;
       }
-      const farmId = farm.farmId ?? farm.id;
       if (!farmId) {
-        alert("농장 정보를 찾을 수 없습니다.");
+        setStatusModal({
+          title: "신청 실패",
+          message: "농장 정보를 찾을 수 없습니다.",
+        });
         return;
       }
       try {
         setApplyingFarmId(farm.id);
         await applyToFarm(farmId);
-        alert("신청이 접수되었습니다. 승인 여부는 회원 정보 관리에서 확인해 주세요.");
+        setStatusModal({
+          title: "신청 완료",
+          message: "신청이 접수되었습니다. 승인 여부는 회원 정보 관리에서 확인해 주세요.",
+        });
       } catch (error) {
-        alert(error?.message || "신청을 완료하지 못했습니다.");
+        const message =
+          error?.message || "신청을 완료하지 못했습니다.";
+        if (message.includes("이미 신청 내역이 있습니다.")) {
+          setStatusModal({
+            title: "신청 제한",
+            message: "해당 농장에 이미 신청하셨습니다.",
+          });
+        } else {
+        setStatusModal({
+          title: "신청 실패",
+              message,
+        });
+        }
       } finally {
         setApplyingFarmId(null);
       }
@@ -280,23 +303,24 @@ function FarmSearchModal({ onClose, onChatRequest }) {
   }, []);
 
   return (
-    <div className="farm-modal-shell">
-      {onClose && (
-        <button
-          type="button"
-          className="farm-modal-close"
-          onClick={onClose}
-          aria-label="농장 찾기 창 닫기"
-        >
-          ×
-        </button>
-      )}
-      <div className="farm-modal-card">
-        <div className="farm-modal-content">
-          <header className="farm-modal-header">
-            <h2>농장 찾기</h2>
-          </header>
-          <section className="farm-modal-body">
+    <>
+      <div className="farm-modal-shell">
+        {onClose && (
+          <button
+            type="button"
+            className="farm-modal-close"
+            onClick={onClose}
+            aria-label="농장 찾기 창 닫기"
+          >
+            ×
+          </button>
+        )}
+        <div className="farm-modal-card">
+          <div className="farm-modal-content">
+            <header className="farm-modal-header">
+              <h2>농장 찾기</h2>
+            </header>
+            <section className="farm-modal-body">
             <div className="region-select-row">
               <label>
                 <span>지역</span>
@@ -408,10 +432,30 @@ function FarmSearchModal({ onClose, onChatRequest }) {
                 )}
               </div>
             </div>
-          </section>
+            </section>
+          </div>
         </div>
       </div>
-    </div>
+      {statusModal && (
+        <div
+          className="farm-apply-status-modal"
+          role="alertdialog"
+          aria-modal="true"
+        >
+          <div className="farm-apply-status-modal__card">
+            <h4>{statusModal.title}</h4>
+            <p>{statusModal.message}</p>
+            <button
+              type="button"
+              className="farm-apply-status-modal__close"
+              onClick={() => setStatusModal(null)}
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
