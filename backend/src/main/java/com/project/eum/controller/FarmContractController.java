@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/farm-contracts")
+@RequestMapping({"/api/farm-contracts", "/farm-contracts"})
 @RequiredArgsConstructor
 public class FarmContractController {
 
