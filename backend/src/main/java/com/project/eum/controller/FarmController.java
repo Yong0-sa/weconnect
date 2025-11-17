@@ -5,6 +5,7 @@ import com.project.eum.dto.CreateFarmRequest;
 import com.project.eum.dto.FarmResponse;
 import com.project.eum.farm.Farm;
 import com.project.eum.service.FarmService;
+import com.project.eum.dto.UpdateFarmRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,35 @@ public class FarmController {
         try {
             Farm farm = farmService.registerFarm(memberId, request);
             return ResponseEntity.status(HttpStatus.CREATED).body(FarmResponse.from(farm));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyFarm(HttpSession session) {
+        Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("로그인 후 이용해 주세요.");
+        }
+        try {
+            return ResponseEntity.ok(farmService.getMyFarm(memberId));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> updateMyFarm(@Valid @RequestBody UpdateFarmRequest request, HttpSession session) {
+        Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("로그인 후 이용해 주세요.");
+        }
+        try {
+            Farm updated = farmService.updateFarm(memberId, request);
+            return ResponseEntity.ok(FarmResponse.from(updated));
         } catch (IllegalArgumentException | IllegalStateException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }

@@ -8,6 +8,7 @@ import com.project.eum.service.dto.GeoCoordinate;
 import com.project.eum.user.Member;
 import com.project.eum.user.MemberRepository;
 import com.project.eum.user.UserRole;
+import com.project.eum.dto.UpdateFarmRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,14 +58,19 @@ public class FarmService {
         }
 
         // 좌표 결정 (직접 입력 우선, 없으면 카카오주소 검색)
-        CoordinatePair coordinates = resolveCoordinates(request);
+        String sanitizedName = request.name().trim();
+        String sanitizedAddress = request.address().trim();
+        String sanitizedTel = resolveTel(request.tel());
+        String sanitizedCity = resolveCity(request.city(), sanitizedAddress);
+
+        CoordinatePair coordinates = resolveCoordinates(sanitizedAddress, request.latitude(), request.longitude());
 
         Farm farm = Farm.builder()
                 .owner(owner)
-                .name(request.name().trim())
-                .city(resolveCity(request))
-                .address(request.address().trim())
-                .tel(resolveTel(request.tel()))
+                .name(sanitizedName)
+                .city(sanitizedCity)
+                .address(sanitizedAddress)
+                .tel(sanitizedTel)
                 .latitude(coordinates.latitude())
                 .longitude(coordinates.longitude())
                 .build();
@@ -89,6 +95,66 @@ public class FarmService {
     }
 
     /**
+     * 내 농장 단건 조회.
+     */
+    @Transactional(readOnly = true)
+    public FarmResponse getMyFarm(Long ownerId) {
+        Member owner = memberRepository.findById(ownerId)
+                .orElseThrow(() -> new IllegalArgumentException("농장주 정보를 찾을 수 없습니다."));
+        if (!isFarmOwner(owner)) {
+            throw new IllegalStateException("농장주만 농장 정보를 조회할 수 있습니다.");
+        }
+        Farm farm = farmRepository.findByOwnerUserId(ownerId)
+                .orElseThrow(() -> new IllegalStateException("등록된 농장이 없습니다."));
+        return FarmResponse.from(farm);
+    }
+
+    /**
+     * 내 농장 정보 수정.
+     */
+    @Transactional
+    public Farm updateFarm(Long ownerId, UpdateFarmRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("농장 정보를 입력해 주세요.");
+        }
+
+        Member owner = memberRepository.findById(ownerId)
+                .orElseThrow(() -> new IllegalArgumentException("농장주 정보를 찾을 수 없습니다."));
+
+        if (!isFarmOwner(owner)) {
+            throw new IllegalStateException("농장주만 농장 정보를 수정할 수 있습니다.");
+        }
+
+        Farm farm = farmRepository.findByOwnerUserId(ownerId)
+                .orElseThrow(() -> new IllegalStateException("등록된 농장이 없습니다."));
+
+        if (!StringUtils.hasText(request.name())) {
+            throw new IllegalArgumentException("농장 이름을 입력해 주세요.");
+        }
+        if (!StringUtils.hasText(request.address())) {
+            throw new IllegalArgumentException("농장 주소를 입력해 주세요.");
+        }
+        if (!StringUtils.hasText(request.tel())) {
+            throw new IllegalArgumentException("농장 전화번호를 입력해 주세요.");
+        }
+
+        String sanitizedName = request.name().trim();
+        String sanitizedAddress = request.address().trim();
+        String sanitizedTel = resolveTel(request.tel());
+        String sanitizedCity = resolveCity(null, sanitizedAddress);
+        CoordinatePair coordinates = resolveCoordinates(sanitizedAddress, null, null);
+
+        farm.setName(sanitizedName);
+        farm.setAddress(sanitizedAddress);
+        farm.setTel(sanitizedTel);
+        farm.setCity(sanitizedCity);
+        farm.setLatitude(coordinates.latitude());
+        farm.setLongitude(coordinates.longitude());
+
+        return farm;
+    }
+
+    /**
      * 농장 등록 가능한 역할인지 확인(FARMER / ADMIN).
      */
     private boolean isFarmOwner(Member owner) {
@@ -101,11 +167,10 @@ public class FarmService {
     /**
      * 요청에 city가 없으면 주소에서 앞 1~2단어를 추출하여 시/도로 사용.
      */
-    private String resolveCity(CreateFarmRequest request) {
-        if (StringUtils.hasText(request.city())) {
-            return truncate(request.city().trim(), 100);
+    private String resolveCity(String requestedCity, String address) {
+        if (StringUtils.hasText(requestedCity)) {
+            return truncate(requestedCity.trim(), 100);
         }
-        String address = request.address();
         if (!StringUtils.hasText(address)) {
             return "미지정";
         }
@@ -152,15 +217,19 @@ public class FarmService {
      * - 요청에 latitude/longitude 있으면 그대로 사용
      * - 없으면 카카오 API로 주소→좌표 변환
      */
-    private CoordinatePair resolveCoordinates(CreateFarmRequest request) {
-        if (request.latitude() != null && request.longitude() != null) {
+    private CoordinatePair resolveCoordinates(String address, Double latitude, Double longitude) {
+        if (latitude != null && longitude != null) {
             return new CoordinatePair(
-                    resolveCoordinate(request.latitude()),
-                    resolveCoordinate(request.longitude())
+                    resolveCoordinate(latitude),
+                    resolveCoordinate(longitude)
             );
         }
 
-        return kakaoAddressSearchClient.findCoordinatesByAddress(request.address())
+        if (!StringUtils.hasText(address)) {
+            return new CoordinatePair(DEFAULT_COORDINATE, DEFAULT_COORDINATE);
+        }
+
+        return kakaoAddressSearchClient.findCoordinatesByAddress(address)
                 .map(this::convertCoordinate)
                 .orElseGet(() -> new CoordinatePair(DEFAULT_COORDINATE, DEFAULT_COORDINATE));
     }

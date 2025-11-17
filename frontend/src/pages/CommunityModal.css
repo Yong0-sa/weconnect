@@ -13,16 +13,18 @@
 
 .community-close-btn {
   position: absolute;
-  top: 20px;
-  right: 15px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  top: 0px;
+  right: -45px;
   border: none;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 22px;
+  background: #f0f2f4;
+  font-size: 1.5rem;
   cursor: pointer;
+  line-height: 1;
+  color: #555;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
 .community-header {

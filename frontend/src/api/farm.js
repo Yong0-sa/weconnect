@@ -47,3 +47,23 @@ export async function fetchFarms() {
   });
   return handleResponse(res, "농장 목록을 불러오지 못했습니다.");
 }
+
+// 내 농장 정보 조회
+export async function fetchMyFarm() {
+  const res = await fetch(`${API_BASE}/api/farms/me`, {
+    method: "GET",
+    credentials: "include",
+  });
+  return handleResponse(res, "농장 정보를 불러오지 못했습니다.");
+}
+
+// 내 농장 정보 수정
+export async function updateMyFarm(payload) {
+  const res = await fetch(`${API_BASE}/api/farms/me`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res, "농장 정보를 저장하지 못했습니다.");
+}

@@ -235,7 +235,16 @@ function SignUp() {
         <img src={BackgroundBlur} alt="blurred background" />
       </div>
 
-      <form className="modal-content" onSubmit={handleSubmit} noValidate>
+      <div className="signup-modal-shell">
+        <button
+          type="button"
+          className="signup-close-btn"
+          aria-label="회원가입 닫기"
+          onClick={() => navigate("/login")}
+        >
+          ×
+        </button>
+        <form className="modal-content" onSubmit={handleSubmit} noValidate>
         <div className="modal-header">
           <h1>회원가입</h1>
         </div>
@@ -405,7 +414,8 @@ function SignUp() {
             가입하기
           </button>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   updateProfile,
   deleteAccount,
 } from "../api/profile";
+import { fetchMyFarm, updateMyFarm } from "../api/farm";
 import "./ProfilePage.css";
 
 // 📌 UI에 들어가는 유틸/기본값
@@ -31,6 +32,20 @@ const INITIAL_PROFILE = {
   marketingConsent: true,
   updatedAt: null,
 };
+
+const FARM_FORM_INITIAL = {
+  farmId: null,
+  name: "",
+  address: "",
+  tel: "",
+};
+
+const mapFarmResponse = (data = {}) => ({
+  farmId: data.farmId ?? null,
+  name: data.name ?? "",
+  address: data.address ?? "",
+  tel: data.tel ?? "",
+});
 
 // 날짜 포맷
 const formatTimestamp = (value) => {
@@ -116,9 +131,15 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
   const [showFarewellModal, setShowFarewellModal] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [farewellError, setFarewellError] = useState("");
+  const [farmForm, setFarmForm] = useState(FARM_FORM_INITIAL);
+  const [farmErrors, setFarmErrors] = useState({});
+  const [farmStatus, setFarmStatus] = useState(null);
+  const [isLoadingFarm, setIsLoadingFarm] = useState(false);
+  const [isSavingFarm, setIsSavingFarm] = useState(false);
 
   const trimmedNickname = (formData.nickname || "").trim();
   const memberTypeLabel = savedProfile.memberType || "PERSONAL";
+  const isFarmerAccount = memberTypeLabel === "FARMER";
   const isFormDisabled = isSaving || isLoadingProfile;
 
   // 📌 모달 닫기
@@ -183,6 +204,46 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     }));
   }, [savedProfile.name, savedProfile.nickname, savedProfile.phone]);
 
+  // 📌 농장 정보 불러오기 (농장주 계정만)
+  useEffect(() => {
+    if (!isOpen || isLoadingProfile) {
+      return;
+    }
+
+    if (!isFarmerAccount) {
+      setFarmForm(FARM_FORM_INITIAL);
+      setFarmErrors({});
+      setFarmStatus(null);
+      return;
+    }
+
+    let active = true;
+    async function loadFarm() {
+      setIsLoadingFarm(true);
+      try {
+        const data = await fetchMyFarm();
+        if (!active) return;
+        setFarmForm(mapFarmResponse(data));
+        setFarmStatus(null);
+      } catch (error) {
+        if (!active) return;
+        setFarmStatus({
+          type: "error",
+          message: error.message || "농장 정보를 불러오지 못했습니다.",
+        });
+      } finally {
+        if (active) {
+          setIsLoadingFarm(false);
+        }
+      }
+    }
+
+    loadFarm();
+    return () => {
+      active = false;
+    };
+  }, [isOpen, isLoadingProfile, isFarmerAccount]);
+
   // 📌 입력 필드 검증
   const getFieldError = (field, value, nextState = formData) => {
     const trimmed = value?.toString().trim() ?? "";
@@ -219,6 +280,27 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
         if (!trimmed) return "비밀번호를 다시 입력해 주세요.";
         if (trimmed !== nextState.newPassword)
           return "비밀번호가 일치하지 않습니다.";
+        return "";
+      default:
+        return "";
+    }
+  };
+
+  const getFarmFieldError = (field, value) => {
+    const trimmed = value?.toString().trim() ?? "";
+
+    switch (field) {
+      case "name":
+        if (!trimmed) return "농장 이름을 입력해 주세요.";
+        return "";
+      case "address":
+        if (!trimmed) return "농장 주소를 입력해 주세요.";
+        return "";
+      case "tel":
+        if (!trimmed) return "농장 전화번호를 입력해 주세요.";
+        if (!/^\d{2,3}-\d{3,4}-\d{4}$/.test(trimmed)) {
+          return "전화번호는 010-1234-5678 형식으로 입력해 주세요.";
+        }
         return "";
       default:
         return "";
@@ -354,6 +436,20 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     }
   };
 
+  const handleFarmInputChange = (event) => {
+    const { name, value } = event.target;
+    setFarmForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    if (farmErrors[name]) {
+      setFarmErrors((prev) => ({
+        ...prev,
+        [name]: getFarmFieldError(name, value),
+      }));
+    }
+  };
+
   // 📌 닉네임 중복 확인
   const handleCheckNickname = async () => {
     if (isLoadingProfile || isSaving) return;
@@ -463,6 +559,54 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     }
 
     await submitProfileUpdate(payload);
+  };
+
+  const handleSaveFarmInfo = async () => {
+    if (isSavingFarm || isLoadingFarm) {
+      return;
+    }
+
+    const fieldsToValidate = ["name", "address", "tel"];
+    const nextErrors = {};
+    fieldsToValidate.forEach((field) => {
+      const error = getFarmFieldError(field, farmForm[field]);
+      if (error) {
+        nextErrors[field] = error;
+      }
+    });
+    setFarmErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFarmStatus({
+        type: "error",
+        message: "입력값을 다시 확인해 주세요.",
+      });
+      return;
+    }
+
+    setIsSavingFarm(true);
+    setFarmStatus(null);
+
+    try {
+      const payload = {
+        name: farmForm.name.trim(),
+        address: farmForm.address.trim(),
+        tel: farmForm.tel.trim(),
+      };
+      const result = await updateMyFarm(payload);
+      setFarmForm(mapFarmResponse(result));
+      setFarmStatus({
+        type: "success",
+        message: "농장 정보를 저장했습니다.",
+      });
+    } catch (error) {
+      setFarmStatus({
+        type: "error",
+        message: error.message || "농장 정보를 저장하지 못했습니다.",
+      });
+    } finally {
+      setIsSavingFarm(false);
+    }
   };
 
   // 📌 탈퇴 플로우: 1단계 → 2단계 확인 → 최종 삭제
@@ -657,6 +801,99 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
                   {errors.phone && <p className="input-error">{errors.phone}</p>}
                 </div>
               </div>
+
+              {isFarmerAccount && (
+                <div className="profile-row profile-row--stacked farm-info-row">
+                  <div className="profile-row__label">농장 정보</div>
+                  <div className="profile-row__content">
+                    {farmStatus && (
+                      <div className={`farm-toast farm-toast--${farmStatus.type}`}>
+                        <span>{farmStatus.message}</span>
+                        <button
+                          type="button"
+                          aria-label="농장 알림 닫기"
+                          onClick={() => setFarmStatus(null)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+                    {isLoadingFarm ? (
+                      <p className="profile-loading" role="status">
+                        농장 정보를 불러오는 중입니다...
+                      </p>
+                    ) : (
+                      <>
+                        <div className="farm-fields-grid">
+                          <div className="farm-field">
+                            <label htmlFor="farmName">농장 이름</label>
+                            <input
+                              id="farmName"
+                              className="profile-input"
+                              type="text"
+                              name="name"
+                              value={farmForm.name}
+                              onChange={handleFarmInputChange}
+                              placeholder="농장 이름을 입력해 주세요."
+                              disabled={isSavingFarm || isLoadingFarm}
+                            />
+                            {farmErrors.name && (
+                              <p className="input-error">{farmErrors.name}</p>
+                            )}
+                          </div>
+                          <div className="farm-field">
+                            <label htmlFor="farmTel">농장 전화번호</label>
+                            <input
+                              id="farmTel"
+                              className="profile-input"
+                              type="text"
+                              name="tel"
+                              value={farmForm.tel}
+                              onChange={handleFarmInputChange}
+                              placeholder="061-123-4567"
+                              disabled={isSavingFarm || isLoadingFarm}
+                            />
+                            {farmErrors.tel && (
+                              <p className="input-error">{farmErrors.tel}</p>
+                            )}
+                          </div>
+                          <div className="farm-field farm-field--full">
+                            <label htmlFor="farmAddress">농장 주소</label>
+                            <input
+                              id="farmAddress"
+                              className="profile-input"
+                              type="text"
+                              name="address"
+                              value={farmForm.address}
+                              onChange={handleFarmInputChange}
+                              placeholder="시/군/구 포함 상세 주소를 입력해 주세요."
+                              disabled={isSavingFarm || isLoadingFarm}
+                            />
+                            {farmErrors.address && (
+                              <p className="input-error">
+                                {farmErrors.address}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <p className="profile-row__hint">
+                          저장하면 대표 지역과 좌표가 주소 기준으로 자동 갱신돼요.
+                        </p>
+                        <div className="farm-actions">
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={handleSaveFarmInfo}
+                            disabled={isSavingFarm || isLoadingFarm}
+                          >
+                            {isSavingFarm ? "저장 중..." : "농장 정보 저장"}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="profile-row profile-row--stacked">
                 <div className="profile-row__label">비밀번호 변경</div>

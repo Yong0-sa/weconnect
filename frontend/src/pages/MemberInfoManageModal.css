@@ -12,6 +12,7 @@
   color: #141b2f;
   position: relative;
   border: 2px solid rgba(120, 81, 255, 0.35);
+  overflow: visible;
 }
 
 .member-manage-modal--edit-mode {
@@ -54,15 +55,19 @@
 }
 
 .member-manage-close {
+  position: absolute;
+  top: 0px;
+  right: -45px;
   border: none;
+  background: #f0f2f4;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  color: #555;
   width: 42px;
   height: 42px;
-  border-radius: 14px;
-  background: rgba(111, 85, 194, 0.1);
-  color: #1b123b;
-  font-size: 24px;
-  font-weight: 600;
-  cursor: pointer;
+  border-radius: 50%;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
 .member-manage-panel {

@@ -3,6 +3,8 @@ import "./FarmSearchModal.css";
 import { fetchFarms } from "../api/farm";
 import { regionOptions } from "../data/farms";
 
+const DEFAULT_MAP_LEVEL = 3; // 약 100m 축척에 해당하는 카카오맵 레벨
+
 function FarmSearchModal({ onClose, onChatRequest }) {
 
   // 📌 검색/필터/선택 관련 상태
@@ -28,6 +30,7 @@ function FarmSearchModal({ onClose, onChatRequest }) {
       return;
     }
     const targetPosition = new window.kakao.maps.LatLng(farm.lat, farm.lng);
+    mapRef.current.setLevel(DEFAULT_MAP_LEVEL, { animate: true });
     mapRef.current.panTo(targetPosition);
   }, []);
 
@@ -185,7 +188,7 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     if (!mapRef.current) {
       mapRef.current = new window.kakao.maps.Map(mapContainerRef.current, {
         center: new window.kakao.maps.LatLng(37.5665, 126.978),
-        level: 6,
+        level: DEFAULT_MAP_LEVEL,
       });
     }
 

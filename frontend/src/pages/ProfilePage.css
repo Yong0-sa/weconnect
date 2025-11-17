@@ -20,7 +20,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .profile-card__scroll {
@@ -30,18 +30,18 @@
 
 .profile-modal__close {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 0px;
+  right: -45px;
   border: none;
-  background: rgba(0, 0, 0, 0.05);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  font-size: 20px;
-  font-weight: 700;
-  color: #4a4a4a;
+  background: #f0f2f4;
+  font-size: 1.5rem;
   cursor: pointer;
   line-height: 1;
+  color: #555;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
 .profile-modal__close:hover {
@@ -239,6 +239,73 @@
   gap: 16px;
 }
 
+.farm-info-row {
+  background: #fbfcff;
+}
+
+.farm-fields-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.farm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.farm-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5f6b7c;
+}
+
+.farm-field--full {
+  grid-column: 1 / -1;
+}
+
+.farm-actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.farm-toast {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.farm-toast button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: inherit;
+}
+
+.farm-toast--success {
+  background: #ecfdf3;
+  border: 1px solid #c2f5d8;
+  color: #1b6b38;
+}
+
+.farm-toast--error {
+  background: #fff3f0;
+  border: 1px solid #ffc9bd;
+  color: #a3330f;
+}
+
 .profile-input {
   width: 100%;
   padding: 12px 14px;
@@ -371,6 +438,34 @@
 
 .outline-btn:not(:disabled):hover,
 .primary-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.secondary-btn {
+  min-width: 150px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: 1px solid #1f8f4d;
+  background: #fff;
+  color: #1f8f4d;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.secondary-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}
+
+.secondary-btn:not(:disabled):hover {
+  background: #1f8f4d;
+  color: #fff;
+  box-shadow: 0 12px 20px rgba(31, 143, 77, 0.2);
   transform: translateY(-1px);
 }
 
