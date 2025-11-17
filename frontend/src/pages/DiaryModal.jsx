@@ -7,6 +7,7 @@ import {
   deleteDiary,
   searchDiaries,
 } from "../api/diary";
+import { useCoins } from "../contexts/CoinContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
@@ -19,6 +20,8 @@ function DiaryModal({ onClose, initialData = null }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+  const { addCoins } = useCoins();
   const [draft, setDraft] = useState(() => {
     // initialData가 있으면 진단 결과로 초기화
     if (initialData) {
@@ -146,9 +149,36 @@ function DiaryModal({ onClose, initialData = null }) {
       if (editingEntry) {
         // 수정
         await updateDiary(editingEntry.id, diaryData, draft.file);
+        setToast({ type: "success", message: "일기가 수정되었습니다." });
       } else {
         // 작성
         await createDiary(diaryData, draft.file);
+
+        // 코인 적립 로직 (새 일기 작성 시에만)
+        // TODO: 백엔드 API 연동 - 일기 작성 코인 보상
+        // 백엔드에서 일일 한도(3개) 체크 후 응답:
+        // { coinRewarded: true, coinsAdded: 1, dailyLimitReached: false }
+        //
+        // fetch(`${API_BASE}/api/coins/reward`, {
+        //   method: "POST",
+        //   headers: { "Content-Type": "application/json" },
+        //   credentials: "include",
+        //   body: JSON.stringify({ type: "diary" })
+        // })
+        //   .then(res => res.json())
+        //   .then(data => {
+        //     if (data.coinRewarded) {
+        //       addCoins(data.coinsAdded || 1);
+        //       setToast({ type: "success", message: `일기가 저장되었습니다! 코인 ${data.coinsAdded}개 적립!` });
+        //     } else if (data.dailyLimitReached) {
+        //       setToast({ type: "info", message: "일기가 저장되었습니다. (오늘은 더 이상 코인을 받을 수 없습니다)" });
+        //     }
+        //   })
+        //   .catch(err => console.error("코인 적립 실패:", err));
+
+        // 임시: 프론트엔드에서만 처리 (백엔드 준비 전)
+        addCoins(1);
+        setToast({ type: "success", message: "일기가 저장되었습니다! 코인 1개 적립!" });
       }
 
       // 목록 새로고침
@@ -160,10 +190,14 @@ function DiaryModal({ onClose, initialData = null }) {
       if (editingEntry) {
         setIsEditing(false);
       }
+
+      // 토스트 자동 제거
+      setTimeout(() => setToast(null), 3000);
     } catch (error) {
       console.error("일기 저장 실패:", error);
       console.error("에러 상세:", error.message, error.stack);
-      alert(error.message || "일기 저장에 실패했습니다.");
+      setToast({ type: "error", message: error.message || "일기 저장에 실패했습니다." });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -202,6 +236,21 @@ function DiaryModal({ onClose, initialData = null }) {
 
   return (
     <div className="diary-modal-card">
+      {toast && (
+        <div
+          className={`diary-toast diary-toast--${toast.type}`}
+          role="status"
+        >
+          <span>{toast.message}</span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            aria-label="알림 닫기"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {onClose && (
         <button
           type="button"
