@@ -331,6 +331,10 @@ function HomePage() {
       notificationSubscriptionsRef.current.clear();
     };
 
+    client.onStompError = (frame) => {
+      console.error('WebSocket STOMP 에러:', frame);
+    };
+
     client.activate();
     notificationClientRef.current = client;
 
@@ -339,7 +343,9 @@ function HomePage() {
         subscription.unsubscribe()
       );
       notificationSubscriptionsRef.current.clear();
-      client.deactivate();
+      if (client.active) {
+        client.deactivate();
+      }
       notificationClientRef.current = null;
     };
   }, [profile, refreshUnreadChats]);

@@ -188,7 +188,11 @@ function LoginPage() {
         type: "success",
         message: data?.message || "로그인되었습니다.",
       });
-      navigate("/home", { replace: true });
+
+      // 세션 쿠키 설정을 위한 딜레이
+      setTimeout(() => {
+        navigate("/home", { replace: true });
+      }, 300);
 
     } catch (error) {
       setToast({
