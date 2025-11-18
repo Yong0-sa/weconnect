@@ -93,6 +93,7 @@ public class ObjectStorageService {
                     .key(filename)
                     .contentType(file.getContentType())
                     .contentLength(file.getSize())
+                    .acl("public-read")
                     .build();
 
             // 실제 업로드 실행
