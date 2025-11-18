@@ -5,6 +5,7 @@ import com.project.eum.comments.CommentsRepository;
 import com.project.eum.dto.CommentsRequest;
 import com.project.eum.dto.CommentsResponseDto;
 import com.project.eum.dto.CommentsUpdateRequest;
+import com.project.eum.dto.ReplyResponse;
 import com.project.eum.post.Post;
 import com.project.eum.post.PostRepository;
 import com.project.eum.user.Member;
@@ -27,14 +28,26 @@ public class CommentsService {
     public List<CommentsResponseDto> getCommentsByPostId(Long postId) {
         List<Comments> comments = commentsRepository.findByPost_PostId(postId);
         return comments.stream()
-                .map(c -> new CommentsResponseDto(
+                .map(c -> {
+                    CommentsResponseDto dto = new CommentsResponseDto(
                         c.getCommentId(),
                         c.getPost().getPostId(),
                         c.getAuthor().getUserId(),
                         c.getAuthor().getNickname(),
                         c.getContent(),
                         c.getCreatedAt()
-                ))
+                );
+
+        if (c.getReplies() != null && !c.getReplies().isEmpty()) {
+            List<ReplyResponse> replyList = c.getReplies().stream()
+                    .map(ReplyResponse::from)
+                    .collect(Collectors.toList());
+            dto.setReplies(replyList);
+        }
+
+        return dto;
+    })
+
                 .collect(Collectors.toList());
     }
 @Transactional
@@ -89,7 +102,7 @@ public class CommentsService {
         String nickname = savedComment.getAuthor().getNickname();
         System.out.println("Updated Comment: " + savedComment);
 
-        return new CommentsResponseDto(
+        CommentsResponseDto dto =  new CommentsResponseDto(
                 savedComment.getCommentId(),
                 savedComment.getPost().getPostId(),
                 savedComment.getAuthor().getUserId(),
@@ -97,11 +110,18 @@ public class CommentsService {
                 savedComment.getContent(),
                 savedComment.getCreatedAt()
         );
+    if (savedComment.getReplies() != null && !savedComment.getReplies().isEmpty()) {
+        List<ReplyResponse> replyList = savedComment.getReplies().stream()
+                .map(ReplyResponse::from)
+                .collect(Collectors.toList());
+        dto.setReplies(replyList);
+    }
 
+    return dto;
     }
 
 
-
+    @Transactional
     public void deleteComment(Long commentId, Long requesterId) {
         Comments comment = commentsRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("댓글이 존재하지 않습니다."));

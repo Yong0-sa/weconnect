@@ -140,6 +140,12 @@ function CommunityModal({ onClose }) {
 
     try {
         const response = await axios.get(`/api/comments?postId=${post.id}`);
+
+        const commentsWithReplies = response.data.map(comment => ({
+                    ...comment,
+                    replies: comment.replies || []  // replies 배열이 없으면 빈 배열로 초기화
+                }));
+
         setComments((prev) => ({
           ...prev,
           [post.id]: response.data,
@@ -157,7 +163,8 @@ function CommunityModal({ onClose }) {
   const handleCommentSubmit = async () => {
     if (!commentInput.trim() || !selectedPost) return;
 
-    const response = await axios.post("/api/comments", {
+    try{
+        const response = await axios.post("/api/comments", {
         postId: selectedPost.id,
         authorId: userId,
         content: commentInput.trim(),
@@ -166,7 +173,7 @@ function CommunityModal({ onClose }) {
 
     console.log(response.data);
 
-    const newComment = response.data;
+    const newComment = { ...response.data, replies: [] };
 
     setComments((prev) => ({
       ...prev,
@@ -174,6 +181,9 @@ function CommunityModal({ onClose }) {
     }));
 
     setCommentInput("");
+  } catch (error) {
+      console.error("댓글 등록 실패:", error);
+      }
   };
 
   const handleReplyClick = (commentId) => {
@@ -186,37 +196,43 @@ function CommunityModal({ onClose }) {
     setReplyInput("");
   };
 
-  const handleReplySubmit = (commentId) => {
+  const handleReplySubmit = async (commentId) => {
     if (!replyInput.trim() || !selectedPost) return;
 
-    const newReply = {
-      id: generateUniqueId(),
-      author: userNickname || "사용자",
-      content: replyInput.trim(),
-      createdAt: new Date().toISOString(),
+    try {
+        const response = await axios.post("/api/replies", {
+            commentId: commentId,
+            authorId: userId,
+            content: replyInput.trim(),
+        });
+        const newReply = response.data;
+
+        setComments((prev) => {
+            const postComments = prev[selectedPost.id] || [];
+            const updatedComments = postComments.map((c) => {
+                if (c.id === commentId) {
+                return {
+                    ...c,
+                    replies: [...(c.replies || []), newReply],
+                };
+            }
+            return c;
+        });
+
+            return {
+            ...prev,
+            [selectedPost.id]: updatedComments,
+            }
+          });
+
+            setReplyingTo(null);
+            setReplyInput("");
+            alert("답글이 등록되었습니다!");
+          } catch (error) {
+            console.error("답글 등록 실패:", error);
+            alert("답글 등록 실패: " + (error.response?.data || error.message));
+      }
     };
-
-    setComments((prev) => {
-      const postComments = prev[selectedPost.id] || [];
-      const updatedComments = postComments.map((comment) => {
-        if (comment.id === commentId) {
-          return {
-            ...comment,
-            replies: [...(comment.replies || []), newReply],
-          };
-        }
-        return comment;
-      });
-
-      return {
-        ...prev,
-        [selectedPost.id]: updatedComments,
-      };
-    });
-
-    setReplyingTo(null);
-    setReplyInput("");
-  };
 
   // 게시글 수정/삭제
   const handleEditPost = () => {
@@ -301,21 +317,26 @@ function CommunityModal({ onClose }) {
 
     try {
       // 1. 백엔드에 수정 요청
-      await axios.put(`/api/comments/${commentId}?requesterId=${userId}`, {
+      if (parentId) {
+      await axios.put(`/api/replies/${commentId}?requesterId=${userId}`, {
         content: editCommentContent,
       });
-
+    } else {
+        await axios.put(`/api/comments/${commentId}?requesterId=${userId}`, {
+                content: editCommentContent,
+              });
+        }
       // 2. 요청 성공 시 로컬 상태 업데이트
       setComments((prev) => {
         const postComments = prev[selectedPost.id] || [];
 
         if (parentId) {
           const updatedComments = postComments.map((comment) => {
-            if (comment.id === parentId) {
+            if (comment.commentId === parentId) {
               return {
                 ...comment,
                 replies: comment.replies.map((reply) =>
-                  reply.id === commentId
+                  reply.replyId === commentId
                     ? { ...reply, content: editCommentContent.trim() }
                     : reply
                 ),
@@ -339,8 +360,8 @@ function CommunityModal({ onClose }) {
       setEditingComment(null);
       setEditCommentContent("");
     } catch (error) {
-      console.error("댓글 수정 실패:", error);
-      alert("댓글 수정 실패: " + (error.response?.data || error.message));
+      console.error("수정 실패:", error);
+      alert("수정 실패: " + (error.response?.data || error.message));
     }
   };
 
@@ -350,8 +371,21 @@ function CommunityModal({ onClose }) {
     setEditCommentContent("");
   };
 
-  const handleDeleteComment = (commentId, parentId = null) => {
-    if (!window.confirm("댓글을 삭제하시겠습니까?")) return;
+// 댓글, 답글 삭제 함수
+  const handleDeleteComment = async (commentId, parentId = null) => {
+    const message = parentId
+        ? "답글을 삭제하시겠습니까?"
+        : "답글을 삭제하시겠습니까?";
+
+      if (!window.confirm(message)) return;
+
+    try{
+        if (parentId) {
+            await axios.delete(`/api/replies/${commentId}?requesterId=${userId}`);
+        } else {
+            await axios.delete(`/api/comments/${commentId}?requesterId=${userId}`);
+
+        }
 
     setComments((prev) => {
       const postComments = prev[selectedPost.id] || [];
@@ -362,7 +396,7 @@ function CommunityModal({ onClose }) {
             return {
               ...comment,
               replies: comment.replies.filter(
-                (reply) => reply.id !== commentId
+                (reply) => reply.replyId !== commentId
               ),
             };
           }
@@ -374,8 +408,9 @@ function CommunityModal({ onClose }) {
           [selectedPost.id]: updatedComments,
         };
       } else {
+          // 댓글 삭제
         const updatedComments = postComments.filter(
-          (comment) => comment.id !== commentId
+          (comment) => comment.commentId !== commentId
         );
 
         return {
@@ -384,6 +419,12 @@ function CommunityModal({ onClose }) {
         };
       }
     });
+    alert("삭제되었습니다!");
+   } catch (error) {
+        console.error("삭제 실패:", error);
+        alert("삭제 실패: " + (error.response?.data || error.message));
+
+    };
   };
 
   // 글쓰기 기능
@@ -1001,7 +1042,7 @@ function CommunityModal({ onClose }) {
                                       type="button"
                                       className="comment-action-btn delete"
                                       onClick={() =>
-                                        handleDeleteComment(comment.id)
+                                        handleDeleteComment(comment.commentId)
                                       }
                                     >
                                       삭제
@@ -1030,7 +1071,7 @@ function CommunityModal({ onClose }) {
                                       type="button"
                                       className="comment-action-btn save"
                                       onClick={() =>
-                                        handleSaveComment(comment.id)
+                                        handleSaveComment(comment.commentId)
                                       }
                                     >
                                       저장
@@ -1058,7 +1099,7 @@ function CommunityModal({ onClose }) {
                                       type="button"
                                       className="comment-reply-btn"
                                       onClick={() =>
-                                        handleReplyClick(comment.id)
+                                        handleReplyClick(comment.commentId)
                                       }
                                     >
                                       답글
@@ -1072,21 +1113,21 @@ function CommunityModal({ onClose }) {
                               <div className="reply-list">
                                 {comment.replies.map((reply) => (
                                   <div
-                                    key={`${reply.id}-${comment.id}`}
+                                    key={`${reply.replyId}`}
                                     className="detail-comment-item reply-item"
                                   >
                                     <div className="comment-header">
                                       <strong className="comment-author">
-                                        {reply.author}
+                                        {reply.nickname}
                                       </strong>
-                                      {reply.author === userNickname && (
+                                      {reply.authorId === userId && (
                                         <div className="comment-actions">
                                           <button
                                             type="button"
                                             className="comment-action-btn"
                                             onClick={() =>
                                               handleEditComment(
-                                                reply.id,
+                                                reply.replyId,
                                                 reply.content
                                               )
                                             }
@@ -1098,8 +1139,8 @@ function CommunityModal({ onClose }) {
                                             className="comment-action-btn delete"
                                             onClick={() =>
                                               handleDeleteComment(
-                                                reply.id,
-                                                comment.id
+                                                reply.replyId,
+                                                comment.commentId
                                               )
                                             }
                                           >
@@ -1108,7 +1149,7 @@ function CommunityModal({ onClose }) {
                                         </div>
                                       )}
                                     </div>
-                                    {editingComment === reply.id ? (
+                                    {editingComment === reply.replyId ? (
                                       <>
                                         <textarea
                                           className="edit-comment-textarea"
@@ -1132,8 +1173,8 @@ function CommunityModal({ onClose }) {
                                             className="comment-action-btn save"
                                             onClick={() =>
                                               handleSaveComment(
-                                                reply.id,
-                                                comment.id
+                                                reply.replyId,
+                                                comment.commentId
                                               )
                                             }
                                           >
@@ -1166,7 +1207,7 @@ function CommunityModal({ onClose }) {
                               </div>
                             )}
 
-                            {replyingTo === comment.id && (
+                            {replyingTo === comment.commentId && (
                               <div className="reply-input-wrapper">
                                 <div className="detail-comment-input reply-input">
                                   <div className="comment-input-header">
@@ -1194,7 +1235,7 @@ function CommunityModal({ onClose }) {
                                       type="button"
                                       className="detail-comment-submit"
                                       onClick={() =>
-                                        handleReplySubmit(comment.id)
+                                        handleReplySubmit(comment.commentId)
                                       }
                                     >
                                       등록
