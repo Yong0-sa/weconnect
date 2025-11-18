@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'ai/**'
+      - "ai/**"
 
 jobs:
   deploy:
@@ -15,10 +15,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Compress AI files
+      - name: Compress AI files (excluding models)
         run: |
           cd ai
-          tar -czf ../ai-files.tar.gz *
+          tar -czf ../ai-files.tar.gz \
+            --exclude='aiModel' \
+            --exclude='.model.zip' \
+            --exclude='*.model' \
+            --exclude='*.h5' \
+            --exclude='*.pkl' \
+            --exclude='*.keras' \
+            --exclude='venv' \
+            --exclude='__pycache__' \
+            *
 
       - name: Copy to Bastion
         uses: appleboy/scp-action@v0.1.4
@@ -38,13 +47,29 @@ jobs:
           script: |
             scp -o StrictHostKeyChecking=no /tmp/ai-files.tar.gz ${{ secrets.APP_SERVER_USER }}@${{ secrets.AI_SERVER_IP }}:/tmp/
             ssh -o StrictHostKeyChecking=no ${{ secrets.APP_SERVER_USER }}@${{ secrets.AI_SERVER_IP }} "
+              mkdir -p /app/ai/backup_models
+              if [ -d /app/ai/aiModel ]; then
+                mv /app/ai/aiModel /app/ai/backup_models/
+              fi
+              if [ -f /app/ai/.model.zip ]; then
+                mv /app/ai/.model.zip /app/ai/backup_models/
+              fi
               cd /app/ai && 
-              rm -rf * && 
+              find . -maxdepth 1 ! -name 'aiModel' ! -name '.model.zip' ! -name 'backup_models' ! -name 'venv' ! -name '.' -exec rm -rf {} + &&
               tar -xzf /tmp/ai-files.tar.gz && 
               rm /tmp/ai-files.tar.gz && 
-              python3 -m venv venv && 
+              if [ -d /app/ai/backup_models/aiModel ]; then
+                mv /app/ai/backup_models/aiModel /app/ai/
+              fi
+              if [ -f /app/ai/backup_models/.model.zip ]; then
+                mv /app/ai/backup_models/.model.zip /app/ai/
+              fi
+              rm -rf /app/ai/backup_models
+              if [ ! -d venv ]; then
+                python3 -m venv venv
+              fi
               source venv/bin/activate && 
               pip install --upgrade pip && 
               pip install -r requirements.txt && 
-              systemctl restart fastapi
+              sudo systemctl restart fastapi
             "
