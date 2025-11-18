@@ -21,7 +21,10 @@ public record ChatRoomResponse(
         String userName,
         ChatRoomStatus status,
         LocalDateTime lastMessageAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        String lastMessagePreview,
+        LocalDateTime farmerLastReadAt,
+        LocalDateTime userLastReadAt
 ) {
 
     /**
@@ -40,7 +43,10 @@ public record ChatRoomResponse(
                 room.getUser() != null ? room.getUser().getName() : null,
                 room.getStatus(),
                 room.getLastMessageAt(),
-                room.getUpdatedAt()
+                room.getUpdatedAt(),
+                room.getLastMessagePreview(),
+                room.getFarmerLastReadAt(),
+                room.getUserLastReadAt()
         );
     }
 }

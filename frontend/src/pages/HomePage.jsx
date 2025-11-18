@@ -158,7 +158,9 @@ function HomePage() {
         if (!Number.isFinite(timestamp)) return false;
         return timestamp > lastChatCheck;
       });
-      setHasUnreadChats(hasNew);
+      if (!isChatModalOpenRef.current) {
+        setHasUnreadChats(hasNew);
+      }
     } catch (error) {
       console.error("채팅방 목록을 확인하지 못했습니다.", error);
     }
@@ -899,7 +901,6 @@ useEffect(() => {
             <ChatModal
               onClose={handleCloseChatModal}
               initialContact={initialChatContact}
-              lastChatCheck={lastChatCheck}
             />
           </div>
         </div>

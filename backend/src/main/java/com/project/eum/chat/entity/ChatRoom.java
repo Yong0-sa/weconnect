@@ -66,6 +66,15 @@ public class ChatRoom {
     @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt;
 
+    @Column(name = "last_message_preview", length = 500)
+    private String lastMessagePreview;
+
+    @Column(name = "farmer_last_read_at")
+    private LocalDateTime farmerLastReadAt;
+
+    @Column(name = "user_last_read_at")
+    private LocalDateTime userLastReadAt;
+
     /**
      * 채팅방 상태 (활성/비활성)
      */
@@ -96,8 +105,29 @@ public class ChatRoom {
         if (memberId == null) {
             return false;
         }
-        Long farmerId = farmer != null ? farmer.getUserId() : null;
-        Long userId = user != null ? user.getUserId() : null;
-        return memberId.equals(farmerId) || memberId.equals(userId);
+        return isFarmer(memberId) || isUser(memberId);
+    }
+
+    public boolean isFarmer(Long memberId) {
+        if (memberId == null) {
+            return false;
+        }
+        return farmer != null && memberId.equals(farmer.getUserId());
+    }
+
+    public boolean isUser(Long memberId) {
+        if (memberId == null) {
+            return false;
+        }
+        return user != null && memberId.equals(user.getUserId());
+    }
+
+    public void markRead(Long memberId, LocalDateTime readAt) {
+        LocalDateTime timestamp = readAt != null ? readAt : LocalDateTime.now();
+        if (isFarmer(memberId)) {
+            this.farmerLastReadAt = timestamp;
+        } else if (isUser(memberId)) {
+            this.userLastReadAt = timestamp;
+        }
     }
 }

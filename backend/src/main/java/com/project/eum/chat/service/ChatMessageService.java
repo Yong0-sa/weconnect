@@ -61,7 +61,10 @@ public class ChatMessageService {
         ChatContent saved = chatContentRepository.save(contentEntity);
         
         // 방의 마지막 메시지 시간
-        room.setLastMessageAt(saved.getCreatedAt() != null ? saved.getCreatedAt() : LocalDateTime.now());
+        LocalDateTime messageTime = saved.getCreatedAt() != null ? saved.getCreatedAt() : LocalDateTime.now();
+        room.setLastMessageAt(messageTime);
+        room.setLastMessagePreview(contentEntity.getContent());
+        room.markRead(senderId, messageTime);
         return ChatMessageResponse.from(saved);
     }
 
@@ -91,6 +94,7 @@ public class ChatMessageService {
         Collections.reverse(latest);
         
         // DTO 변환
+        room.markRead(requesterId, LocalDateTime.now());
         return latest.stream().map(ChatMessageResponse::from).toList();
     }
 }

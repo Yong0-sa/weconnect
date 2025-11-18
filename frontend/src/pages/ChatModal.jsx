@@ -103,7 +103,7 @@ const toBubbleMessage = (message, currentUserId) => ({
 // ============================================================
 // 🧩 ChatModal 시작
 // ============================================================
-function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
+function ChatModal({ onClose, initialContact }) {
 
   // ------------------------------------------------------------
   // 상태: 채팅방 / 메시지 목록 / UI 플래그
@@ -127,12 +127,72 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
   const [stompClient, setStompClient] = useState(null);
   const [isWsConnected, setIsWsConnected] = useState(false);
   const [wsError, setWsError] = useState("");
-  const [clearedRoomIds, setClearedRoomIds] = useState({});
 
   // Ref: 스크롤/WS subscription
-  const subscriptionRef = useRef(null);
   const chatScrollRef = useRef(null);
   const ensuredContactKeyRef = useRef(null);
+  const roomSubscriptionsRef = useRef(new Map());
+
+  const getMyLastReadAt = useCallback(
+    (room) => {
+      if (!room || !currentUserId) return null;
+      if (room.userId === currentUserId) {
+        return room.userLastReadAt || null;
+      }
+      if (room.farmerId === currentUserId) {
+        return room.farmerLastReadAt || null;
+      }
+      return null;
+    },
+    [currentUserId]
+  );
+
+  const computeHasUnread = useCallback(
+    (room) => {
+      if (!room) return false;
+      const lastTimestamp = room.lastMessageAt || room.updatedAt;
+      const myLastReadAt = getMyLastReadAt(room);
+      if (!lastTimestamp) {
+        return false;
+      }
+      if (!myLastReadAt) {
+        // 아직 읽은 기록이 없으면 기본적으로 읽지 않은 상태
+        return true;
+      }
+      return new Date(lastTimestamp) > new Date(myLastReadAt);
+    },
+    [getMyLastReadAt]
+  );
+
+  const updateMyLastRead = useCallback(
+    (roomId, timestamp) => {
+      if (!roomId) return;
+      const isoTime = timestamp ?? new Date().toISOString();
+      setRooms((prev) =>
+        prev.map((room) => {
+          if (room.roomId !== roomId) {
+            return room;
+          }
+          if (currentUserId && room.userId === currentUserId) {
+            return {
+              ...room,
+              userLastReadAt: isoTime,
+              hasUnread: false,
+            };
+          }
+          if (currentUserId && room.farmerId === currentUserId) {
+            return {
+              ...room,
+              farmerLastReadAt: isoTime,
+              hasUnread: false,
+            };
+          }
+          return room;
+        })
+      );
+    },
+    [currentUserId]
+  );
 
   // ============================================================
   // 📌 1) 전체 채팅방 불러오기
@@ -146,16 +206,19 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
 
       try {
         const list = await fetchChatRooms();
-        setRooms(list);
+        const annotated = list.map((room) => ({
+          ...room,
+          hasUnread: computeHasUnread(room),
+        }));
+        setRooms(annotated);
 
         // 채팅방 선택 우선순위
         setSelectedChatId((prev) => {
           if (selectRoomId != null) return selectRoomId;
-          if (!list.length) return null;
-          if (prev && list.some((room) => room.roomId === prev)) {
+          if (prev && annotated.some((room) => room.roomId === prev)) {
             return prev;
           }
-          return list[0]?.roomId ?? null;
+          return null;
         });
       } catch (error) {
         setRoomError(error.message || "채팅방 목록을 불러오지 못했습니다.");
@@ -163,7 +226,7 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
         setIsLoadingRooms(false);
       }
     },
-    []
+    [computeHasUnread]
   );
 
   // ============================================================
@@ -234,21 +297,16 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
               ...room,
               lastMessageAt: payload.createdAt,
               updatedAt: payload.createdAt,
+              lastMessagePreview: payload.content,
+              hasUnread: room.roomId === selectedChatId ? false : true,
             }
           : room
       )
     );
-    if (payload.roomId !== selectedChatId) {
-      setClearedRoomIds((prev) => {
-        if (!prev[payload.roomId]) {
-          return prev;
-        }
-        const next = { ...prev };
-        delete next[payload.roomId];
-        return next;
-      });
+    if (payload.roomId === selectedChatId) {
+      updateMyLastRead(payload.roomId, payload.createdAt);
     }
-  }, [selectedChatId]);
+  }, [selectedChatId, updateMyLastRead]);
 
   // ============================================================
   // 📌 4) 로그인 사용자 정보 로드
@@ -304,19 +362,7 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
     ensureChatForContact(initialContact);
   }, [initialContact, ensureChatForContact]);
 
-  useEffect(() => {
-    setClearedRoomIds({});
-  }, [lastChatCheck]);
 
-  useEffect(() => {
-    if (!selectedChatId) return;
-    setClearedRoomIds((prev) => {
-      if (prev[selectedChatId]) {
-        return prev;
-      }
-      return { ...prev, [selectedChatId]: true };
-    });
-  }, [selectedChatId]);
 
   // ============================================================
   // 📌 7) 특정 채팅방 메시지 로드
@@ -336,6 +382,27 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
           ...prev,
           [selectedChatId]: messages,
         }));
+        const lastTimestamp =
+          messages.length > 0
+            ? messages[messages.length - 1].createdAt
+            : null;
+        const lastContent =
+          messages.length > 0
+            ? messages[messages.length - 1].content
+            : null;
+        updateMyLastRead(
+          selectedChatId,
+          lastTimestamp || new Date().toISOString()
+        );
+        if (lastContent) {
+          setRooms((prev) =>
+            prev.map((room) =>
+              room.roomId === selectedChatId
+                ? { ...room, lastMessagePreview: lastContent }
+                : room
+            )
+          );
+        }
       })
       .catch((error) => {
         if (!ignore) {
@@ -351,7 +418,7 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
     return () => {
       ignore = true;
     };
-  }, [selectedChatId]);
+  }, [selectedChatId, updateMyLastRead]);
 
 
 
@@ -387,8 +454,9 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
 
     // cleanup
     return () => {
-      subscriptionRef.current?.unsubscribe();
-      subscriptionRef.current = null;
+      const existing = roomSubscriptionsRef.current;
+      existing.forEach((subscription) => subscription.unsubscribe());
+      existing.clear();
       setIsWsConnected(false);
       client.deactivate();
       setStompClient(null);
@@ -399,35 +467,54 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
   // 📌 9) 선택된 채팅방 토픽에 WebSocket 구독
   // ============================================================
   useEffect(() => {
-    if (!stompClient || !isWsConnected || !selectedChatId) {
-      return undefined;
+    if (!stompClient || !isWsConnected) {
+      return;
     }
 
-    // 기존 구독 제거
-    if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe();
-      subscriptionRef.current = null;
-    }
+    const existing = roomSubscriptionsRef.current;
+    const activeRoomIds = rooms.map((room) => room.roomId).filter(Boolean);
+    const activeSet = new Set(activeRoomIds);
 
-    const destination = `/topic/chat/${selectedChatId}`;
-    const subscription = stompClient.subscribe(destination, (frame) => {
-      try {
-        const payload = JSON.parse(frame.body);
-        handleIncomingMessage(payload);
-      } catch (error) {
-        console.error("채팅 메시지 파싱 실패", error);
+    activeRoomIds.forEach((roomId) => {
+      if (existing.has(roomId)) {
+        return;
       }
+      const destination = `/topic/chat/${roomId}`;
+      const subscription = stompClient.subscribe(destination, (frame) => {
+        try {
+          const payload = JSON.parse(frame.body);
+          handleIncomingMessage(payload);
+        } catch (error) {
+          console.error("채팅 메시지 파싱 실패", error);
+        }
+      });
+      existing.set(roomId, subscription);
     });
 
-    subscriptionRef.current = subscription;
-
-    return () => {
-      subscription.unsubscribe();
-      if (subscriptionRef.current === subscription) {
-        subscriptionRef.current = null;
+    existing.forEach((subscription, roomId) => {
+      if (!activeSet.has(roomId)) {
+        subscription.unsubscribe();
+        existing.delete(roomId);
       }
+    });
+  }, [rooms, stompClient, isWsConnected, handleIncomingMessage]);
+
+  useEffect(() => {
+    if (isWsConnected) {
+      return;
+    }
+    const existing = roomSubscriptionsRef.current;
+    existing.forEach((subscription) => subscription.unsubscribe());
+    existing.clear();
+  }, [isWsConnected]);
+
+  useEffect(() => {
+    return () => {
+      const existing = roomSubscriptionsRef.current;
+      existing.forEach((subscription) => subscription.unsubscribe());
+      existing.clear();
     };
-  }, [stompClient, isWsConnected, selectedChatId, handleIncomingMessage]);
+  }, []);
 
 
   // ============================================================
@@ -466,10 +553,13 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
                   ...room,
                   lastMessageAt: newMessage.createdAt,
                   updatedAt: newMessage.createdAt,
+                  lastMessagePreview: newMessage.content,
+                  hasUnread: false,
                 }
               : room
           )
         );
+        updateMyLastRead(selectedChatId, newMessage.createdAt);
 
         setMessageInput("");
       }
@@ -489,21 +579,16 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
       const history = messagesByChat[room.roomId] || [];
       const lastMessage = history[history.length - 1];
       const lastTimestamp = room.lastMessageAt || room.updatedAt;
-      const lastMs = lastTimestamp ? new Date(lastTimestamp).getTime() : NaN;
-      const isUnread =
-        Number.isFinite(lastMs) &&
-        lastMs > (lastChatCheck ?? 0) &&
-        !clearedRoomIds[room.roomId];
 
       return {
         id: room.roomId,
-        name: resolveRoomName(room, currentUserId),  // 상대방 이름 결정
-        preview: lastMessage?.content || "",  // 마지막 메시지
+        name: resolveRoomName(room, currentUserId), // 상대방 이름 결정
+        preview: lastMessage?.content || room.lastMessagePreview || "", // 마지막 메시지
         lastTime: formatListTime(lastTimestamp),
-        isUnread,
+        isUnread: Boolean(room.hasUnread),
       };
     });
-  }, [rooms, messagesByChat, currentUserId, lastChatCheck, clearedRoomIds]);
+  }, [rooms, messagesByChat, currentUserId]);
 
   // ============================================================
   // 📌 12) 현재 선택된 채팅방 정보
@@ -580,7 +665,11 @@ function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
                   }
                 >
                   <strong>{chat.name}</strong>
-                  <p>{chat.preview || "메시지를 시작해 보세요."}</p>
+                  <p>
+                    {chat.preview
+                      ? chat.preview
+                      : "메시지를 시작해 보세요."}
+                  </p>
                   <span className="chat-item-time">{chat.lastTime}</span>
                   {chat.isUnread && (
                     <span className="chat-item-unread" aria-hidden="true" />
