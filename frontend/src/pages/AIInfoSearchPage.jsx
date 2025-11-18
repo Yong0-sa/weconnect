@@ -6,9 +6,27 @@ import { fetchAIHistory, sendAIQuestion } from "../api/ai";
 const LINK_PATTERN = /(https?:\/\/[^\s)]+)/g;
 
 // 📌 AI 응답 텍스트에서 “참고링크”/pdf 링크 제거
+const normalizeReferenceLink = (link) => {
+  if (!link) return null;
+  if (typeof link === "string") {
+    const trimmed = link.trim();
+    if (!trimmed) return null;
+    return { title: trimmed, url: trimmed };
+  }
+  const url = (link.url || "").trim();
+  if (!url) return null;
+  const title = (link.title || "").trim() || url;
+  return { title, url };
+};
+
+const extractReferenceUrls = (pdfLinks) =>
+  (pdfLinks || [])
+    .map((link) => normalizeReferenceLink(link)?.url)
+    .filter(Boolean);
+
 const sanitizeAssistantMessage = (text, pdfLinks) => {
   if (!text) return "";
-  const references = new Set(pdfLinks || []);
+  const references = new Set(extractReferenceUrls(pdfLinks));
 
   const lines = text.split(/\n+/).map((line) => line.trim());
 
@@ -274,10 +292,18 @@ function AIInfoSearchPage({ onClose }) {
     });
   };
 
-  // pdfLinks 중복 제거
+  // pdfLinks 중복 제거 + title/url 정규화
   const dedupePdfLinks = (entry) => {
     if (entry.role !== "assistant" || !entry.pdfLinks?.length) return [];
-    return Array.from(new Set(entry.pdfLinks));
+    const seen = new Set();
+    const normalized = [];
+    entry.pdfLinks.forEach((link) => {
+      const normalizedLink = normalizeReferenceLink(link);
+      if (!normalizedLink || seen.has(normalizedLink.url)) return;
+      seen.add(normalizedLink.url);
+      normalized.push(normalizedLink);
+    });
+    return normalized;
   };
 
   return (
@@ -390,17 +416,20 @@ function AIInfoSearchPage({ onClose }) {
                         <div className="ai-pdf-links">
                           <span>참고 링크</span>
                           <div className="ai-link-grid">
-                            {references.map((link, index) => (
-                              <a
-                                key={`${entry.id}-pdf-${index}`}
-                                href={link}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="ai-link-chip"
-                              >
-                                {link.length > 60 ? `${link.slice(0, 57)}…` : link}
-                              </a>
-                            ))}
+                            {references.map((link, index) => {
+                              const label = link.title.length > 60 ? `${link.title.slice(0, 57)}…` : link.title;
+                              return (
+                                <a
+                                  key={`${entry.id}-pdf-${index}-${link.url}`}
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="ai-link-chip"
+                                >
+                                  {label}
+                                </a>
+                              );
+                            })}
                           </div>
                         </div>
                       );

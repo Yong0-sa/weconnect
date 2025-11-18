@@ -51,16 +51,22 @@ class RetrievalError(RAGServiceError):
 @dataclass
 class RetrievalContext:
     context: str
-    pdf_links: List[str]
+    pdf_links: List["ReferenceLink"]
     embed_ids: List[str]
 
 
 @dataclass
 class RAGResult:
     answer: str
-    pdf_links: List[str]
+    pdf_links: List["ReferenceLink"]
     prompt_type: Literal["greet", "answer", "fallback"]
     embed_ids: Optional[List[str]] = None
+
+
+@dataclass
+class ReferenceLink:
+    title: str
+    url: str
 
 
 class RAGService:
@@ -113,7 +119,7 @@ class RAGService:
             raise InappropriateQueryError("부적절하거나 안전하지 않은 내용이 포함되어 답변할 수 없습니다.")
 
         prompt_type: Literal["greet", "answer", "fallback"]
-        pdf_links: List[str] = []
+        pdf_links: List[ReferenceLink] = []
         embed_ids: Optional[List[str]] = None
 
         if self.GREET_PATTERN.match(query):
@@ -225,12 +231,18 @@ class RAGService:
         embed_ids = [id_hit for _, _, id_hit, _ in kept][: self._min_docs]
         return RetrievalContext(context=context, pdf_links=pdf_links, embed_ids=embed_ids)
 
-    def _extract_pdf_links(self, records: Sequence[tuple[str, dict, str, float]]) -> List[str]:
-        pdfs: List[str] = []
+    def _extract_pdf_links(self, records: Sequence[tuple[str, dict, str, float]]) -> List[ReferenceLink]:
+        pdfs: List[ReferenceLink] = []
+        seen_urls: set[str] = set()
         for _, meta, _, _ in records:
-            link = (meta.get("pdf_path") or meta.get("atchmnflUrl") or "").strip()
-            if link and link not in pdfs:
-                pdfs.append(link)
+            raw_url = (meta.get("pdf_path") or meta.get("atchmnflUrl") or meta.get("linkUrl") or "").strip()
+            if not raw_url or raw_url in seen_urls:
+                continue
+            title = (meta.get("title") or meta.get("curationNm") or meta.get("document_title") or "").strip()
+            if not title:
+                title = raw_url
+            pdfs.append(ReferenceLink(title=title, url=raw_url))
+            seen_urls.add(raw_url)
             if len(pdfs) >= self._pdf_limit:
                 break
         return pdfs
@@ -243,8 +255,8 @@ class RAGService:
         )
 
     @staticmethod
-    def _build_prompt_answer(query: str, context: str, embed_ids: Sequence[str], pdf_links: Sequence[str]) -> str:
-        links = "\n".join(pdf_links) if pdf_links else ""
+    def _build_prompt_answer(query: str, context: str, embed_ids: Sequence[str], pdf_links: Sequence[ReferenceLink]) -> str:
+        links = "\n".join(f"{link.title}: {link.url}" for link in pdf_links) if pdf_links else ""
         ids_str = ", ".join(embed_ids) if embed_ids else ""
         return (
             f"질문: {query}\n\n"

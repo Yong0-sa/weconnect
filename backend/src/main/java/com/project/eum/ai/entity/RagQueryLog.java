@@ -1,6 +1,8 @@
 package com.project.eum.ai.entity;
 
+import com.project.eum.ai.converter.ReferenceLinkListJsonConverter;
 import com.project.eum.ai.converter.StringListJsonConverter;
+import com.project.eum.ai.model.ReferenceLink;
 import com.project.eum.user.Member;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -66,9 +68,9 @@ public class RagQueryLog {
     private String answer;
 
     // 참고된 PDF 링크들의 리스트를 JSON 문자열로 저장.
-    @Convert(converter = StringListJsonConverter.class)
+    @Convert(converter = ReferenceLinkListJsonConverter.class)
     @Column(name = "pdf_links", columnDefinition = "JSON")
-    private List<String> pdfLinks = new ArrayList<>();
+    private List<ReferenceLink> pdfLinks = new ArrayList<>();
 
     // 참고된 임베딩 ID들의 리스트를 JSON 문자열로 저장.
     @Convert(converter = StringListJsonConverter.class)
