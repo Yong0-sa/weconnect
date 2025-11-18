@@ -15,9 +15,7 @@ function FirstTutorialPage() {
       ? location.state.nextPath
       : DEFAULT_REDIRECT;
   const initialUserKey =
-    typeof location.state?.userKey === "string"
-      ? location.state.userKey
-      : null;
+    typeof location.state?.userKey === "string" ? location.state.userKey : null;
 
   const [nextPath] = useState(initialNextPath);
   const [userKey, setUserKey] = useState(initialUserKey);
@@ -110,7 +108,10 @@ function FirstTutorialPage() {
       <div className="first-tutorial-page first-tutorial-page--loading">
         <div className="first-tutorial-error-card">
           <p>{errorMessage}</p>
-          <button type="button" onClick={() => navigate("/home", { replace: true })}>
+          <button
+            type="button"
+            onClick={() => navigate("/home", { replace: true })}
+          >
             홈으로 이동
           </button>
         </div>
@@ -120,27 +121,32 @@ function FirstTutorialPage() {
 
   return (
     <div className="first-tutorial-page" aria-live="polite">
-      <img
-        src={FirstTutorialImage}
-        alt="첫 로그인 튜토리얼"
-        className="first-tutorial-full-image"
-      />
-      <div className="first-tutorial-controls">
-        <label className="first-tutorial-checkbox">
-          <input
-            type="checkbox"
-            checked={dontShowAgain}
-            onChange={(event) => setDontShowAgain(event.target.checked)}
-          />
-          <span>다시 보지 않음</span>
-        </label>
-        <button
-          type="button"
-          className="first-tutorial-close-btn"
-          onClick={handleClose}
-        >
-          닫기
-        </button>
+      <div className="first-tutorial-wrapper">
+        <img
+          src={FirstTutorialImage}
+          alt="첫 로그인 튜토리얼"
+          className="first-tutorial-full-image"
+        />
+        <div className="first-tutorial-controls">
+          <label className="first-tutorial-checkbox">
+            <input
+              type="checkbox"
+              checked={dontShowAgain}
+              onChange={(event) => setDontShowAgain(event.target.checked)}
+            />
+            <span>다시 보지 않음</span>
+          </label>
+          <span className="first-tutorial-divider" aria-hidden="true">
+            |
+          </span>
+          <button
+            type="button"
+            className="first-tutorial-close-btn"
+            onClick={handleClose}
+          >
+            닫기
+          </button>
+        </div>
       </div>
     </div>
   );
