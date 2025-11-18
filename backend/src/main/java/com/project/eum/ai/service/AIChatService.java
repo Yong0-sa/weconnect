@@ -196,7 +196,7 @@ public class AIChatService {
         return Math.min(Math.max(limit, 1), MAX_HISTORY);
     }
 
-    // baseUrl 마지막 슬래시 제거 후 "/api/ai/chat" 붙이기
+    // baseUrl 마지막 슬래시 제거 후 "/api/ai/chat" 붙이기//
     private String buildSearchUrl(String baseUrl) {
         if (!StringUtils.hasText(baseUrl)) {
             throw new IllegalArgumentException("ai.server.url 값이 설정되지 않았습니다.");
