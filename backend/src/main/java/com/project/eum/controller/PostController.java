@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -26,10 +27,13 @@ public class PostController {
 
     // ✅ JSON만 받기 (이미지는 나중에 추가)
     @PostMapping
-    public ResponseEntity<?> createPost(@RequestBody PostCreateRequest request) {
+    public ResponseEntity<?> createPost(
+            @RequestPart("post") PostCreateRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile imageFile
+    ) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(postService.createPost(request));
+                    .body(postService.createPost(request, imageFile));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }

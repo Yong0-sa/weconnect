@@ -12,4 +12,7 @@ public interface FarmContractRepository extends JpaRepository<FarmContract, Long
     List<FarmContract> findByStatusAndEndDateBefore(FarmContractStatus status, java.time.LocalDate date);
     Optional<FarmContract> findFirstByUserUserIdAndStatusNot(Long userId, FarmContractStatus status);
     Optional<FarmContract> findTopByUserUserIdAndStatusNotOrderByRequestedAtDesc(Long userId, FarmContractStatus status);
+
+    // 승인된 회원 확인
+    Optional<FarmContract> findByUserUserIdAndFarmFarmIdAndStatus(Long userId, Long farmId, FarmContractStatus status);
 }

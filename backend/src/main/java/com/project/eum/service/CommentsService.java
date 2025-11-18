@@ -6,6 +6,9 @@ import com.project.eum.dto.CommentsRequest;
 import com.project.eum.dto.CommentsResponseDto;
 import com.project.eum.dto.CommentsUpdateRequest;
 import com.project.eum.dto.ReplyResponse;
+import com.project.eum.farm.FarmRepository;
+import com.project.eum.farm.contract.FarmContractRepository;
+import com.project.eum.farm.contract.FarmContractStatus;
 import com.project.eum.post.Post;
 import com.project.eum.post.PostRepository;
 import com.project.eum.user.Member;
@@ -24,6 +27,32 @@ public class CommentsService {
     private final CommentsRepository commentsRepository;
     private final PostRepository postRepository;
     private final MemberRepository memberRepository;
+    private final FarmRepository farmRepository;
+    private final FarmContractRepository farmContractRepository;
+
+    // 농장주인지 확인
+    private boolean isFarmOwner(Long userId, Long farmId) {
+        return farmRepository.findById(farmId)
+                .map(farm -> farm.getOwner().getUserId().equals(userId))
+                .orElse(false);
+    }
+
+    // 승인된 회원인지 확인
+    private boolean isApprovedMember(Long userId, Long farmId) {
+        return farmContractRepository
+                .findByUserUserIdAndFarmFarmIdAndStatus(userId, farmId, FarmContractStatus.APPROVED)
+                .isPresent();
+    }
+
+    // 댓글 작성 권한 확인
+    private void validateCommentWritePermission(Long userId, Long farmId) {
+        boolean isOwner = isFarmOwner(userId, farmId);
+        boolean isApproved = isApprovedMember(userId, farmId);
+
+        if (!isOwner && !isApproved) {
+            throw new IllegalStateException("승인된 회원만 댓글을 작성할 수 있습니다.");
+        }
+    }
 
     public List<CommentsResponseDto> getCommentsByPostId(Long postId) {
         List<Comments> comments = commentsRepository.findByPost_PostId(postId);
@@ -56,6 +85,9 @@ public class CommentsService {
                 .orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
         Member author = memberRepository.findById(request.getAuthorId())
                 .orElseThrow(() -> new IllegalArgumentException("사용자가 존재하지 않습니다."));
+
+        // 권한 검증
+        validateCommentWritePermission(author.getUserId(), post.getFarm().getFarmId());
 
         Comments comment = Comments.builder()
                 .post(post)
