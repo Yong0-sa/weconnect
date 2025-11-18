@@ -208,21 +208,22 @@ function CommunityModal({ onClose }) {
 
         setComments((prev) => {
             const postComments = prev[selectedPost.id] || [];
-            const updatedComments = postComments.map((c) => {
-                if (c.id === commentId) {
-                return {
-                    ...c,
-                    replies: [...(c.replies || []), newReply],
-                };
-            }
-            return c;
-        });
+            const updatedComments = postComments.map((comment) => {
+                if (comment.commentId === commentId) {
+                    return {
+                        ...comment,
+                        replies: [...(comment.replies || []), newReply],
+                    };
+                }
+                return comment;
+            });
 
             return {
-            ...prev,
-            [selectedPost.id]: updatedComments,
-            }
-          });
+                ...prev,
+                [selectedPost.id]: updatedComments,
+            };
+        });
+
 
             setReplyingTo(null);
             setReplyInput("");
@@ -347,7 +348,7 @@ function CommunityModal({ onClose }) {
           return { ...prev, [selectedPost.id]: updatedComments };
         } else {
           const updatedComments = postComments.map((comment) =>
-            comment.id === commentId
+            comment.commentId === commentId
               ? { ...comment, content: editCommentContent.trim() }
               : comment
           );
@@ -391,7 +392,7 @@ function CommunityModal({ onClose }) {
 
       if (parentId) {
         const updatedComments = postComments.map((comment) => {
-          if (comment.id === parentId) {
+          if (comment.commentId === parentId) {
             return {
               ...comment,
               replies: comment.replies.filter(

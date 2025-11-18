@@ -1,5 +1,6 @@
 package com.project.eum.post;
 
+import com.project.eum.comments.Comments;
 import com.project.eum.farm.Farm;
 import com.project.eum.user.Member;
 import jakarta.persistence.*;
@@ -8,6 +9,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "posts")
@@ -46,4 +49,8 @@ public class Post {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<Comments> comments = new ArrayList<>();
+
 }
