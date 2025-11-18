@@ -23,6 +23,7 @@ from rag_service import (
     RAGResult,
     RAGService,
     RAGServiceError,
+    ReferenceLink,
 )
 
 # 로깅 설정 (먼저 초기화)
@@ -91,7 +92,7 @@ class HistoryEntry:
     id: str
     question: str
     answer: str
-    pdf_links: List[str]
+    pdf_links: List[ReferenceLink]
     embed_ids: List[str]
     prompt_type: Literal["greet", "answer", "fallback"]
     created_at: datetime
@@ -109,7 +110,7 @@ class HistoryStore:
             id=str(uuid4()),
             question=question,
             answer=result.answer,
-            pdf_links=result.pdf_links,
+            pdf_links=list(result.pdf_links or []),
             embed_ids=result.embed_ids or [],
             prompt_type=result.prompt_type,
             created_at=datetime.now(timezone.utc),
@@ -131,10 +132,15 @@ class HistoryItem(BaseModel):
     id: str
     question: str
     answer: str
-    pdf_links: List[str]
+    pdf_links: List["ReferenceLinkModel"]
     embed_ids: List[str]
     prompt_type: Literal["greet", "answer", "fallback"]
     created_at: datetime
+
+
+class ReferenceLinkModel(BaseModel):
+    title: str
+    url: str
 
 
 def _to_history_item(entry: HistoryEntry) -> HistoryItem:
@@ -142,7 +148,7 @@ def _to_history_item(entry: HistoryEntry) -> HistoryItem:
         id=entry.id,
         question=entry.question,
         answer=entry.answer,
-        pdf_links=entry.pdf_links,
+        pdf_links=[ReferenceLinkModel(title=link.title, url=link.url) for link in entry.pdf_links],
         embed_ids=entry.embed_ids,
         prompt_type=entry.prompt_type,
         created_at=entry.created_at,

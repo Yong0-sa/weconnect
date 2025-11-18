@@ -1,7 +1,8 @@
 package com.project.eum.ai.dto;
 
-import com.project.eum.ai.entity.RagQueryLog;
 import com.project.eum.ai.entity.PromptType;
+import com.project.eum.ai.entity.RagQueryLog;
+import com.project.eum.ai.model.ReferenceLink;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,7 +17,7 @@ public record AIChatExchangeResponse(
         String question,
         String answer,
         String promptType,
-        List<String> pdfLinks,
+        List<ReferenceLink> pdfLinks,
         List<String> embedIds,
         Integer topK,
         LocalDateTime createdAt
@@ -42,7 +43,7 @@ public record AIChatExchangeResponse(
     }
 
     // Null 안전 처리. Null이면 빈 리스트 반환, 아니면 불변 리스트로 복사
-    private static List<String> copyOfOrEmpty(List<String> source) {
+    private static <T> List<T> copyOfOrEmpty(List<T> source) {
         return source == null ? List.of() : List.copyOf(source);
     }
 }

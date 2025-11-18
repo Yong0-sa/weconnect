@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.eum.ai.dto.AIChatRequest;
 import com.project.eum.ai.entity.PromptType;
 import com.project.eum.ai.entity.RagQueryLog;
+import com.project.eum.ai.model.ReferenceLink;
 import com.project.eum.ai.repository.RagQueryLogRepository;
 import com.project.eum.user.MemberRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -92,7 +93,7 @@ public class AIChatService {
         logEntry.setQueryText(question);
         logEntry.setPromptType(PromptType.fromRaw(response.promptType()));
         logEntry.setAnswer(response.answer());
-        logEntry.setPdfLinks(response.pdfLinks());
+        logEntry.setPdfLinks(toReferenceLinks(response.pdfLinks()));
         logEntry.setEmbedIds(response.embedIds());
         logEntry.setTopK(topK);
 
@@ -157,8 +158,25 @@ public class AIChatService {
         );
     }
 
+    private List<ReferenceLink> toReferenceLinks(List<ReferenceLinkPayload> payloads) {
+        if (payloads == null || payloads.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<ReferenceLink> links = new ArrayList<>();
+        for (ReferenceLinkPayload payload : payloads) {
+            if (payload == null) {
+                continue;
+            }
+            ReferenceLink link = ReferenceLink.of(payload.title(), payload.url());
+            if (link != null) {
+                links.add(link);
+            }
+        }
+        return links;
+    }
+
     // List null-safe 변환
-    private static List<String> safeList(List<String> input) {
+    private static <T> List<T> safeList(List<T> input) {
         return input == null ? new ArrayList<>() : new ArrayList<>(input);
     }
 
@@ -206,9 +224,11 @@ public class AIChatService {
             String id,
             String question,
             String answer,
-            @JsonProperty("pdf_links") List<String> pdfLinks,
+            @JsonProperty("pdf_links") List<ReferenceLinkPayload> pdfLinks,
             @JsonProperty("prompt_type") String promptType,
             @JsonProperty("embed_ids") List<String> embedIds,
             @JsonProperty("created_at") String createdAt
     ) {}
+
+    private record ReferenceLinkPayload(String title, String url) {}
 }
