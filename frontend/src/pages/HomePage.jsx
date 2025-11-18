@@ -88,6 +88,8 @@ function HomePage() {
   const [lastChatCheck, setLastChatCheck] = useState(() =>
     getInitialChatCheck()
   );
+  const [shouldQueueFirstTutorial, setShouldQueueFirstTutorial] =
+    useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -188,6 +190,49 @@ function HomePage() {
       ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!profile?.userId || typeof window === "undefined") {
+      return;
+    }
+    const userKey = `user:${profile.userId}`;
+    const optOut =
+      window.localStorage.getItem(`firstTutorialOptOut:${userKey}`) === "true";
+    const sessionShown =
+      window.sessionStorage.getItem(
+        `firstTutorialSession:${userKey}`
+      ) === "true";
+    setShouldQueueFirstTutorial(!optOut && !sessionShown);
+  }, [profile?.userId]);
+
+  useEffect(() => {
+    if (
+      !shouldQueueFirstTutorial ||
+      showFarmApplyPrompt ||
+      showFarmRegisterModal ||
+      isFarmModalOpen
+    ) {
+      return;
+    }
+    const userKey = profile?.userId ? `user:${profile.userId}` : null;
+    if (userKey && typeof window !== "undefined") {
+      window.sessionStorage.setItem(
+        `firstTutorialSession:${userKey}`,
+        "true"
+      );
+    }
+    navigate("/first-tutorial", {
+      state: { nextPath: "/home", userKey },
+    });
+    setShouldQueueFirstTutorial(false);
+  }, [
+    shouldQueueFirstTutorial,
+    showFarmApplyPrompt,
+    showFarmRegisterModal,
+    isFarmModalOpen,
+    profile?.userId,
+    navigate,
+  ]);
 
   const shouldPromptFarmRegistration = (data) => {
     if (!data) return false;
@@ -367,6 +412,11 @@ function HomePage() {
       console.error("logout failed", error);
     } finally {
       localStorage.removeItem("authToken");
+      if (typeof window !== "undefined" && profile?.userId) {
+        window.sessionStorage.removeItem(
+          `firstTutorialSession:user:${profile.userId}`
+        );
+      }
       navigate("/login", { replace: true });
     }
   };

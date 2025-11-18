@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import SignUp from "./pages/SignUp";
 import TutorialPage from "./pages/TutorialPage";
+import FirstTutorialPage from "./pages/FirstTutorialPage";
 import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
@@ -18,6 +19,7 @@ function App() {
           <Route path="/signup" element={<SignUp />} />
           <Route path="/home" element={<HomePage />} />
           <Route path="/tutorial" element={<TutorialPage />} />
+          <Route path="/first-tutorial" element={<FirstTutorialPage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/oauth/success" element={<OAuthCallbackPage />} />
         </Routes>
