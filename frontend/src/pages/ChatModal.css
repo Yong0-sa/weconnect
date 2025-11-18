@@ -30,64 +30,10 @@
 .chat-modal-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: 86px 330px 1fr;
+  grid-template-columns: 330px 1fr;
   gap: 20px;
   min-height: 0;
   align-items: stretch;
-}
-
-.chat-nav-panel {
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: center;
-}
-
-.chat-nav-btn {
-  width: 100%;
-  border: none;
-  background: rgba(255, 255, 255, 0.75);
-  border-radius: 26px;
-  padding: 16px 12px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  color: #285045;
-  font-weight: 700;
-  transition: transform 0.2s ease, box-shadow 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.chat-nav-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
-}
-
-.chat-nav-btn.active {
-  background: rgba(103, 188, 99, 0.25);
-  color: #1f2e36;
-}
-
-.chat-nav-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-}
-
-.chat-nav-btn.active .chat-nav-icon {
-  background: rgba(255, 255, 255, 0.95);
-}
-
-.chat-nav-label {
-  font-size: 13px;
 }
 
 .chat-list-panel {
@@ -123,10 +69,6 @@
 
 .chat-list-icon {
   font-size: 20px;
-}
-
-.chat-list-panel.farms-mode {
-  background: rgba(120, 184, 162, 0.3);
 }
 
 .chat-list-scroll {
@@ -210,51 +152,6 @@
 .chat-connection-badge.offline {
   background: rgba(255, 221, 166, 0.4);
   color: #8a5000;
-}
-
-.farm-list-scroll {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
-  max-height: none;
-}
-
-.farm-list-item {
-  background: transparent;
-  border-radius: 18px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  transition: background-color 0.2s ease;
-  outline: none;
-}
-
-.farm-list-item:hover {
-  background: rgba(255, 255, 255, 0.75);
-}
-
-.farm-list-texts {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.farm-list-texts strong {
-  font-size: 16px;
-  color: #1f2e36;
-}
-
-.farm-meta {
-  margin: 0;
-  font-size: 13px;
-  color: #46615b;
 }
 
 .chat-room-panel {

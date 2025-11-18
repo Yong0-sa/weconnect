@@ -97,6 +97,7 @@ function HomePage() {
   const profileIconRef = useRef(null);
   const notificationClientRef = useRef(null);
   const notificationSubscriptionsRef = useRef(new Map());
+  const isChatModalOpenRef = useRef(false);
 
   const canManageMembers = profile?.role === "FARMER" || profile?.role === "ADMIN";
 
@@ -117,32 +118,29 @@ function HomePage() {
     }
   }, []);
 
-  const attachRoomSubscriptions = useCallback(
-    (rooms) => {
-      const client = notificationClientRef.current;
-      if (!client || !client.connected) return;
-      rooms.forEach((room) => {
-        if (notificationSubscriptionsRef.current.has(room.roomId)) {
-          return;
-        }
-        const subscription = client.subscribe(
-          `/topic/chat/${room.roomId}`,
-          (frame) => {
-            try {
-              JSON.parse(frame.body);
-            } catch (error) {
-              console.error("채팅 알림 파싱 실패", error);
-            }
-            if (!isChatModalOpen) {
-              setHasUnreadChats(true);
-            }
+  const attachRoomSubscriptions = useCallback((rooms) => {
+    const client = notificationClientRef.current;
+    if (!client || !client.connected) return;
+    rooms.forEach((room) => {
+      if (notificationSubscriptionsRef.current.has(room.roomId)) {
+        return;
+      }
+      const subscription = client.subscribe(
+        `/topic/chat/${room.roomId}`,
+        (frame) => {
+          try {
+            JSON.parse(frame.body);
+          } catch (error) {
+            console.error("채팅 알림 파싱 실패", error);
           }
-        );
-        notificationSubscriptionsRef.current.set(room.roomId, subscription);
-      });
-    },
-    [isChatModalOpen]
-  );
+          if (!isChatModalOpenRef.current) {
+            setHasUnreadChats(true);
+          }
+        }
+      );
+      notificationSubscriptionsRef.current.set(room.roomId, subscription);
+    });
+  }, []);
 
   const refreshUnreadChats = useCallback(async () => {
     try {
@@ -161,12 +159,16 @@ function HomePage() {
     }
   }, [lastChatCheck, attachRoomSubscriptions]);
 
-  useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    if (!token) {
-      navigate("/login", { replace: true });
-    }
-  }, [navigate]);
+useEffect(() => {
+  const token = localStorage.getItem("authToken");
+  if (!token) {
+    navigate("/login", { replace: true });
+  }
+}, [navigate]);
+
+useEffect(() => {
+  isChatModalOpenRef.current = isChatModalOpen;
+}, [isChatModalOpen]);
 
   useEffect(() => {
     let ignore = false;
@@ -329,7 +331,6 @@ function HomePage() {
   const openChatModal = (contact = null) => {
     setInitialChatContact(contact);
     setIsChatModalOpen(true);
-    markChatsRead();
   };
 
   const handleCloseChatModal = () => {
@@ -885,6 +886,7 @@ function HomePage() {
             <ChatModal
               onClose={handleCloseChatModal}
               initialContact={initialChatContact}
+              lastChatCheck={lastChatCheck}
             />
           </div>
         </div>

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./ChatModal.css";
-import { farms as farmListData } from "../data/farms";
 import {
   ensureChatRoom,
   fetchChatMessages,
@@ -104,7 +103,7 @@ const toBubbleMessage = (message, currentUserId) => ({
 // ============================================================
 // 🧩 ChatModal 시작
 // ============================================================
-function ChatModal({ onClose, initialContact }) {
+function ChatModal({ onClose, initialContact, lastChatCheck = Date.now() }) {
 
   // ------------------------------------------------------------
   // 상태: 채팅방 / 메시지 목록 / UI 플래그
@@ -114,8 +113,6 @@ function ChatModal({ onClose, initialContact }) {
   const [selectedChatId, setSelectedChatId] = useState(null);
 
   const [messageInput, setMessageInput] = useState("");
-
-  const [activeSidebarView, setActiveSidebarView] = useState("chats");
 
   // 에러/로딩 상태들
   const [roomError, setRoomError] = useState("");
@@ -130,13 +127,12 @@ function ChatModal({ onClose, initialContact }) {
   const [stompClient, setStompClient] = useState(null);
   const [isWsConnected, setIsWsConnected] = useState(false);
   const [wsError, setWsError] = useState("");
+  const [clearedRoomIds, setClearedRoomIds] = useState({});
 
   // Ref: 스크롤/WS subscription
   const subscriptionRef = useRef(null);
   const chatScrollRef = useRef(null);
-
-  // 농장 리스트(정적 데이터)
-  const farmList = useMemo(() => farmListData, []);
+  const ensuredContactKeyRef = useRef(null);
 
   // ============================================================
   // 📌 1) 전체 채팅방 불러오기
@@ -180,14 +176,12 @@ function ChatModal({ onClose, initialContact }) {
       // 이미 roomId 있으면 바로 해당 방으로 이동
       if (contact.roomId) {
         await loadRooms({ selectRoomId: contact.roomId });
-        setActiveSidebarView("chats");
         return;
       }
 
       // 신규 방 생성에 필요한 정보 부족
       if (!contact.farmId || !contact.farmerId || !contact.userId) {
         setRoomError("채팅방을 생성할 정보가 부족합니다.");
-        setActiveSidebarView("chats");
         return;
       }
 
@@ -202,7 +196,6 @@ function ChatModal({ onClose, initialContact }) {
         });
 
         await loadRooms({ selectRoomId: room.roomId });
-        setActiveSidebarView("chats");
       } catch (error) {
         setRoomError(error.message || "채팅방을 생성하지 못했습니다.");
       } finally {
@@ -245,7 +238,17 @@ function ChatModal({ onClose, initialContact }) {
           : room
       )
     );
-  }, []);
+    if (payload.roomId !== selectedChatId) {
+      setClearedRoomIds((prev) => {
+        if (!prev[payload.roomId]) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[payload.roomId];
+        return next;
+      });
+    }
+  }, [selectedChatId]);
 
   // ============================================================
   // 📌 4) 로그인 사용자 정보 로드
@@ -281,10 +284,39 @@ function ChatModal({ onClose, initialContact }) {
   // 📌 6) initialContact가 있으면 채팅방 생성/보장 처리
   // ============================================================
   useEffect(() => {
-    if (initialContact) {
-      ensureChatForContact(initialContact);
+    if (!initialContact) {
+      ensuredContactKeyRef.current = null;
+      return;
     }
+
+    const contactKey = JSON.stringify({
+      roomId: initialContact.roomId ?? null,
+      farmId: initialContact.farmId ?? null,
+      farmerId: initialContact.farmerId ?? null,
+      userId: initialContact.userId ?? null,
+    });
+
+    if (ensuredContactKeyRef.current === contactKey) {
+      return;
+    }
+
+    ensuredContactKeyRef.current = contactKey;
+    ensureChatForContact(initialContact);
   }, [initialContact, ensureChatForContact]);
+
+  useEffect(() => {
+    setClearedRoomIds({});
+  }, [lastChatCheck]);
+
+  useEffect(() => {
+    if (!selectedChatId) return;
+    setClearedRoomIds((prev) => {
+      if (prev[selectedChatId]) {
+        return prev;
+      }
+      return { ...prev, [selectedChatId]: true };
+    });
+  }, [selectedChatId]);
 
   // ============================================================
   // 📌 7) 특정 채팅방 메시지 로드
@@ -456,15 +488,22 @@ function ChatModal({ onClose, initialContact }) {
     return rooms.map((room) => {
       const history = messagesByChat[room.roomId] || [];
       const lastMessage = history[history.length - 1];
+      const lastTimestamp = room.lastMessageAt || room.updatedAt;
+      const lastMs = lastTimestamp ? new Date(lastTimestamp).getTime() : NaN;
+      const isUnread =
+        Number.isFinite(lastMs) &&
+        lastMs > (lastChatCheck ?? 0) &&
+        !clearedRoomIds[room.roomId];
 
       return {
         id: room.roomId,
         name: resolveRoomName(room, currentUserId),  // 상대방 이름 결정
         preview: lastMessage?.content || "",  // 마지막 메시지
-        lastTime: formatListTime(room.lastMessageAt || room.updatedAt),
+        lastTime: formatListTime(lastTimestamp),
+        isUnread,
       };
     });
-  }, [rooms, messagesByChat, currentUserId]);
+  }, [rooms, messagesByChat, currentUserId, lastChatCheck, clearedRoomIds]);
 
   // ============================================================
   // 📌 12) 현재 선택된 채팅방 정보
@@ -508,125 +547,59 @@ function ChatModal({ onClose, initialContact }) {
         </button>
       )}
       <div className="chat-modal-grid">
-        <div className="chat-nav-panel">
-          <button
-            type="button"
-            className={`chat-nav-btn ${
-              activeSidebarView === "farms" ? "active" : ""
-            }`}
-            onClick={() => setActiveSidebarView("farms")}
-            aria-label="농장 리스트 보기"
-          >
-            <span className="chat-nav-icon" aria-hidden="true">
-              🌾
-            </span>
-            <span className="chat-nav-label">농장</span>
-          </button>
-          <button
-            type="button"
-            className={`chat-nav-btn ${
-              activeSidebarView === "chats" ? "active" : ""
-            }`}
-            onClick={() => setActiveSidebarView("chats")}
-            aria-label="채팅 목록 보기"
-          >
-            <span className="chat-nav-icon" aria-hidden="true">
-              💬
-            </span>
-            <span className="chat-nav-label">채팅</span>
-          </button>
-        </div>
-        <aside
-          className={`chat-list-panel ${
-            activeSidebarView === "farms" ? "farms-mode" : ""
-          }`}
-        >
+        <aside className="chat-list-panel">
           <div className="chat-panel-content">
-            {activeSidebarView === "chats" ? (
-              <>
-                <div className="chat-list-header">
-                  <span className="chat-list-icon" aria-hidden="true">
-                    ✉️
-                  </span>
-                  <h3>채팅</h3>
-                </div>
-                <div className="chat-list-scroll">
-                  {isLoadingRooms && (
-                    <p className="chat-feedback">채팅방을 불러오는 중...</p>
-                  )}
-                  {!isLoadingRooms && !chatList.length && (
-                    <p className="chat-feedback">아직 시작한 대화가 없어요.</p>
-                  )}
-                  {roomError && (
-                    <p className="chat-feedback chat-feedback--error">
-                      {roomError}
-                    </p>
-                  )}
-                  {chatList.map((chat) => (
-                    <button
-                      type="button"
-                      key={chat.id}
-                      className={`chat-list-item${
-                        chat.id === selectedChatId ? " active" : ""
-                      }`}
-                      onClick={() => {
-                        setSelectedChatId(chat.id);
-                        setActiveSidebarView("chats");
-                      }}
-                    >
-                      <strong>{chat.name}</strong>
-                      <p>{chat.preview || "메시지를 시작해 보세요."}</p>
-                      <span className="chat-item-time">{chat.lastTime}</span>
-                    </button>
-                  ))}
-                </div>
-                {isEnsuringRoom && (
-                  <p className="chat-feedback">채팅방을 준비 중입니다...</p>
-                )}
-                <p
-                  className={`chat-connection-badge ${
-                    isWsConnected ? "online" : "offline"
-                  }`}
-                >
-                  {isWsConnected ? "실시간 연결됨" : "실시간 연결 대기 중..."}
+            <div className="chat-list-header">
+              <span className="chat-list-icon" aria-hidden="true">
+                ✉️
+              </span>
+              <h3>채팅</h3>
+            </div>
+            <div className="chat-list-scroll">
+              {isLoadingRooms && (
+                <p className="chat-feedback">채팅방을 불러오는 중...</p>
+              )}
+              {!isLoadingRooms && !chatList.length && (
+                <p className="chat-feedback">아직 시작한 대화가 없어요.</p>
+              )}
+              {roomError && (
+                <p className="chat-feedback chat-feedback--error">
+                  {roomError}
                 </p>
-                {wsError && (
-                  <p className="chat-feedback chat-feedback--error">
-                    {wsError}
-                  </p>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="chat-list-header">
-                  <span className="chat-list-icon" aria-hidden="true">
-                    🌾
-                  </span>
-                  <h3>농장</h3>
-                </div>
-                <div className="farm-list-scroll">
-                  {farmList.map((farm) => (
-                    <button
-                      type="button"
-                      key={farm.id}
-                      className="farm-list-item"
-                      onClick={() =>
-                        ensureChatForContact({
-                          id: `farm-${farm.id}`,
-                          name: `${farm.name} 농장주`,
-                          farmId: farm.id,
-                        })
-                      }
-                    >
-                      <div className="farm-list-texts">
-                        <strong>{farm.name}</strong>
-                        <p className="farm-meta">{farm.address}</p>
-                        <p className="farm-meta">{farm.phone}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>
+              )}
+              {chatList.map((chat) => (
+                <button
+                  type="button"
+                  key={chat.id}
+                  className={`chat-list-item${
+                    chat.id === selectedChatId ? " active" : ""
+                  }${chat.isUnread ? " unread" : ""}`}
+                  onClick={() => setSelectedChatId(chat.id)}
+                  aria-label={
+                    chat.isUnread ? `${chat.name} (읽지 않은 메시지)` : undefined
+                  }
+                >
+                  <strong>{chat.name}</strong>
+                  <p>{chat.preview || "메시지를 시작해 보세요."}</p>
+                  <span className="chat-item-time">{chat.lastTime}</span>
+                  {chat.isUnread && (
+                    <span className="chat-item-unread" aria-hidden="true" />
+                  )}
+                </button>
+              ))}
+            </div>
+            {isEnsuringRoom && (
+              <p className="chat-feedback">채팅방을 준비 중입니다...</p>
+            )}
+            <p
+              className={`chat-connection-badge ${
+                isWsConnected ? "online" : "offline"
+              }`}
+            >
+              {isWsConnected ? "실시간 연결됨" : "실시간 연결 대기 중..."}
+            </p>
+            {wsError && (
+              <p className="chat-feedback chat-feedback--error">{wsError}</p>
             )}
           </div>
         </aside>

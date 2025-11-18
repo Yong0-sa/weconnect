@@ -28,12 +28,14 @@ for cur in curation_list:
         print(f"⚠️ 없음: {cur}")
         continue
 
+    name = info.find("curationNm")
     code = info.find("atchmnflGroupEsntlCodeOrtx")
     url  = info.find("atchmnflUrl")
     link = info.find("linkUrl")
 
     rows.append({
         "curationNo": cur,
+        "curationNm": name.text.strip() if name else "",
         "atchmnflGroupEsntlCodeOrtx": code.text.strip() if code else "",
         "atchmnflUrl": url.text.strip() if url else "",
         "linkUrl": link.text.strip() if link else ""
