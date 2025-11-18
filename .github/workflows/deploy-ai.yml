@@ -26,6 +26,7 @@ jobs:
             --exclude='*.pkl' \
             --exclude='*.keras' \
             --exclude='venv' \
+            --exclude='chroma_db_v1' \
             --exclude='__pycache__' \
             *
 
@@ -55,7 +56,7 @@ jobs:
                 mv /app/ai/.model.zip /app/ai/backup_models/
               fi
               cd /app/ai && 
-              find . -maxdepth 1 ! -name 'aiModel' ! -name '.model.zip' ! -name 'backup_models' ! -name 'venv' ! -name '.' -exec rm -rf {} + &&
+              find . -maxdepth 1 ! -name 'aiModel' ! -name 'chroma_db_v1' ! -name '.model.zip' ! -name 'backup_models' ! -name 'venv' ! -name '.' -exec rm -rf {} + &&
               tar -xzf /tmp/ai-files.tar.gz && 
               rm /tmp/ai-files.tar.gz && 
               if [ -d /app/ai/backup_models/aiModel ]; then

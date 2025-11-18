@@ -14,6 +14,7 @@ frontend/.env
 ai/__pycache__/
 ai/venv/
 ai/.env
+ai/chroma_db_v1/
 ai/*.pyc
 
 # IDE

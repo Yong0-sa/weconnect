@@ -4,6 +4,8 @@ import com.project.eum.dto.CreateFarmRequest;
 import com.project.eum.dto.FarmResponse;
 import com.project.eum.farm.Farm;
 import com.project.eum.farm.FarmRepository;
+import com.project.eum.farm.contract.FarmContractRepository;
+import com.project.eum.farm.contract.FarmContractStatus;
 import com.project.eum.service.dto.GeoCoordinate;
 import com.project.eum.user.Member;
 import com.project.eum.user.MemberRepository;
@@ -35,6 +37,7 @@ public class FarmService {
     private final MemberRepository memberRepository;
     private final FarmRepository farmRepository;
     private final KakaoAddressSearchClient kakaoAddressSearchClient;
+    private final FarmContractRepository farmContractRepository;
 
     /**
      * 농장 등록.
@@ -253,6 +256,24 @@ public class FarmService {
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    /**
+     * 농장주인지 확인
+     */
+    public boolean isFarmOwner(Long userId, Long farmId) {
+        return farmRepository.findById(farmId)
+                .map(farm -> farm.getOwner().getUserId().equals(userId))
+                .orElse(false);
+    }
+
+    /**
+     * 승인된 회원인지 확인
+     */
+    public boolean isApprovedMember(Long userId, Long farmId) {
+        return farmContractRepository
+                .findByUserUserIdAndFarmFarmIdAndStatus(userId, farmId, FarmContractStatus.APPROVED)
+                .isPresent();
     }
 
     /**

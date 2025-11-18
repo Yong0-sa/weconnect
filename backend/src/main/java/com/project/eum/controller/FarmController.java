@@ -13,6 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping({"/api/farms", "/farms"})
 @RequiredArgsConstructor
@@ -66,6 +69,33 @@ public class FarmController {
             return ResponseEntity.ok(FarmResponse.from(updated));
         } catch (IllegalArgumentException | IllegalStateException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/{farmId}/check-approval")
+    public ResponseEntity<?> checkApproval(@PathVariable Long farmId, HttpSession session) {
+        Long userId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+
+        Map<String, Boolean> result = new HashMap<>();
+
+        if (userId == null) {
+            result.put("isApproved", false);
+            result.put("isOwner", false);
+            return ResponseEntity.ok(result);
+        }
+
+        try {
+            boolean isOwner = farmService.isFarmOwner(userId, farmId);
+            boolean isApproved = farmService.isApprovedMember(userId, farmId);
+
+            result.put("isOwner", isOwner);
+            result.put("isApproved", isApproved);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception ex) {
+            result.put("isApproved", false);
+            result.put("isOwner", false);
+            return ResponseEntity.ok(result);
         }
     }
 }

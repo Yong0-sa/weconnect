@@ -1,5 +1,6 @@
 package com.project.eum.dto;
 
+import com.project.eum.post.PostType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,4 +14,5 @@ public class PostCreateRequest {
     private String photoUrl;
     private Long authorId;
     private Long farmId;
+    private PostType type;
 }

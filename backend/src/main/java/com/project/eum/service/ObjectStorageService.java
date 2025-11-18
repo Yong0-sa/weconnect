@@ -70,6 +70,13 @@ public class ObjectStorageService {
         return uploadImage(file, userId, "diary");
     }
 
+    /**
+     * 커뮤니티 게시글 이미지를 Object Storage에 업로드
+     */
+    public String uploadCommunityImage(MultipartFile file, Long userId) {
+        return uploadImage(file, userId, "community");
+    }
+
     private String uploadImage(MultipartFile file, Long userId, String category) {
         try {
             // 파일명 생성: {category}/{userId}/{timestamp}_{uuid}_{originalFilename}

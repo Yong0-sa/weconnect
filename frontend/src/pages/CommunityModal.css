@@ -324,6 +324,70 @@
   color: #5f646b;
 }
 
+.community-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 12px 24px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  animation: fadeDown 0.3s ease;
+  background: #67bc63;
+}
+
+.community-toast--success {
+  background: linear-gradient(135deg, #67bc63, #4a9146);
+}
+
+.community-toast--error {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+}
+
+.community-toast--confirm {
+  background: #67bc63;
+}
+
+.community-toast-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.community-toast-actions button {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  transition: opacity 0.2s ease;
+}
+
+.community-toast-actions button.danger {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+}
+
+.community-toast-actions button:hover {
+  opacity: 0.85;
+}
+
+@keyframes fadeDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
 .community-write-btn {
   border: none;
   border-radius: 999px;
@@ -340,6 +404,16 @@
 .community-write-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(103, 188, 99, 0.4);
+}
+.community-write-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.community-write-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .section-header {
@@ -899,6 +973,14 @@
 
 .detail-comment-submit:hover {
   color: #4a9146;
+}
+.detail-comment-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #999;
+}
+.detail-comment-submit:disabled:hover {
+  color: #999;
 }
 
 /* 대댓글 */

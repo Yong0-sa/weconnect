@@ -148,6 +148,34 @@ class RAGService:
             raise RAGServiceError("GPT 호출 중 오류가 발생했습니다.") from exc
         return response.output_text
 
+    def _extract_crop_name(self, query: str, metas, kept_idx):
+        """
+        질문에서 한글 명사 후보를 뽑고,
+        RAG 메타데이터(title/curationNm)에 실제 등장하는 단어면 작물명으로 간주.
+        """
+        tokens = re.findall(r"[가-힣]+", query)
+        cands = [t for t in tokens if len(t) >= 2]
+        if not cands:
+            return None
+
+        titles = []
+        for i in kept_idx:
+            m = metas[i]
+            title = (m.get("title") or m.get("curationNm") or "").strip()
+            if title:
+                titles.append(title)
+
+        if not titles:
+            return None
+
+        joined = " ".join(titles)
+        for cand in cands:
+            if cand in joined:
+                return cand
+
+        return None
+
+
     def _build_retrieval_context(self, query: str) -> Optional[RetrievalContext]:
         try:
             embedding = self._client.embeddings.create(model=self._embedding_model, input=[query]).data[0].embedding
@@ -174,8 +202,23 @@ class RAGService:
             if dist <= self._distance_threshold
         ]
 
+        # 필터 결과가 있으면 교체, 없으면 기존 kept 사용
         if len(kept) < self._min_docs:
             return None
+
+        # 작물 필터링 추가
+        kept_idx = list(range(len(kept)))
+        crop = self._extract_crop_name(query, metas, kept_idx)
+
+        if crop:
+            filtered = []
+            for idx in kept_idx:
+                doc, meta, id_hit, dist = kept[idx]
+                title = (meta.get("title") or meta.get("curationNm") or "")
+                if crop in title or crop in doc:
+                    filtered.append(idx)
+            if filtered:
+                kept = [kept[i] for i in filtered]
 
         context = "\n\n".join(doc for doc, _, _, _ in kept)[: self._context_limit]
         pdf_links = self._extract_pdf_links(kept)

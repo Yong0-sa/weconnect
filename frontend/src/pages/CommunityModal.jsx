@@ -1,11 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import "./CommunityModal.css";
-import {
-  noticePosts as allNoticePosts,
-  communityPosts as allCommunityPosts,
-} from "../data/mockPosts";
 import { fetchMyProfile } from "../api/profile";
+import { useCoins } from "../contexts/CoinContext";
 
 const formatToDateString = (value) => {
   if (!value) return "";
@@ -48,6 +45,7 @@ const formatToDateString = (value) => {
 };
 
 function CommunityModal({ onClose }) {
+  const { addCoins } = useCoins();
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [farmList, setFarmList] = useState([]);
@@ -73,23 +71,61 @@ function CommunityModal({ onClose }) {
   const [writeImage, setWriteImage] = useState(null);
   const [writeImagePreview, setWriteImagePreview] = useState(null);
   const [writeCategory, setWriteCategory] = useState("board");
-  const [localCommunityPosts, setLocalCommunityPosts] = useState(allCommunityPosts);
+  const [localCommunityPosts, setLocalCommunityPosts] = useState([]);
+  const [isOwner, setIsOwner] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
+  const [myFarmId, setMyFarmId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [hasManualSelection, setHasManualSelection] = useState(false);
+  const [toast, setToast] = useState(null);
   const dropdownRef = useRef(null);
   const farmSearchInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const generateUniqueId = () => Date.now() + Math.random();
 
+  const canEditSelectedPost =
+    selectedPost &&
+    (selectedPost.type === "NOTICE"
+      ? isOwner
+      : selectedPost.authorId === userId);
+
+  const showToast = useCallback((message, type = "info") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  const applyFarmSelection = useCallback(
+    (farm, options = {}) => {
+      if (!farm) return;
+      if (options.manual) {
+        setHasManualSelection(true);
+      } else {
+        setHasManualSelection(false);
+      }
+      setSelectedFarm(farm);
+      setSelectedPost(null);
+      setIsWriting(false);
+      setEditingPost(false);
+      setEditPostTitle("");
+      setEditPostContent("");
+      setActiveCategory("all");
+    },
+    []
+  );
+
 
   // 선택된 농장의 게시글만 필터링
   const noticePosts = useMemo(() => {
       if (!selectedFarm || !selectedFarm.farmId) return [];
-    return allNoticePosts.filter((post) => post.farmId === selectedFarm.farmId);
-  }, [selectedFarm]);
+    return localCommunityPosts.filter(
+      (post) => post.farmId === selectedFarm.farmId && post.type === "NOTICE"
+    );
+  }, [selectedFarm, localCommunityPosts]);
 
   const communityPosts = useMemo(() => {
       if (!selectedFarm || !selectedFarm.farmId) return [];
     return localCommunityPosts.filter(
-      (post) => post.farmId === selectedFarm.farmId
+      (post) => post.farmId === selectedFarm.farmId && post.type === "GENERAL"
     );
   }, [selectedFarm, localCommunityPosts]);
 
@@ -98,10 +134,7 @@ function CommunityModal({ onClose }) {
       return (
         !search.trim() ||
         post.title.toLowerCase().includes(search.toLowerCase()) ||
-        post.content.toLowerCase().includes(search.toLowerCase()) ||
-        post.tags.some((tag) =>
-          tag.toLowerCase().includes(search.toLowerCase())
-        )
+        post.content.toLowerCase().includes(search.toLowerCase())
       );
     });
   }, [search, communityPosts]);
@@ -111,10 +144,7 @@ function CommunityModal({ onClose }) {
       return (
         !search.trim() ||
         post.title.toLowerCase().includes(search.toLowerCase()) ||
-        post.content.toLowerCase().includes(search.toLowerCase()) ||
-        post.tags.some((tag) =>
-          tag.toLowerCase().includes(search.toLowerCase())
-        )
+        post.content.toLowerCase().includes(search.toLowerCase())
       );
     });
   }, [search, noticePosts]);
@@ -126,7 +156,8 @@ function CommunityModal({ onClose }) {
     );
   }, [farmSearch, farmList]);
 
-
+  const hasNoticePosts = filteredNoticePosts.length > 0;
+  const hasBoardPosts = filteredBoardPosts.length > 0;
   const showNotice = activeCategory === "all" || activeCategory === "notice";
   const showBoard = activeCategory === "all" || activeCategory === "board";
   const totalCount =
@@ -136,6 +167,9 @@ function CommunityModal({ onClose }) {
   const handlePostClick = async (post) => {
     setSelectedPost(post);
     setCommentInput("");
+    setEditingPost(false);
+    setEditPostTitle("");
+    setEditPostContent("");
 
     try {
         const response = await axios.get(`/api/comments?postId=${post.id}`);
@@ -227,10 +261,8 @@ function CommunityModal({ onClose }) {
 
             setReplyingTo(null);
             setReplyInput("");
-            alert("답글이 등록되었습니다!");
           } catch (error) {
             console.error("답글 등록 실패:", error);
-            alert("답글 등록 실패: " + (error.response?.data || error.message));
       }
     };
 
@@ -262,16 +294,14 @@ function CommunityModal({ onClose }) {
 
     setLocalCommunityPosts((prevPosts) =>
           prevPosts.map((post) =>
-            post.id === selectedPost.id
-              ? { ...post, title: editPostTitle.trim(), content: editPostContent.trim() }
-              : post
-          )
-        );
+                        post.id === selectedPost.id
+                          ? { ...post, title: editPostTitle.trim(), content: editPostContent.trim() }
+                          : post
+                      )
+                    );
     setEditingPost(false);
-    alert("글이 수정되었습니다!");
   } catch (error) {
       console.error("글 수정 실패:", error);
-      alert("글 수정 실패: " + (error.response?.data || error.message));
       }
   };
 
@@ -281,8 +311,28 @@ function CommunityModal({ onClose }) {
     setEditPostContent("");
   };
 
+  const confirmDelete = async (message) =>
+    new Promise((resolve) => {
+      setToast({
+        type: "confirm",
+        message,
+        onConfirm: () => {
+          setToast(null);
+          resolve(true);
+        },
+        onCancel: () => {
+          setToast(null);
+          resolve(false);
+        },
+      });
+    });
+
   const handleDeletePost = async () => {
-    if (!window.confirm("게시글을 삭제하시겠습니까?")) return;
+    const confirmed = await confirmDelete("게시글을 삭제하시겠습니까?");
+    if (!confirmed) {
+      setToast(null);
+      return;
+    }
 
      try {
          await axios.delete(`/api/posts/${selectedPost.id}?requesterId=${userId}`);
@@ -296,13 +346,12 @@ function CommunityModal({ onClose }) {
                  return newComments;
                });
            setSelectedPost(null);
-
-           // 삭제 성공 시 알림
-           alert("게시글이 삭제되었습니다.")
+           showToast("게시글이 삭제되었습니다.", "success");
 
          } catch (error) {
              console.error("게시글 삭제 실패:", error);
-             alert("삭제 실패: " + (error.response?.data || error.message));
+             const msg = error.response?.data || error.message || "삭제 실패";
+             showToast(msg, "error");
              }
   };
 
@@ -361,7 +410,6 @@ function CommunityModal({ onClose }) {
       setEditCommentContent("");
     } catch (error) {
       console.error("수정 실패:", error);
-      alert("수정 실패: " + (error.response?.data || error.message));
     }
   };
 
@@ -373,11 +421,12 @@ function CommunityModal({ onClose }) {
 
 // 댓글, 답글 삭제 함수
   const handleDeleteComment = async (commentId, parentId = null) => {
-    const message = parentId
-        ? "답글을 삭제하시겠습니까?"
-        : "답글을 삭제하시겠습니까?";
-
-      if (!window.confirm(message)) return;
+    const message = "댓글을 삭제하시겠습니까?";
+    const confirmed = await confirmDelete(message);
+    if (!confirmed) {
+      setToast(null);
+      return;
+    }
 
     try{
         if (parentId) {
@@ -419,10 +468,11 @@ function CommunityModal({ onClose }) {
         };
       }
     });
-    alert("삭제되었습니다!");
+    showToast("삭제되었습니다.", "success");
    } catch (error) {
         console.error("삭제 실패:", error);
-        alert("삭제 실패: " + (error.response?.data || error.message));
+        const msg = error.response?.data || error.message || "삭제 실패";
+        showToast(msg, "error");
 
     };
   };
@@ -458,33 +508,43 @@ function CommunityModal({ onClose }) {
   // ✅ 백엔드 API 연동 - 글쓰기 제출 (JSON만 전송)
   const handleWriteSubmit = async () => {
     if (!writeTitle.trim() || !writeContent.trim()) {
-      alert("제목과 내용을 입력해주세요.");
       return;
     }
 
     // ✅ 수정: selectedFarm과 farmId 확인
     if (!selectedFarm || !selectedFarm.farmId) {
-      alert("선택된 농장이 없습니다.");
       return;
     }
 
     try {
-      const response = await axios.post("/api/posts", {
+      const formData = new FormData();
+      const payload = {
         title: writeTitle.trim(),
         content: writeContent.trim(),
         authorId: userId,
-        farmId: selectedFarm.farmId, // ✅ 수정
+        farmId: selectedFarm.farmId,
+        type: writeCategory === "notice" ? "NOTICE" : "GENERAL",
+      };
+      formData.append(
+        "post",
+        new Blob([JSON.stringify(payload)], { type: "application/json" })
+      );
+      if (writeImage) {
+        formData.append("image", writeImage);
+      }
+      const response = await axios.post("/api/posts", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       console.log("✅ userId:", userId);
       console.log("✅ farmId:", selectedFarm.farmId);
 
-      alert("✅ 글쓰기 성공!");
       console.log("서버 응답:", response.data);
 
+      const imageUrl = response.data.photoUrl || writeImagePreview || null;
       const newPost = {
         id: response.data.id || Date.now(),
-        farmId: selectedFarm.farmId, // ✅ 수정
+        farmId: selectedFarm.farmId,
         userNickname: userNickname || "사용자",
         authorId: userId,
         role: "회원",
@@ -493,13 +553,15 @@ function CommunityModal({ onClose }) {
         tags: [],
         likes: 0,
         replies: 0,
-        type: "tip",
+        type: response.data.type || "GENERAL", // ⭐ 서버에서 받은 type 사용
         createdAt: new Date().toISOString(),
-        image: writeImagePreview,
+        image: imageUrl,
+        photoUrl: imageUrl,
       };
 
       setLocalCommunityPosts((prev) => [newPost, ...prev]);
-
+      addCoins(1);
+      showToast("게시글이 저장되었습니다! 코인 1개 적립!", "success");
       setIsWriting(false);
       setWriteTitle("");
       setWriteContent("");
@@ -511,7 +573,6 @@ function CommunityModal({ onClose }) {
       console.error("❌ 글쓰기 실패:", error);
       console.error("응답 데이터:", error.response?.data);
       console.error("응답 상태:", error.response?.status);
-      alert("글쓰기 실패: " + (error.response?.data || error.message));
     }
   };
 
@@ -522,7 +583,11 @@ function CommunityModal({ onClose }) {
     const fetchPosts = async () => {
       try {
         const response = await axios.get("/api/posts"); // 전체 글 조회
-        setLocalCommunityPosts(response.data); // 상태에 저장
+        const mapped = (response.data || []).map((post) => ({
+          ...post,
+          image: post.photoUrl || post.image || null,
+        }));
+        setLocalCommunityPosts(mapped); // 상태에 저장
       } catch (error) {
         console.error("게시글 가져오기 실패:", error);
       }
@@ -538,16 +603,32 @@ function CommunityModal({ onClose }) {
       try {
         const profile = await fetchMyProfile();
         setUserNickname(profile.nickname || profile.name || "사용자");
-        setUserId(profile.userId || 1); // 사용자 ID 저장
+        setUserId(profile.userId || 1);
+        setMyFarmId(profile.farmId ?? null);
+        setUserRole(profile.role || null);
       } catch (error) {
         console.error("사용자 정보 가져오기 실패:", error);
         setUserNickname("사용자");
-        setUserId(1); // 기본값
+        setUserId(1);
+        setMyFarmId(null);
+        setUserRole(null);
       }
     };
 
     fetchUserInfo();
   }, []);
+
+  useEffect(() => {
+    if (!selectedPost) {
+      setEditingPost(false);
+      setEditPostTitle("");
+      setEditPostContent("");
+      return;
+    }
+    if (selectedFarm && selectedPost.farmId !== selectedFarm.farmId) {
+      setSelectedPost(null);
+    }
+  }, [selectedPost, selectedFarm]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -567,29 +648,89 @@ function CommunityModal({ onClose }) {
     };
   }, [isFarmDropdownOpen]);
 
-    // CommunityModal.jsx - useEffect 수정
+    // 농장 목록 조회
     useEffect(() => {
       const fetchFarms = async () => {
         try {
           const response = await axios.get("/api/farms");
-          console.log("✅ 농장 목록:", response.data); // 디버깅용
+          console.log("✅ 농장 목록:", response.data);
 
           if (response.data && response.data.length > 0) {
             setFarmList(response.data);
-            setSelectedFarm(response.data[0]);
           } else {
             console.warn("등록된 농장이 없습니다.");
             setFarmList([]);
+            setSelectedFarm(null);
           }
         } catch (error) {
           console.error("❌ 농장 목록 가져오기 실패:", error);
-          alert("농장 목록을 불러오는데 실패했습니다.");
           setFarmList([]);
+          setSelectedFarm(null);
         }
       };
 
       fetchFarms();
     }, []);
+
+    // 농장주라면 자신의 농장을 우선 선택
+  useEffect(() => {
+    if (!farmList.length) return;
+
+    if (!hasManualSelection && myFarmId) {
+      const matched = farmList.find(
+        (farm) => String(farm.farmId) === String(myFarmId)
+      );
+      if (matched) {
+        if (!selectedFarm || selectedFarm.farmId !== matched.farmId) {
+          applyFarmSelection(matched);
+        }
+        return;
+      }
+    }
+
+    if (!hasManualSelection && !selectedFarm && farmList[0]) {
+      applyFarmSelection(farmList[0]);
+      return;
+    }
+
+    if (
+      hasManualSelection &&
+      selectedFarm &&
+      !farmList.some((farm) => farm.farmId === selectedFarm.farmId)
+    ) {
+      setHasManualSelection(false);
+      if (farmList[0]) {
+        applyFarmSelection(farmList[0]);
+      }
+    }
+  }, [farmList, myFarmId, selectedFarm, hasManualSelection, applyFarmSelection]);
+
+    // 농장 선택 시 권한 확인
+    useEffect(() => {
+      if (!selectedFarm || !selectedFarm.farmId) {
+        setIsOwner(false);
+        setIsApproved(false);
+        return;
+      }
+
+      const checkPermissions = async () => {
+        try {
+          const response = await axios.get(`/api/farms/${selectedFarm.farmId}/check-approval`);
+          console.log("✅ 권한 확인 결과:", response.data);
+          console.log("   farmId:", selectedFarm.farmId);
+          console.log("   isOwner:", response.data.isOwner);
+          console.log("   isApproved:", response.data.isApproved);
+          setIsOwner(response.data.isOwner || false);
+          setIsApproved(response.data.isApproved || false);
+        } catch (error) {
+          console.error("❌ 권한 확인 실패:", error);
+          setIsOwner(false);
+          setIsApproved(false);
+        }
+      };
+
+      checkPermissions();
+    }, [selectedFarm]);
 
   useEffect(() => {
     if (isFarmDropdownOpen && farmSearchInputRef.current) {
@@ -599,6 +740,21 @@ function CommunityModal({ onClose }) {
 
   return (
     <div className="community-modal-card">
+      {toast && (
+        <div className={`community-toast community-toast--${toast.type}`}>
+          <span>{toast.message}</span>
+          {toast.type === "confirm" && (
+            <div className="community-toast-actions">
+              <button type="button" onClick={toast.onCancel}>
+                취소
+              </button>
+              <button type="button" className="danger" onClick={toast.onConfirm}>
+                삭제
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       {onClose && (
         <button
           type="button"
@@ -662,7 +818,7 @@ function CommunityModal({ onClose }) {
                             <button
                               type="button"
                               onClick={() => {
-                                setSelectedFarm(farm);
+                                applyFarmSelection(farm, { manual: true });
                                 setFarmSearch("");
                                 setIsFarmDropdownOpen(false);
                               }}
@@ -746,6 +902,7 @@ function CommunityModal({ onClose }) {
                     value={writeCategory}
                     onChange={(e) => setWriteCategory(e.target.value)}
                   >
+                    {isOwner && <option value="notice">공지사항</option>}
                     <option value="board">자유게시판</option>
                   </select>
                 </div>
@@ -833,15 +990,15 @@ function CommunityModal({ onClose }) {
                     </h3>
                     <span className="list-count">{totalCount}건</span>
                   </div>
-                  {(activeCategory === "all" || activeCategory === "board") && (
-                    <button
-                      type="button"
-                      className="community-write-btn"
-                      onClick={handleWriteClick}
-                    >
-                      글쓰기
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="community-write-btn"
+                    onClick={handleWriteClick}
+                    disabled={!isOwner && !isApproved}
+                    title={!isOwner && !isApproved ? "승인된 회원만 글을 작성할 수 있습니다" : ""}
+                  >
+                    글쓰기
+                  </button>
                 </div>
                 {showNotice &&
                   filteredNoticePosts.map((post) => (
@@ -864,11 +1021,6 @@ function CommunityModal({ onClose }) {
                       </div>
                     </article>
                   ))}
-                {showNotice && filteredNoticePosts.length === 0 && (
-                  <div className="community-empty small">
-                    <p>공지사항이 없습니다.</p>
-                  </div>
-                )}
                 {showBoard &&
                   filteredBoardPosts.map((post) => (
                     <article
@@ -889,7 +1041,14 @@ function CommunityModal({ onClose }) {
                       </div>
                     </article>
                   ))}
-                {showBoard && filteredBoardPosts.length === 0 && (
+                {((showNotice && !hasNoticePosts) || (showBoard && !hasBoardPosts)) &&
+                  !hasNoticePosts &&
+                  !hasBoardPosts && (
+                    <div className="community-empty small">
+                      <p>게시글이 없습니다.</p>
+                    </div>
+                  )}
+                {showBoard && !hasBoardPosts && hasNoticePosts && showNotice && (
                   <div className="community-empty small">
                     <p>조건에 맞는 글이 없습니다.</p>
                     <button
@@ -960,7 +1119,7 @@ function CommunityModal({ onClose }) {
                     <>
                     <div className="post-detail">
                       <h4>{selectedPost.title}</h4>
-                      {selectedPost.authorId === userId && (
+                      {canEditSelectedPost && (
                                               <div className="post-action-buttons">
                                                 <button
                                                   type="button"
@@ -1095,15 +1254,17 @@ function CommunityModal({ onClose }) {
                                         minute: "2-digit",
                                       })}
                                     </span>
-                                    <button
-                                      type="button"
-                                      className="comment-reply-btn"
-                                      onClick={() =>
-                                        handleReplyClick(comment.commentId)
-                                      }
-                                    >
-                                      답글
-                                    </button>
+                                    {(isOwner || isApproved) && (
+                                      <button
+                                        type="button"
+                                        className="comment-reply-btn"
+                                        onClick={() =>
+                                          handleReplyClick(comment.commentId)
+                                        }
+                                      >
+                                        답글
+                                      </button>
+                                    )}
                                   </div>
                                 </>
                               )}
@@ -1256,13 +1417,15 @@ function CommunityModal({ onClose }) {
                     </div>
                     <textarea
                       value={commentInput}
-                      placeholder="댓글을 입력하세요"
+                      placeholder={!isOwner && !isApproved ? "승인된 회원만 댓글을 작성할 수 있습니다" : "댓글을 입력하세요"}
                       onChange={(event) => setCommentInput(event.target.value)}
+                      disabled={!isOwner && !isApproved}
                     />
                     <button
                       type="button"
                       className="detail-comment-submit"
                       onClick={handleCommentSubmit}
+                      disabled={!isOwner && !isApproved}
                     >
                       등록
                     </button>
