@@ -161,7 +161,7 @@ except Exception as exc:
 history_store = HistoryStore()
 
 
-@app.post("/api/ai/search", response_model=HistoryItem)
+@app.post("/api/ai/chat", response_model=HistoryItem)
 async def search_ai(payload: SearchRequest) -> HistoryItem:
     try:
         logger.info(f"질문 수신: {payload.question}")
@@ -186,7 +186,7 @@ async def search_ai(payload: SearchRequest) -> HistoryItem:
     return _to_history_item(entry)
 
 
-@app.get("/api/ai/search/history", response_model=List[HistoryItem])
+@app.get("/api/ai/chat/history", response_model=List[HistoryItem])
 async def get_history() -> List[HistoryItem]:
     entries = await run_in_threadpool(history_store.list)
     return [_to_history_item(entry) for entry in entries]
