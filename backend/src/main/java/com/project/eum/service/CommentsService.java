@@ -71,7 +71,7 @@ public class CommentsService {
 
 
     }
-
+@Transactional
     public CommentsResponseDto updateComment(Long commentId, Long requesterId, CommentsUpdateRequest request) {
         Comments comment = commentsRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("댓글이 존재하지 않습니다."));
@@ -87,6 +87,7 @@ public class CommentsService {
         Long postId = savedComment.getPost().getPostId();
         Long authorId = savedComment.getAuthor().getUserId();
         String nickname = savedComment.getAuthor().getNickname();
+        System.out.println("Updated Comment: " + savedComment);
 
         return new CommentsResponseDto(
                 savedComment.getCommentId(),
@@ -96,7 +97,10 @@ public class CommentsService {
                 savedComment.getContent(),
                 savedComment.getCreatedAt()
         );
+
     }
+
+
 
     public void deleteComment(Long commentId, Long requesterId) {
         Comments comment = commentsRepository.findById(commentId)

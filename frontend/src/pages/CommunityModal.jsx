@@ -51,7 +51,8 @@ const formatToDateString = (value) => {
 function CommunityModal({ onClose }) {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [selectedFarm, setSelectedFarm] = useState(farms[0]);
+  const [farmList, setFarmList] = useState([]);
+  const [selectedFarm, setSelectedFarm] = useState(null);
   const [isFarmDropdownOpen, setIsFarmDropdownOpen] = useState(false);
   const [farmSearch, setFarmSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
@@ -79,14 +80,17 @@ function CommunityModal({ onClose }) {
   const imageInputRef = useRef(null);
   const generateUniqueId = () => Date.now() + Math.random();
 
+
   // 선택된 농장의 게시글만 필터링
   const noticePosts = useMemo(() => {
-    return allNoticePosts.filter((post) => post.farmId === selectedFarm.id);
+      if (!selectedFarm || !selectedFarm.farmId) return [];
+    return allNoticePosts.filter((post) => post.farmId === selectedFarm.farmId);
   }, [selectedFarm]);
 
   const communityPosts = useMemo(() => {
+      if (!selectedFarm || !selectedFarm.farmId) return [];
     return localCommunityPosts.filter(
-      (post) => post.farmId === selectedFarm.id
+      (post) => post.farmId === selectedFarm.farmId
     );
   }, [selectedFarm, localCommunityPosts]);
 
@@ -117,11 +121,12 @@ function CommunityModal({ onClose }) {
   }, [search, noticePosts]);
 
   const filteredFarms = useMemo(() => {
-    if (!farmSearch.trim()) return farms;
-    return farms.filter((farm) =>
+    if (!farmSearch.trim()) return farmList;
+    return farmList.filter((farm) =>
       farm.name.toLowerCase().includes(farmSearch.toLowerCase())
     );
-  }, [farmSearch]);
+  }, [farmSearch, farmList]);
+
 
   const showNotice = activeCategory === "all" || activeCategory === "notice";
   const showBoard = activeCategory === "all" || activeCategory === "board";
@@ -291,48 +296,54 @@ function CommunityModal({ onClose }) {
     setEditCommentContent(content);
   };
 
-  const handleSaveComment = (commentId, parentId = null) => {
+  const handleSaveComment = async (commentId, parentId = null) => {
     if (!editCommentContent.trim()) return;
 
-    setComments((prev) => {
-      const postComments = prev[selectedPost.id] || [];
+    try {
+      // 1. 백엔드에 수정 요청
+      await axios.put(`/api/comments/${commentId}?requesterId=${userId}`, {
+        content: editCommentContent,
+      });
 
-      if (parentId) {
-        const updatedComments = postComments.map((comment) => {
-          if (comment.id === parentId) {
-            return {
-              ...comment,
-              replies: comment.replies.map((reply) =>
-                reply.id === commentId
-                  ? { ...reply, content: editCommentContent.trim() }
-                  : reply
-              ),
-            };
-          }
-          return comment;
-        });
+      // 2. 요청 성공 시 로컬 상태 업데이트
+      setComments((prev) => {
+        const postComments = prev[selectedPost.id] || [];
 
-        return {
-          ...prev,
-          [selectedPost.id]: updatedComments,
-        };
-      } else {
-        const updatedComments = postComments.map((comment) =>
-          comment.id === commentId
-            ? { ...comment, content: editCommentContent.trim() }
-            : comment
-        );
+        if (parentId) {
+          const updatedComments = postComments.map((comment) => {
+            if (comment.id === parentId) {
+              return {
+                ...comment,
+                replies: comment.replies.map((reply) =>
+                  reply.id === commentId
+                    ? { ...reply, content: editCommentContent.trim() }
+                    : reply
+                ),
+              };
+            }
+            return comment;
+          });
 
-        return {
-          ...prev,
-          [selectedPost.id]: updatedComments,
-        };
-      }
-    });
+          return { ...prev, [selectedPost.id]: updatedComments };
+        } else {
+          const updatedComments = postComments.map((comment) =>
+            comment.id === commentId
+              ? { ...comment, content: editCommentContent.trim() }
+              : comment
+          );
 
-    setEditingComment(null);
-    setEditCommentContent("");
+          return { ...prev, [selectedPost.id]: updatedComments };
+        }
+      });
+
+      setEditingComment(null);
+      setEditCommentContent("");
+    } catch (error) {
+      console.error("댓글 수정 실패:", error);
+      alert("댓글 수정 실패: " + (error.response?.data || error.message));
+    }
   };
+
 
   const handleCancelEditComment = () => {
     setEditingComment(null);
@@ -410,22 +421,29 @@ function CommunityModal({ onClose }) {
       return;
     }
 
+    // ✅ 수정: selectedFarm과 farmId 확인
+    if (!selectedFarm || !selectedFarm.farmId) {
+      alert("선택된 농장이 없습니다.");
+      return;
+    }
+
     try {
-      // 일단 JSON만 전송 (이미지 제외)
       const response = await axios.post("/api/posts", {
         title: writeTitle.trim(),
         content: writeContent.trim(),
-        authorId: userId || userId,
-        farmId: selectedFarm.id,
+        authorId: userId,
+        farmId: selectedFarm.farmId, // ✅ 수정
       });
-        console.log(userId)
+
+      console.log("✅ userId:", userId);
+      console.log("✅ farmId:", selectedFarm.farmId);
 
       alert("✅ 글쓰기 성공!");
       console.log("서버 응답:", response.data);
 
       const newPost = {
         id: response.data.id || Date.now(),
-        farmId: selectedFarm.id,
+        farmId: selectedFarm.farmId, // ✅ 수정
         userNickname: userNickname || "사용자",
         authorId: userId,
         role: "회원",
@@ -436,7 +454,7 @@ function CommunityModal({ onClose }) {
         replies: 0,
         type: "tip",
         createdAt: new Date().toISOString(),
-        image: writeImagePreview, // 로컬 미리보기만 사용
+        image: writeImagePreview,
       };
 
       setLocalCommunityPosts((prev) => [newPost, ...prev]);
@@ -455,6 +473,8 @@ function CommunityModal({ onClose }) {
       alert("글쓰기 실패: " + (error.response?.data || error.message));
     }
   };
+
+
 
   // 게시글 전체 조회하기
   useEffect(() => {
@@ -505,6 +525,30 @@ function CommunityModal({ onClose }) {
       document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [isFarmDropdownOpen]);
+
+    // CommunityModal.jsx - useEffect 수정
+    useEffect(() => {
+      const fetchFarms = async () => {
+        try {
+          const response = await axios.get("/api/farms");
+          console.log("✅ 농장 목록:", response.data); // 디버깅용
+
+          if (response.data && response.data.length > 0) {
+            setFarmList(response.data);
+            setSelectedFarm(response.data[0]);
+          } else {
+            console.warn("등록된 농장이 없습니다.");
+            setFarmList([]);
+          }
+        } catch (error) {
+          console.error("❌ 농장 목록 가져오기 실패:", error);
+          alert("농장 목록을 불러오는데 실패했습니다.");
+          setFarmList([]);
+        }
+      };
+
+      fetchFarms();
+    }, []);
 
   useEffect(() => {
     if (isFarmDropdownOpen && farmSearchInputRef.current) {
@@ -564,37 +608,42 @@ function CommunityModal({ onClose }) {
                       type="button"
                       onClick={() => setIsFarmDropdownOpen(true)}
                     >
-                      <strong>{selectedFarm.name}</strong>
+                      <strong>{selectedFarm ? selectedFarm.name : "농장 선택"}</strong>
                     </button>
                   )}
                 </div>
                 {isFarmDropdownOpen && (
                   <div className="farm-select-dropdown">
                     <ul>
-                      {filteredFarms.map((farm) => (
-                        <li key={farm.id}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedFarm(farm);
-                              setFarmSearch("");
-                              setIsFarmDropdownOpen(false);
-                            }}
-                          >
-                            <strong>{farm.name}</strong>
-                            <span>{farm.location}</span>
-                          </button>
-                        </li>
-                      ))}
-                      {filteredFarms.length === 0 && (
+                      {filteredFarms.length > 0 ? (
+                        filteredFarms.map((farm) => (
+                          <li key={farm.farmId}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedFarm(farm);
+                                setFarmSearch("");
+                                setIsFarmDropdownOpen(false);
+                              }}
+                            >
+                              <strong>{farm.name}</strong>
+                              <span>{farm.city}</span>
+                            </button>
+                          </li>
+                        ))
+                      ) : (
                         <li className="empty">
-                          <span>일치하는 농장이 없습니다.</span>
+                          <span>
+                            {farmSearch
+                              ? "일치하는 농장이 없습니다."
+                              : "등록된 농장이 없습니다."}
+                          </span>
                         </li>
                       )}
                     </ul>
                   </div>
                 )}
-              </div>
+                </div>
             </div>
             <div className="panel-block">
               <p className="panel-title">카테고리</p>
@@ -941,7 +990,7 @@ function CommunityModal({ onClose }) {
                                       className="comment-action-btn"
                                       onClick={() =>
                                         handleEditComment(
-                                          comment.id,
+                                          comment.commentId,
                                           comment.content
                                         )
                                       }
@@ -960,7 +1009,7 @@ function CommunityModal({ onClose }) {
                                   </div>
                                 )}
                               </div>
-                              {editingComment === comment.id ? (
+                              {editingComment === comment.commentId ? (
                                 <>
                                   <textarea
                                     className="edit-comment-textarea"
