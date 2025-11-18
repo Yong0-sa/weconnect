@@ -77,11 +77,14 @@ function HomePage() {
   const [initialChatContact, setInitialChatContact] = useState(null);
   const [profile, setProfile] = useState(null);
   const [showFarmRegisterModal, setShowFarmRegisterModal] = useState(false);
+  const [pendingFarmRegisterPrompt, setPendingFarmRegisterPrompt] =
+    useState(false);
   const [equippedCharacterVideo, setEquippedCharacterVideo] = useState(null);
   const [equippedItemId, setEquippedItemId] = useState(null);
   const [isCharacterHovered, setIsCharacterHovered] = useState(false);
   const characterVideoRef = useRef(null);
   const [showFarmApplyPrompt, setShowFarmApplyPrompt] = useState(false);
+  const [pendingFarmApplyPrompt, setPendingFarmApplyPrompt] = useState(false);
   const [isAcknowledgingFarmPrompt, setIsAcknowledgingFarmPrompt] =
     useState(false);
   const [hasUnreadChats, setHasUnreadChats] = useState(false);
@@ -89,6 +92,8 @@ function HomePage() {
     getInitialChatCheck()
   );
   const [shouldQueueFirstTutorial, setShouldQueueFirstTutorial] =
+    useState(false);
+  const [shouldDelayPostLoginPrompts, setShouldDelayPostLoginPrompts] =
     useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
@@ -175,12 +180,8 @@ function HomePage() {
         const data = await fetchMyProfile();
         if (ignore) return;
         setProfile(data);
-        if (shouldPromptFarmRegistration(data)) {
-          setShowFarmRegisterModal(true);
-        }
-        if (shouldShowFarmApplyPrompt(data)) {
-          setShowFarmApplyPrompt(true);
-        }
+        setPendingFarmRegisterPrompt(shouldPromptFarmRegistration(data));
+        setPendingFarmApplyPrompt(shouldShowFarmApplyPrompt(data));
       } catch (error) {
         console.error("프로필 정보를 불러오지 못했습니다.", error);
       }
@@ -193,6 +194,8 @@ function HomePage() {
 
   useEffect(() => {
     if (!profile?.userId || typeof window === "undefined") {
+      setShouldQueueFirstTutorial(false);
+      setShouldDelayPostLoginPrompts(false);
       return;
     }
     const userKey = `user:${profile.userId}`;
@@ -202,16 +205,13 @@ function HomePage() {
       window.sessionStorage.getItem(
         `firstTutorialSession:${userKey}`
       ) === "true";
-    setShouldQueueFirstTutorial(!optOut && !sessionShown);
+    const needsTutorial = !optOut && !sessionShown;
+    setShouldQueueFirstTutorial(needsTutorial);
+    setShouldDelayPostLoginPrompts(needsTutorial);
   }, [profile?.userId]);
 
   useEffect(() => {
-    if (
-      !shouldQueueFirstTutorial ||
-      showFarmApplyPrompt ||
-      showFarmRegisterModal ||
-      isFarmModalOpen
-    ) {
+    if (!shouldQueueFirstTutorial) {
       return;
     }
     const userKey = profile?.userId ? `user:${profile.userId}` : null;
@@ -225,14 +225,27 @@ function HomePage() {
       state: { nextPath: "/home", userKey },
     });
     setShouldQueueFirstTutorial(false);
-  }, [
-    shouldQueueFirstTutorial,
-    showFarmApplyPrompt,
-    showFarmRegisterModal,
-    isFarmModalOpen,
-    profile?.userId,
-    navigate,
-  ]);
+  }, [shouldQueueFirstTutorial, profile?.userId, navigate]);
+
+  useEffect(() => {
+    if (shouldDelayPostLoginPrompts) {
+      return;
+    }
+    if (pendingFarmRegisterPrompt) {
+      setShowFarmRegisterModal(true);
+      setPendingFarmRegisterPrompt(false);
+    }
+  }, [pendingFarmRegisterPrompt, shouldDelayPostLoginPrompts]);
+
+  useEffect(() => {
+    if (shouldDelayPostLoginPrompts) {
+      return;
+    }
+    if (pendingFarmApplyPrompt) {
+      setShowFarmApplyPrompt(true);
+      setPendingFarmApplyPrompt(false);
+    }
+  }, [pendingFarmApplyPrompt, shouldDelayPostLoginPrompts]);
 
   const shouldPromptFarmRegistration = (data) => {
     if (!data) return false;
