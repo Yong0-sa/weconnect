@@ -58,18 +58,25 @@ public class ObjectStorageService {
 
     /**
      * 작물 진단 이미지를 Object Storage에 업로드
-     * @param file 이미지 파일
-     * @param userId 사용자 ID
-     * @return 업로드된 파일의 공개 URL
-     * @throws RuntimeException 업로드 실패 시
      */
     public String uploadDiagnosisImage(MultipartFile file, Long userId) {
+        return uploadImage(file, userId, "diagnosis");
+    }
+
+    /**
+     * 재배 일기 이미지를 Object Storage에 업로드
+     */
+    public String uploadDiaryImage(MultipartFile file, Long userId) {
+        return uploadImage(file, userId, "diary");
+    }
+
+    private String uploadImage(MultipartFile file, Long userId, String category) {
         try {
-            // 파일명 생성: diagnosis/{userId}/{timestamp}_{uuid}_{originalFilename}
+            // 파일명 생성: {category}/{userId}/{timestamp}_{uuid}_{originalFilename}
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String uuid = UUID.randomUUID().toString().substring(0, 8);
             String originalFilename = file.getOriginalFilename();
-            String filename = String.format("diagnosis/%d/%s_%s_%s", userId, timestamp, uuid, originalFilename);
+            String filename = String.format("%s/%d/%s_%s_%s", category, userId, timestamp, uuid, originalFilename);
 
             log.info("Object Storage 업로드 시작: bucket={}, key={}, size={}", bucketName, filename, file.getSize());
 

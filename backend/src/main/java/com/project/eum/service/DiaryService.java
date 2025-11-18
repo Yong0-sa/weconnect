@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,7 +19,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DiaryService {
 
+    private static final long MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
+
     private final DiaryRepository diaryRepository;
+    private final ObjectStorageService objectStorageService;
 
     /**
      * 사용자의 일기 목록 조회 (최신순)
@@ -74,7 +76,7 @@ public class DiaryService {
 
     /**
      * 일기 작성
-     * 이미지 파일이 있으면 Base64로 인코딩하여 DB에 저장합니다.
+     * 이미지 파일이 있으면 Object Storage에 업로드 후 URL을 저장합니다.
      * @param userId 사용자 ID
      * @param request 일기 제목, 내용
      * @param imageFile 이미지 파일 (선택사항)
@@ -85,7 +87,8 @@ public class DiaryService {
     public DiaryResponse createDiary(Long userId, DiaryRequest request, MultipartFile imageFile) {
         String photoUrl = null;
         if (imageFile != null && !imageFile.isEmpty()) {
-            photoUrl = encodeImageToBase64(imageFile);
+            validateImageSize(imageFile);
+            photoUrl = objectStorageService.uploadDiaryImage(imageFile, userId);
         }
 
         Diary diary = Diary.builder()
@@ -133,8 +136,8 @@ public class DiaryService {
 
         // 이미지 업데이트
         if (imageFile != null && !imageFile.isEmpty()) {
-            // Base64로 인코딩해서 DB에 저장 (파일 저장 없음)
-            String newPhotoUrl = encodeImageToBase64(imageFile);
+            validateImageSize(imageFile);
+            String newPhotoUrl = objectStorageService.uploadDiaryImage(imageFile, userId);
             diary.updatePhotoUrl(newPhotoUrl);
         }
 
@@ -176,32 +179,9 @@ public class DiaryService {
                 .build();
     }
 
-    /**
-     * 이미지 파일을 Base64로 인코딩하여 Data URL 형식으로 변환
-     * 파일 저장 없이 DB에 직접 저장하기 위한 메서드입니다.
-     * @param imageFile 이미지 파일
-     * @return Base64 인코딩된 Data URL (예: "data:image/jpeg;base64,...")
-     * @throws IllegalArgumentException 이미지 크기가 1MB를 초과하는 경우
-     * @throws RuntimeException 이미지 인코딩 중 오류 발생 시
-     */
-    private String encodeImageToBase64(MultipartFile imageFile) {
-        long maxSize = 1 * 1024 * 1024; // 1MB
-        if (imageFile.getSize() > maxSize) {
+    private void validateImageSize(MultipartFile imageFile) {
+        if (imageFile.getSize() > MAX_IMAGE_SIZE) {
             throw new IllegalArgumentException("이미지 크기는 1MB 이하여야 합니다. 현재 크기: " + (imageFile.getSize() / 1024) + "KB");
-        }
-
-        try {
-            byte[] imageBytes = imageFile.getBytes();
-            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
-
-            String contentType = imageFile.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                contentType = "image/jpeg";
-            }
-
-            return "data:" + contentType + ";base64," + base64Image;
-        } catch (Exception e) {
-            throw new RuntimeException("이미지 인코딩 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
     }
 

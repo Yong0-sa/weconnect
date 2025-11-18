@@ -37,7 +37,7 @@ public class Diary {
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
-    /** Base64 인코딩된 이미지 데이터를 Data URL 형식으로 저장 (최대 4GB) */
+    /** Object Storage에 업로드된 이미지의 공개 URL */
     @Column(name = "photo_url", columnDefinition = "LONGTEXT")
     private String photoUrl;
 
