@@ -26,8 +26,8 @@
 
 .farm-modal-close {
   position: absolute;
-  top: 0px;
-  right: -45px;
+  top: 5px;
+  right: 5px;
   border: none;
   background: #f0f2f4;
   font-size: 1.5rem;
@@ -37,7 +37,7 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  /* box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15); */
 }
 
 .farm-modal-close:hover {

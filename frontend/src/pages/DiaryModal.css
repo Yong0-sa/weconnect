@@ -400,8 +400,8 @@
 
 .diary-detail-close {
   position: absolute;
-  top: -12px;
-  right: -12px;
+  top: 10px;
+  right: 10px;
   border: none;
   background: rgba(0, 0, 0, 0.1);
   width: 32px;

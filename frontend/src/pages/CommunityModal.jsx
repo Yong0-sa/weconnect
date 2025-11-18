@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import "./CommunityModal.css";
-import { farms } from "../data/farms";
 import {
   noticePosts as allNoticePosts,
   communityPosts as allCommunityPosts,
