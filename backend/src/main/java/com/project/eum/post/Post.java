@@ -56,6 +56,7 @@ public class Post {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @Builder.Default
     private List<Comments> comments = new ArrayList<>();
 
 }

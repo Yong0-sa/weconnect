@@ -95,14 +95,7 @@ public class CommentsService {
                 .content(request.getContent())
                 .build();
         Comments savedComment = commentsRepository.save(comment);
-        System.out.println(savedComment.getCommentId());
-        System.out.println(savedComment.getPost().getPostId());
-        System.out.println(savedComment.getAuthor().getUserId());
-        System.out.println(savedComment.getContent());
 
-        Long postId = savedComment.getPost().getPostId();
-        Long authorId = savedComment.getAuthor().getUserId();
-        String nickname = savedComment.getAuthor().getNickname();
         return new CommentsResponseDto(
                 savedComment.getCommentId(),
                 savedComment.getPost().getPostId(),
@@ -128,13 +121,7 @@ public class CommentsService {
         comment.setContent(request.getContent());
         Comments savedComment = commentsRepository.save(comment);
 
-
-        Long postId = savedComment.getPost().getPostId();
-        Long authorId = savedComment.getAuthor().getUserId();
-        String nickname = savedComment.getAuthor().getNickname();
-        System.out.println("Updated Comment: " + savedComment);
-
-        CommentsResponseDto dto =  new CommentsResponseDto(
+        CommentsResponseDto dto = new CommentsResponseDto(
                 savedComment.getCommentId(),
                 savedComment.getPost().getPostId(),
                 savedComment.getAuthor().getUserId(),
@@ -160,14 +147,6 @@ public class CommentsService {
 
         if (!comment.getAuthor().getUserId().equals(requesterId)) {
             throw new IllegalArgumentException("작성자만 삭제할 수 있습니다.");
-        }
-
-        // 1. 댓글에 달린 답글 먼저 삭제
-        if (comment.getReplies() != null && !comment.getReplies().isEmpty()) {
-            comment.getReplies().forEach(reply -> {
-                // ReplyRepository를 따로 두고 있다면 replyRepository.delete(reply)로 삭제
-                // 만약 CascadeType.REMOVE 설정되어 있다면 아래 삭제 없이도 자동 삭제 가능
-            });
         }
 
         commentsRepository.delete(comment);

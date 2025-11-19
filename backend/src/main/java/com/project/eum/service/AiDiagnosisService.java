@@ -298,19 +298,6 @@ public class AiDiagnosisService {
     }
 
     /**
-     * AI 서버 응답에서 이미지 URL 추출
-     * @param json AI 서버 응답 JSON
-     * @return 이미지 URL (없으면 null)
-     */
-    private String getImageUrl(JsonNode json) {
-        String url = json.path("image_url").asText(null);
-        if (url == null || url.isBlank()) {
-            url = json.path("photo_url").asText(null);
-        }
-        return url;
-    }
-
-    /**
      * 진단 결과를 DB에 저장
      * @param userId 사용자 ID
      * @param cropName 작물 이름

@@ -50,7 +50,7 @@ public class KakaoAddressSearchClient {
         }
 
         // 요청 URI 생성
-        URI uri = UriComponentsBuilder.fromHttpUrl(kakaoMapProperties.getAddressSearchUrl())
+        URI uri = UriComponentsBuilder.fromUriString(kakaoMapProperties.getAddressSearchUrl())
                 .queryParam("query", address.trim())
                 .build()
                 .encode(StandardCharsets.UTF_8)

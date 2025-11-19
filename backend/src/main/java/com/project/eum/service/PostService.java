@@ -3,14 +3,12 @@ package com.project.eum.service;
 import com.project.eum.dto.PostCreateRequest;
 import com.project.eum.dto.PostResponseDto;
 import com.project.eum.dto.PostUpdateRequest;
-import com.project.eum.farm.Farm;
 import com.project.eum.farm.FarmRepository;
 import com.project.eum.farm.contract.FarmContractRepository;
 import com.project.eum.farm.contract.FarmContractStatus;
 import com.project.eum.post.Post;
 import com.project.eum.post.PostRepository;
 import com.project.eum.post.PostType;
-import com.project.eum.user.Member;
 import com.project.eum.user.MemberRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -145,21 +141,6 @@ public class PostService {
         List<Post> posts = postRepository.findAll(
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("postId"))
         );
-
-        List<Post> needsUpdate = new ArrayList<>();
-        for (Post post : posts) {
-            if (post.getCreatedAt() == null) {
-                LocalDateTime fallback = post.getUpdatedAt() != null
-                        ? post.getUpdatedAt()
-                        : LocalDateTime.now();
-                post.setCreatedAt(fallback);
-                needsUpdate.add(post);
-            }
-        }
-
-        if (!needsUpdate.isEmpty()) {
-            postRepository.saveAll(needsUpdate);
-        }
 
         return posts.stream()
                 .map(PostResponseDto::new)

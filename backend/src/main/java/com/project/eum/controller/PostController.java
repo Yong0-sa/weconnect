@@ -39,7 +39,7 @@ public class PostController {
         }
     }
 
-    @PutMapping("{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<?> updatePost(@PathVariable Long id,
                                         @RequestParam Long requesterId,
                                         @RequestBody PostUpdateRequest request) {

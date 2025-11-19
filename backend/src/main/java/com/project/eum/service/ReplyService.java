@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class ReplyService {
 
     private final ReplyRepository replyRepository;
-    private final CommentsRepository CommentsRepository;
+    private final CommentsRepository commentsRepository;
     private final MemberRepository memberRepository;
     private final FarmRepository farmRepository;
     private final FarmContractRepository farmContractRepository;
@@ -59,7 +59,7 @@ public class ReplyService {
     @Transactional
     public ReplyResponse createReply(ReplyCreateRequest request) {
         // 댓글 존재 확인
-        Comments comment = CommentsRepository.findById(request.commentId())
+        Comments comment = commentsRepository.findById(request.commentId())
                 .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
 
         // 작성자 확인
