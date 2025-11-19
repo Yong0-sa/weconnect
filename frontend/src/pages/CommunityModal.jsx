@@ -557,8 +557,13 @@ function CommunityModal({ onClose }) {
       };
 
       setLocalCommunityPosts((prev) => [newPost, ...prev]);
-      addCoins(1);
-      showToast("게시글이 저장되었습니다! 코인 1개 적립!", "success");
+      const rewarded = await addCoins(1, "community_post");
+      showToast(
+        rewarded
+          ? "게시글이 저장되었습니다! 코인 1개 적립!"
+          : "게시글이 저장되었습니다. (코인 적립 실패)",
+        rewarded ? "success" : "info"
+      );
       setIsWriting(false);
       setWriteTitle("");
       setWriteContent("");

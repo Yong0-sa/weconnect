@@ -90,10 +90,11 @@ function ShopModal({ onClose, userName = "사용자" }) {
     }
   };
 
-  const handlePurchase = (itemId) => {
+  const handlePurchase = async (itemId) => {
     const item = items.find((i) => i.id === itemId);
     if (!item || item.owned) return false;
-    if (!purchaseItem(item.coinPrice)) return false;
+    const success = await purchaseItem(item.coinPrice, item.name);
+    if (!success) return false;
     setItems((prev) =>
       prev.map((i) =>
         i.id === itemId ? { ...i, owned: true, quantity: i.quantity + 1 } : i
@@ -109,9 +110,9 @@ function ShopModal({ onClose, userName = "사용자" }) {
     broadcastEquipmentChange(itemId);
   };
 
-  const handleItemButtonClick = (item) => {
+  const handleItemButtonClick = async (item) => {
     if (!item.owned) {
-      handlePurchase(item.id);
+      await handlePurchase(item.id);
       return;
     }
 
