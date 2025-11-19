@@ -262,7 +262,7 @@
 }
 
 .my-farm-button:hover {
-  background: rgba(103, 188, 99, 0.85);
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .my-farm-button:disabled {
