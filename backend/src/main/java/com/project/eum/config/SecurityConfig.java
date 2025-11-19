@@ -26,6 +26,8 @@ public class SecurityConfig {
 
     // 요청별 인가 규칙 설정
     http.authorizeHttpRequests(auth -> auth
+            // 정적 리소스 (이미지, 동영상 등) 먼저 허용 - Spring Security 필터 통과
+            .requestMatchers("/assets/**", "/static/**", "/*.png", "/*.jpg", "/*.jpeg", "/*.gif", "/*.webm", "/*.mp4").permitAll()
             // 회원가입, 로그인 등 인증 불필요한 엔드포인트는 허용
             .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
             // OAuth2 관련 엔드포인트 전부 허용
