@@ -250,13 +250,23 @@ function ShopModal({ onClose, userName = "사용자" }) {
                   </div>
                 </div>
 
-                {item.image && (
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="shop-item-inline-image"
-                  />
-                )}
+                {item.image &&
+                  (/\.webm(\?.*)?$/i.test(item.image) ? (
+                    <video
+                      src={item.image}
+                      className="shop-item-inline-image"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="shop-item-inline-image"
+                    />
+                  ))}
 
                 <button
                   type="button"
