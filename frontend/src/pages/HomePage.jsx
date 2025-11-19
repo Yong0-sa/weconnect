@@ -8,12 +8,6 @@ import FarmSearchIcon from "../assets/농장찾기.png";
 import DiaryIcon from "../assets/재배일기.png";
 import CommunityIcon from "../assets/커뮤니티.png";
 import CharacterIcon from "../assets/캐릭터.png";
-import SeederEquippedImage from "../assets/호미 장착.png";
-import PickaxeEquippedImage from "../assets/곡괭이 장착.png";
-import TractorEquippedImage from "../assets/트랙터 장착.png";
-import SeederEquipVideo from "../assets/모종삽동영상.webm";
-import PickaxeEquipVideo from "../assets/곡괭이동영상.webm";
-import TractorEquipVideo from "../assets/트랙터 동영상.webm";
 import MenuIcon from "../assets/menu_icon.png";
 import CoinIcon from "../assets/coin_icon.png";
 import ChatIcon from "../assets/chat_icon.png";
@@ -35,6 +29,7 @@ import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import FarmRegisterModal from "./FarmRegisterModal";
 import FarmApplyPromptModal from "./FarmApplyPromptModal";
+import { fetchShopItems } from "../api/shop";
 
 const getInitialChatCheck = () => {
   if (typeof window === "undefined") return Date.now();
@@ -46,16 +41,16 @@ const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
 ).replace(/\/$/, "");
 const WS_ENDPOINT = `${API_BASE}/ws/chat`;
-const CHARACTER_VIDEO_MAP = {
-  1: SeederEquipVideo,
-  2: PickaxeEquipVideo,
-  3: TractorEquipVideo,
-};
 
-const CHARACTER_IMAGE_MAP = {
-  1: SeederEquippedImage,
-  2: PickaxeEquippedImage,
-  3: TractorEquippedImage,
+const resolveAssetUrl = (path) => {
+  if (!path) {
+    return null;
+  }
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE}${normalized}`;
 };
 
 function HomePage() {
@@ -79,7 +74,9 @@ function HomePage() {
   const [showFarmRegisterModal, setShowFarmRegisterModal] = useState(false);
   const [pendingFarmRegisterPrompt, setPendingFarmRegisterPrompt] =
     useState(false);
+  const [equipmentMedia, setEquipmentMedia] = useState({});
   const [equippedCharacterVideo, setEquippedCharacterVideo] = useState(null);
+  const [equippedCharacterImage, setEquippedCharacterImage] = useState(null);
   const [equippedItemId, setEquippedItemId] = useState(null);
   const [isCharacterHovered, setIsCharacterHovered] = useState(false);
   const characterVideoRef = useRef(null);
@@ -104,7 +101,8 @@ function HomePage() {
   const notificationSubscriptionsRef = useRef(new Map());
   const isChatModalOpenRef = useRef(false);
 
-  const canManageMembers = profile?.role === "FARMER" || profile?.role === "ADMIN";
+  const canManageMembers =
+    profile?.role === "FARMER" || profile?.role === "ADMIN";
 
   const openMemberInfoManage = () => {
     if (!canManageMembers) {
@@ -166,16 +164,16 @@ function HomePage() {
     }
   }, [lastChatCheck, attachRoomSubscriptions]);
 
-useEffect(() => {
-  const token = localStorage.getItem("authToken");
-  if (!token) {
-    navigate("/login", { replace: true });
-  }
-}, [navigate]);
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      navigate("/login", { replace: true });
+    }
+  }, [navigate]);
 
-useEffect(() => {
-  isChatModalOpenRef.current = isChatModalOpen;
-}, [isChatModalOpen]);
+  useEffect(() => {
+    isChatModalOpenRef.current = isChatModalOpen;
+  }, [isChatModalOpen]);
 
   useEffect(() => {
     let ignore = false;
@@ -206,9 +204,8 @@ useEffect(() => {
     const optOut =
       window.localStorage.getItem(`firstTutorialOptOut:${userKey}`) === "true";
     const sessionShown =
-      window.sessionStorage.getItem(
-        `firstTutorialSession:${userKey}`
-      ) === "true";
+      window.sessionStorage.getItem(`firstTutorialSession:${userKey}`) ===
+      "true";
     const needsTutorial = !optOut && !sessionShown;
     setShouldQueueFirstTutorial(needsTutorial);
     setShouldDelayPostLoginPrompts(needsTutorial);
@@ -220,10 +217,7 @@ useEffect(() => {
     }
     const userKey = profile?.userId ? `user:${profile.userId}` : null;
     if (userKey && typeof window !== "undefined") {
-      window.sessionStorage.setItem(
-        `firstTutorialSession:${userKey}`,
-        "true"
-      );
+      window.sessionStorage.setItem(`firstTutorialSession:${userKey}`, "true");
     }
     navigate("/first-tutorial", {
       state: { nextPath: "/home", userKey },
@@ -284,35 +278,82 @@ useEffect(() => {
     }
   };
 
-  const applyEquippedCharacterVideo = useCallback((value) => {
-    if (value == null || value === "") {
-      setEquippedCharacterVideo(null);
-      setEquippedItemId(null);
-      return;
-    }
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      setEquippedCharacterVideo(null);
-      setEquippedItemId(null);
-      return;
-    }
-    setEquippedCharacterVideo(CHARACTER_VIDEO_MAP[parsed] || null);
-    setEquippedItemId(parsed);
-  }, []);
+  const applyEquippedCharacterMedia = useCallback(
+    (value, overrideMedia) => {
+      const mediaMap = overrideMedia ?? equipmentMedia;
+      if (value == null || value === "") {
+        setEquippedCharacterVideo(null);
+        setEquippedCharacterImage(null);
+        setEquippedItemId(null);
+        return;
+      }
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        setEquippedCharacterVideo(null);
+        setEquippedCharacterImage(null);
+        setEquippedItemId(null);
+        return;
+      }
+      const media = mediaMap?.[parsed];
+      if (!media) {
+        setEquippedCharacterVideo(null);
+        setEquippedCharacterImage(null);
+        setEquippedItemId(null);
+        return;
+      }
+      setEquippedCharacterVideo(media.animation ?? null);
+      setEquippedCharacterImage(media.equipImage ?? null);
+      setEquippedItemId(parsed);
+    },
+    [equipmentMedia]
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
-    applyEquippedCharacterVideo(window.shopEquippedItemId ?? null);
+    applyEquippedCharacterMedia(window.shopEquippedItemId ?? null);
 
     const handleEquipmentChange = (event) => {
-      applyEquippedCharacterVideo(event.detail);
+      applyEquippedCharacterMedia(event.detail);
     };
 
     window.addEventListener("shopEquipmentChange", handleEquipmentChange);
     return () => {
       window.removeEventListener("shopEquipmentChange", handleEquipmentChange);
     };
-  }, [applyEquippedCharacterVideo]);
+  }, [applyEquippedCharacterMedia]);
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadEquipmentMedia() {
+      try {
+        const data = await fetchShopItems();
+        if (ignore) return;
+        const map = {};
+        (data ?? []).forEach((item) => {
+          if (!item?.id) return;
+          map[item.id] = {
+            equipImage: resolveAssetUrl(item.equippedPhotoUrl),
+            animation: resolveAssetUrl(item.animationUrl),
+          };
+        });
+        setEquipmentMedia(map);
+        if (typeof window !== "undefined") {
+          applyEquippedCharacterMedia(
+            window.shopEquippedItemId ?? null,
+            map
+          );
+        }
+      } catch (error) {
+        if (!ignore) {
+          console.error("상점 장비 정보를 불러오지 못했습니다.", error);
+        }
+      }
+    }
+    loadEquipmentMedia();
+    return () => {
+      ignore = true;
+    };
+  }, [applyEquippedCharacterMedia]);
 
   const characterHasVideo = Boolean(equippedCharacterVideo);
 
@@ -403,7 +444,7 @@ useEffect(() => {
     };
 
     client.onStompError = (frame) => {
-      console.error('WebSocket STOMP 에러:', frame);
+      console.error("WebSocket STOMP 에러:", frame);
     };
 
     client.activate();
@@ -707,11 +748,7 @@ useEffect(() => {
           }}
         >
           <img
-            src={
-              equippedItemId
-                ? CHARACTER_IMAGE_MAP[equippedItemId]
-                : CharacterIcon
-            }
+            src={equippedCharacterImage || CharacterIcon}
             alt="캐릭터"
             className={`character-base-art ${
               equippedItemId ? `character-base-art--item-${equippedItemId}` : ""

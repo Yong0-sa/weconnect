@@ -1,61 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./ShopModal.css";
 import CoinIcon from "../assets/item_icon.png";
 import BaseCharacterImage from "../assets/캐릭터.png";
-import SeederImage from "../assets/모종삽.png";
-import PickaxeImage from "../assets/곡괭이.png";
-import TractorImage from "../assets/트랙터.png";
-import SeederEquippedImage from "../assets/호미 장착.png";
-import PickaxeEquippedImage from "../assets/곡괭이 장착.png";
-import TractorEquippedImage from "../assets/트랙터 장착.png";
 import { useCoins } from "../contexts/CoinContext";
+import { fetchShopItems } from "../api/shop";
 
 const SHOP_EQUIPMENT_EVENT = "shopEquipmentChange";
-
-const initialItems = [
-  {
-    id: 1,
-    name: "모종삽",
-    coinPrice: 3,
-    owned: false,
-    quantity: 0,
-    image: SeederImage,
-  },
-  {
-    id: 2,
-    name: "곡괭이",
-    coinPrice: 7,
-    owned: false,
-    quantity: 0,
-    image: PickaxeImage,
-  },
-  {
-    id: 3,
-    name: "트랙터",
-    coinPrice: 30,
-    owned: false,
-    quantity: 0,
-    image: TractorImage,
-  },
-];
-
-const equippedPreviewImages = {
-  1: SeederEquippedImage,
-  2: PickaxeEquippedImage,
-  3: TractorEquippedImage,
-};
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
+).replace(/\/$/, "");
 
 const cloneItems = (items) => items.map((item) => ({ ...item }));
 let sessionItemsState = null;
 let sessionEquippedItemId = null;
 
+const resolveAssetUrl = (path) => {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE}${normalized}`;
+};
+
 function ShopModal({ onClose, userName = "사용자" }) {
-  const [items, setItemsState] = useState(() => {
-    if (sessionItemsState) {
-      return cloneItems(sessionItemsState);
-    }
-    return cloneItems(initialItems);
-  });
+  const [items, setItemsState] = useState(() =>
+    sessionItemsState ? cloneItems(sessionItemsState) : []
+  );
   const [equippedItemId, setEquippedItemIdState] = useState(() => {
     if (sessionEquippedItemId != null) {
       return sessionEquippedItemId;
@@ -66,6 +37,8 @@ function ShopModal({ onClose, userName = "사용자" }) {
     }
     return null;
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const { coins, purchaseItem } = useCoins();
 
   const setItems = (updater) => {
@@ -110,6 +83,49 @@ function ShopModal({ onClose, userName = "사용자" }) {
     broadcastEquipmentChange(itemId);
   };
 
+  useEffect(() => {
+    let ignore = false;
+    async function loadItems() {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const data = await fetchShopItems();
+        if (ignore) return;
+        const normalized = (data ?? []).map((item) => {
+          const saved =
+            sessionItemsState?.find((savedItem) => savedItem.id === item.id) ||
+            null;
+          return {
+            id: item.id,
+            name: item.name,
+            coinPrice: item.price ?? 0,
+            info: item.info ?? "",
+            image: resolveAssetUrl(item.photoUrl),
+            equippedImage: resolveAssetUrl(item.equippedPhotoUrl),
+            animationUrl: resolveAssetUrl(item.animationUrl),
+            owned: saved?.owned ?? false,
+            quantity: saved?.quantity ?? 0,
+          };
+        });
+        setItems(normalized);
+      } catch (error) {
+        if (!ignore) {
+          setLoadError(
+            error?.message || "상점 정보를 불러오는 중 문제가 발생했습니다."
+          );
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
+      }
+    }
+    loadItems();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const handleItemButtonClick = async (item) => {
     if (!item.owned) {
       await handlePurchase(item.id);
@@ -133,9 +149,7 @@ function ShopModal({ onClose, userName = "사용자" }) {
   };
 
   const equippedItem = items.find((i) => i.id === equippedItemId);
-  const previewImage = equippedItem
-    ? equippedPreviewImages[equippedItem.id]
-    : null;
+  const previewImage = equippedItem ? equippedItem.equippedImage : null;
 
   return (
     <div className="shop-modal-card">
@@ -177,34 +191,44 @@ function ShopModal({ onClose, userName = "사용자" }) {
         </aside>
 
         <div className="shop-items-grid">
-          {items.map((item) => (
-            <div key={item.id} className="shop-item-card">
-              <div className="shop-item-header">
-                <h3 className="shop-item-name">{item.name}</h3>
-                <div className="shop-item-price">
-                  <img src={CoinIcon} alt="코인" className="coin-icon" />
-                  <span className="price-text">X {item.coinPrice}</span>
-                </div>
-              </div>
-
-              {item.image && (
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  className="shop-item-inline-image"
-                />
-              )}
-
-              <button
-                type="button"
-                className={`shop-item-button ${getButtonClass(item)}`}
-                onClick={() => handleItemButtonClick(item)}
-                disabled={!item.owned && coins < item.coinPrice}
-              >
-                {getButtonLabel(item)}
-              </button>
+          {isLoading ? (
+            <div className="shop-item-placeholder">아이템을 불러오는 중...</div>
+          ) : loadError ? (
+            <div className="shop-item-placeholder error">{loadError}</div>
+          ) : items.length === 0 ? (
+            <div className="shop-item-placeholder">
+              표시할 아이템이 없습니다.
             </div>
-          ))}
+          ) : (
+            items.map((item) => (
+              <div key={item.id} className="shop-item-card">
+                <div className="shop-item-header">
+                  <h3 className="shop-item-name">{item.name}</h3>
+                  <div className="shop-item-price">
+                    <img src={CoinIcon} alt="코인" className="coin-icon" />
+                    <span className="price-text">X {item.coinPrice}</span>
+                  </div>
+                </div>
+
+                {item.image && (
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="shop-item-inline-image"
+                  />
+                )}
+
+                <button
+                  type="button"
+                  className={`shop-item-button ${getButtonClass(item)}`}
+                  onClick={() => handleItemButtonClick(item)}
+                  disabled={!item.owned && coins < item.coinPrice}
+                >
+                  {getButtonLabel(item)}
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

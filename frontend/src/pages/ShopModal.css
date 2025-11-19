@@ -257,3 +257,19 @@
 .shop-item-button.purchase {
   background: linear-gradient(135deg, #67bc63, #4a9146);
 }
+
+.shop-item-placeholder {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #31553c;
+  font-weight: 600;
+  padding: 24px;
+  border: 2px dashed rgba(103, 188, 99, 0.6);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.shop-item-placeholder.error {
+  color: #a33a3a;
+  border-color: rgba(163, 58, 58, 0.6);
+}
