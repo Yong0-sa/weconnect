@@ -30,6 +30,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
             // OAuth2 관련 엔드포인트 전부 허용
             .requestMatchers("/api/auth/**", "/oauth2/**", "/login/oauth2/**").permitAll()
+            .requestMatchers("/assets/**", "/static/**", "/*.png", "/*.jpg", "/*.webm").permitAll()            
             // 그 외 모든 요청은 인증 필요
             .anyRequest().permitAll()
     
