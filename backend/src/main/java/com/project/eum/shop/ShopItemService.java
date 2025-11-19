@@ -57,7 +57,12 @@ public class ShopItemService {
             return key.replace(" 장착", "").replace("장착", "").trim();
         }
         if ("animation".equals(lower)) {
-            return key.replace(" 동영상", "").replace("동영상", "").trim();
+            return key
+                    .replace(" 애니메이션", "")
+                    .replace("애니메이션", "")
+                    .replace(" 동영상", "")
+                    .replace("동영상", "")
+                    .trim();
         }
         return key;
     }

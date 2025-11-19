@@ -283,35 +283,32 @@ function HomePage() {
     equipmentMediaRef.current = equipmentMedia;
   }, [equipmentMedia]);
 
-  const applyEquippedCharacterMedia = useCallback(
-    (value, overrideMedia) => {
-      const mediaMap = overrideMedia ?? equipmentMediaRef.current;
-      if (value == null || value === "") {
-        setEquippedCharacterVideo(null);
-        setEquippedCharacterImage(null);
-        setEquippedItemId(null);
-        return;
-      }
-      const parsed = Number(value);
-      if (!Number.isFinite(parsed) || parsed <= 0) {
-        setEquippedCharacterVideo(null);
-        setEquippedCharacterImage(null);
-        setEquippedItemId(null);
-        return;
-      }
-      const media = mediaMap?.[parsed];
-      if (!media) {
-        setEquippedCharacterVideo(null);
-        setEquippedCharacterImage(null);
-        setEquippedItemId(null);
-        return;
-      }
-      setEquippedCharacterVideo(media.animation ?? null);
-      setEquippedCharacterImage(media.equipImage ?? null);
-      setEquippedItemId(parsed);
-    },
-    []
-  );
+  const applyEquippedCharacterMedia = useCallback((value, overrideMedia) => {
+    const mediaMap = overrideMedia ?? equipmentMediaRef.current;
+    if (value == null || value === "") {
+      setEquippedCharacterVideo(null);
+      setEquippedCharacterImage(null);
+      setEquippedItemId(null);
+      return;
+    }
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setEquippedCharacterVideo(null);
+      setEquippedCharacterImage(null);
+      setEquippedItemId(null);
+      return;
+    }
+    const media = mediaMap?.[parsed];
+    if (!media) {
+      setEquippedCharacterVideo(null);
+      setEquippedCharacterImage(null);
+      setEquippedItemId(null);
+      return;
+    }
+    setEquippedCharacterVideo(media.animation ?? null);
+    setEquippedCharacterImage(media.equipImage ?? null);
+    setEquippedItemId(parsed);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -356,7 +353,9 @@ function HomePage() {
             )
           : null;
         const fallbackEquipped =
-          typeof window !== "undefined" ? window.shopEquippedItemId ?? null : null;
+          typeof window !== "undefined"
+            ? window.shopEquippedItemId ?? null
+            : null;
         const equippedId = equippedEntry?.itemId ?? fallbackEquipped ?? null;
         if (typeof window !== "undefined") {
           window.shopEquippedItemId = equippedId;
@@ -804,6 +803,7 @@ function HomePage() {
                 isCharacterHovered ? "character-preview-video--visible" : ""
               }`}
               src={equippedCharacterVideo}
+              autoPlay
               loop
               muted
               playsInline
