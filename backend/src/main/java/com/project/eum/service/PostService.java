@@ -14,10 +14,13 @@ import com.project.eum.user.Member;
 import com.project.eum.user.MemberRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -130,12 +133,35 @@ public class PostService {
 
         validatePostModifyPermission(post, requesterId);
 
+        if (post.getPhotoUrl() != null) {
+            objectStorageService.deleteObjectByUrl(post.getPhotoUrl());
+        }
+
         postRepository.delete(post);
     }
 
     // 전체 게시글 조회
     public List<PostResponseDto> getAllPosts() {
-        return postRepository.findAll().stream()
+        List<Post> posts = postRepository.findAll(
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("postId"))
+        );
+
+        List<Post> needsUpdate = new ArrayList<>();
+        for (Post post : posts) {
+            if (post.getCreatedAt() == null) {
+                LocalDateTime fallback = post.getUpdatedAt() != null
+                        ? post.getUpdatedAt()
+                        : LocalDateTime.now();
+                post.setCreatedAt(fallback);
+                needsUpdate.add(post);
+            }
+        }
+
+        if (!needsUpdate.isEmpty()) {
+            postRepository.saveAll(needsUpdate);
+        }
+
+        return posts.stream()
                 .map(PostResponseDto::new)
                 .collect(Collectors.toList());
     }

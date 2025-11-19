@@ -3,12 +3,14 @@ package com.project.eum.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -112,6 +114,30 @@ public class ObjectStorageService {
         } catch (Exception e) {
             log.error("Object Storage 업로드 실패", e);
             throw new RuntimeException("이미지 업로드에 실패했습니다: " + e.getMessage(), e);
+        }
+    }
+
+    public void deleteObjectByUrl(String url) {
+        if (!StringUtils.hasText(url)) {
+            return;
+        }
+        String prefix = endpoint.endsWith("/")
+                ? endpoint + bucketName + "/"
+                : endpoint + "/" + bucketName + "/";
+        if (!url.startsWith(prefix)) {
+            log.warn("URL {} does not match bucket prefix {}, skip delete", url, prefix);
+            return;
+        }
+        String key = url.substring(prefix.length());
+        try {
+            DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
+            s3Client.deleteObject(deleteRequest);
+            log.info("Deleted object from storage: {}", key);
+        } catch (Exception e) {
+            log.error("Failed to delete object {}: {}", key, e.getMessage());
         }
     }
 }

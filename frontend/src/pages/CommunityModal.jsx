@@ -583,10 +583,16 @@ function CommunityModal({ onClose }) {
     const fetchPosts = async () => {
       try {
         const response = await axios.get("/api/posts"); // 전체 글 조회
-        const mapped = (response.data || []).map((post) => ({
-          ...post,
-          image: post.photoUrl || post.image || null,
-        }));
+        const mapped = (response.data || [])
+          .map((post) => ({
+            ...post,
+            image: post.photoUrl || post.image || null,
+          }))
+          .sort((a, b) => {
+            const dateA = new Date(a.createdAt).getTime();
+            const dateB = new Date(b.createdAt).getTime();
+            return dateB - dateA;
+          });
         setLocalCommunityPosts(mapped); // 상태에 저장
       } catch (error) {
         console.error("게시글 가져오기 실패:", error);
@@ -849,6 +855,9 @@ function CommunityModal({ onClose }) {
                   type="button"
                   className={activeCategory === "all" ? "active" : ""}
                   onClick={() => {
+                    if (isWriting) {
+                      handleWriteCancel();
+                    }
                     setActiveCategory("all");
                     setSelectedPost(null);
                   }}
@@ -859,6 +868,9 @@ function CommunityModal({ onClose }) {
                   type="button"
                   className={activeCategory === "notice" ? "active" : ""}
                   onClick={() => {
+                    if (isWriting) {
+                      handleWriteCancel();
+                    }
                     setActiveCategory("notice");
                     setSelectedPost(null);
                   }}
@@ -869,6 +881,9 @@ function CommunityModal({ onClose }) {
                   type="button"
                   className={activeCategory === "board" ? "active" : ""}
                   onClick={() => {
+                    if (isWriting) {
+                      handleWriteCancel();
+                    }
                     setActiveCategory("board");
                     setSelectedPost(null);
                   }}
@@ -1008,6 +1023,11 @@ function CommunityModal({ onClose }) {
                       onClick={() => handlePostClick(post)}
                     >
                       <div className="post-content-row">
+                        {post.image && (
+                          <div className="community-post-thumb">
+                            <img src={post.image} alt={post.title} />
+                          </div>
+                        )}
                         <div className="post-title-line">
                           <span className="category-chip">공지</span>
                           <h3>{post.title}</h3>
@@ -1029,6 +1049,11 @@ function CommunityModal({ onClose }) {
                       onClick={() => handlePostClick(post)}
                     >
                       <div className="post-content-row">
+                        {post.image && (
+                          <div className="community-post-thumb">
+                            <img src={post.image} alt={post.title} />
+                          </div>
+                        )}
                         <div className="post-title-line">
                           <h3>{post.title}</h3>
                         </div>

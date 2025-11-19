@@ -25,7 +25,9 @@ public class PostResponseDto {
         this.farmId = post.getFarm().getFarmId();
         this.photoUrl = post.getPhotoUrl();
         this.type = post.getType();
-        this.createdAt = post.getCreatedAt();
+        this.createdAt = post.getCreatedAt() != null
+                ? post.getCreatedAt()
+                : post.getUpdatedAt();
     }
 
     // getter/setter

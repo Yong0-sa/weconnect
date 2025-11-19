@@ -159,6 +159,10 @@ public class DiaryService {
             throw new IllegalArgumentException("본인의 일기만 삭제할 수 있습니다.");
         }
 
+        if (diary.getPhotoUrl() != null) {
+            objectStorageService.deleteObjectByUrl(diary.getPhotoUrl());
+        }
+
         diaryRepository.delete(diary);
     }
 
