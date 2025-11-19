@@ -35,3 +35,31 @@ export async function fetchShopItems() {
   });
   return parseResponse(res, "상점 아이템을 불러오지 못했습니다.");
 }
+
+export async function fetchUserItems() {
+  const res = await fetch(`${API_BASE}/api/user-items/me`, {
+    method: "GET",
+    credentials: "include",
+  });
+  return parseResponse(res, "보유 아이템을 불러오지 못했습니다.");
+}
+
+export async function purchaseShopItem(itemId) {
+  const res = await fetch(`${API_BASE}/api/user-items/purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ itemId }),
+  });
+  return parseResponse(res, "아이템을 구매하지 못했습니다.");
+}
+
+export async function equipShopItem(itemId) {
+  const res = await fetch(`${API_BASE}/api/user-items/equip`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ itemId }),
+  });
+  return parseResponse(res, "아이템을 장착하지 못했습니다.");
+}

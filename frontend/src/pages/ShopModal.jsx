@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./ShopModal.css";
 import CoinIcon from "../assets/item_icon.png";
 import BaseCharacterImage from "../assets/캐릭터.png";
 import { useCoins } from "../contexts/CoinContext";
-import { fetchShopItems } from "../api/shop";
+import {
+  fetchShopItems,
+  fetchUserItems,
+  equipShopItem,
+} from "../api/shop";
 
 const SHOP_EQUIPMENT_EVENT = "shopEquipmentChange";
 const API_BASE = (
@@ -41,46 +45,59 @@ function ShopModal({ onClose, userName = "사용자" }) {
   const [loadError, setLoadError] = useState(null);
   const { coins, purchaseItem } = useCoins();
 
-  const setItems = (updater) => {
+  const setItems = useCallback((updater) => {
     setItemsState((prev) => {
       const next = typeof updater === "function" ? updater(prev) : updater;
       sessionItemsState = cloneItems(next);
       return next;
     });
-  };
+  }, []);
 
-  const setEquippedItemId = (nextId) => {
+  const setEquippedItemId = useCallback((nextId) => {
     sessionEquippedItemId = nextId ?? null;
     setEquippedItemIdState(nextId);
-  };
+  }, []);
 
-  const broadcastEquipmentChange = (nextId) => {
+  const broadcastEquipmentChange = useCallback((nextId) => {
     if (typeof window !== "undefined") {
       window.shopEquippedItemId = nextId ?? null;
       window.dispatchEvent(
         new CustomEvent(SHOP_EQUIPMENT_EVENT, { detail: nextId ?? null })
       );
     }
-  };
+  }, []);
 
   const handlePurchase = async (itemId) => {
     const item = items.find((i) => i.id === itemId);
     if (!item || item.owned) return false;
-    const success = await purchaseItem(item.coinPrice, item.name);
-    if (!success) return false;
+    const result = await purchaseItem(itemId);
+    if (!result?.item) return false;
     setItems((prev) =>
       prev.map((i) =>
-        i.id === itemId ? { ...i, owned: true, quantity: i.quantity + 1 } : i
+        i.id === itemId
+          ? {
+              ...i,
+              owned: true,
+              quantity: Math.max(1, (i.quantity ?? 0) + 1),
+            }
+          : i
       )
     );
     return true;
   };
 
-  const handleEquip = (itemId) => {
+  const handleEquip = async (itemId) => {
     const item = items.find((i) => i.id === itemId && i.owned);
-    if (!item) return;
+    if (!item) return false;
+    try {
+      await equipShopItem(itemId);
+    } catch (error) {
+      console.error("아이템 장착 실패:", error);
+      return false;
+    }
     setEquippedItemId(itemId);
     broadcastEquipmentChange(itemId);
+    return true;
   };
 
   useEffect(() => {
@@ -89,12 +106,26 @@ function ShopModal({ onClose, userName = "사용자" }) {
       setIsLoading(true);
       setLoadError(null);
       try {
-        const data = await fetchShopItems();
+        const [catalog, inventory] = await Promise.all([
+          fetchShopItems(),
+          fetchUserItems(),
+        ]);
         if (ignore) return;
-        const normalized = (data ?? []).map((item) => {
+        const inventoryItems = Array.isArray(inventory?.items)
+          ? inventory.items
+          : [];
+        const ownedMap = new Map(
+          inventoryItems.map((entry) => [entry.itemId, entry])
+        );
+        const normalized = (catalog ?? []).map((item) => {
           const saved =
             sessionItemsState?.find((savedItem) => savedItem.id === item.id) ||
             null;
+          const ownedEntry = ownedMap.get(item.id) || null;
+          const owned = ownedEntry ? true : saved?.owned ?? false;
+          const quantity = owned
+            ? Math.max(saved?.quantity ?? 0, 1)
+            : saved?.quantity ?? 0;
           return {
             id: item.id,
             name: item.name,
@@ -103,11 +134,20 @@ function ShopModal({ onClose, userName = "사용자" }) {
             image: resolveAssetUrl(item.photoUrl),
             equippedImage: resolveAssetUrl(item.equippedPhotoUrl),
             animationUrl: resolveAssetUrl(item.animationUrl),
-            owned: saved?.owned ?? false,
-            quantity: saved?.quantity ?? 0,
+            owned,
+            quantity,
           };
         });
         setItems(normalized);
+        const equipped =
+          inventoryItems.find(
+            (entry) =>
+              entry.status === "EQUIPPED" &&
+              (entry.category ?? "tool").toLowerCase() === "tool"
+          ) || null;
+        const equippedId = equipped?.itemId ?? null;
+        setEquippedItemId(equippedId);
+        broadcastEquipmentChange(equippedId);
       } catch (error) {
         if (!ignore) {
           setLoadError(
@@ -124,7 +164,7 @@ function ShopModal({ onClose, userName = "사용자" }) {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [broadcastEquipmentChange]);
 
   const handleItemButtonClick = async (item) => {
     if (!item.owned) {
@@ -133,7 +173,7 @@ function ShopModal({ onClose, userName = "사용자" }) {
     }
 
     if (item.id !== equippedItemId) {
-      handleEquip(item.id);
+      await handleEquip(item.id);
     }
   };
 

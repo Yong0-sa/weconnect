@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { fetchCoinBalance, earnCoins, spendCoins } from "../api/coins";
+import { fetchCoinBalance, earnCoins } from "../api/coins";
+import { purchaseShopItem } from "../api/shop";
 
 const CoinContext = createContext();
 
@@ -32,22 +33,19 @@ export function CoinProvider({ children }) {
     refreshCoins();
   }, [refreshCoins]);
 
-  const purchaseItem = useCallback(
-    async (price, itemName) => {
-      if (!price || price <= 0) {
-        return false;
-      }
-      try {
-        const data = await spendCoins(price, itemName);
-        syncCoins(data?.coinBalance ?? 0);
-        return true;
-      } catch (err) {
-        console.error("아이템 구매 실패:", err);
-        return false;
-      }
-    },
-    [syncCoins]
-  );
+  const purchaseItem = useCallback(async (itemId) => {
+    if (!itemId) {
+      return null;
+    }
+    try {
+      const data = await purchaseShopItem(itemId);
+      syncCoins(data?.coinBalance ?? 0);
+      return data;
+    } catch (err) {
+      console.error("아이템 구매 실패:", err);
+      return null;
+    }
+  }, [syncCoins]);
 
   // 코인 적립 함수 (일기 작성 등)
   const addCoins = useCallback(

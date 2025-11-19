@@ -29,7 +29,7 @@ import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import FarmRegisterModal from "./FarmRegisterModal";
 import FarmApplyPromptModal from "./FarmApplyPromptModal";
-import { fetchShopItems } from "../api/shop";
+import { fetchShopItems, fetchUserItems } from "../api/shop";
 
 const getInitialChatCheck = () => {
   if (typeof window === "undefined") return Date.now();
@@ -75,6 +75,7 @@ function HomePage() {
   const [pendingFarmRegisterPrompt, setPendingFarmRegisterPrompt] =
     useState(false);
   const [equipmentMedia, setEquipmentMedia] = useState({});
+  const equipmentMediaRef = useRef({});
   const [equippedCharacterVideo, setEquippedCharacterVideo] = useState(null);
   const [equippedCharacterImage, setEquippedCharacterImage] = useState(null);
   const [equippedItemId, setEquippedItemId] = useState(null);
@@ -278,9 +279,13 @@ function HomePage() {
     }
   };
 
+  useEffect(() => {
+    equipmentMediaRef.current = equipmentMedia;
+  }, [equipmentMedia]);
+
   const applyEquippedCharacterMedia = useCallback(
     (value, overrideMedia) => {
-      const mediaMap = overrideMedia ?? equipmentMedia;
+      const mediaMap = overrideMedia ?? equipmentMediaRef.current;
       if (value == null || value === "") {
         setEquippedCharacterVideo(null);
         setEquippedCharacterImage(null);
@@ -305,7 +310,7 @@ function HomePage() {
       setEquippedCharacterImage(media.equipImage ?? null);
       setEquippedItemId(parsed);
     },
-    [equipmentMedia]
+    []
   );
 
   useEffect(() => {
@@ -326,10 +331,16 @@ function HomePage() {
     let ignore = false;
     async function loadEquipmentMedia() {
       try {
-        const data = await fetchShopItems();
+        const [catalog, inventory] = await Promise.all([
+          fetchShopItems(),
+          fetchUserItems().catch((error) => {
+            console.error("보유 아이템 정보를 불러오지 못했습니다.", error);
+            return null;
+          }),
+        ]);
         if (ignore) return;
         const map = {};
-        (data ?? []).forEach((item) => {
+        (catalog ?? []).forEach((item) => {
           if (!item?.id) return;
           map[item.id] = {
             equipImage: resolveAssetUrl(item.equippedPhotoUrl),
@@ -337,12 +348,20 @@ function HomePage() {
           };
         });
         setEquipmentMedia(map);
+        const equippedEntry = Array.isArray(inventory?.items)
+          ? inventory.items.find(
+              (entry) =>
+                entry.status === "EQUIPPED" &&
+                (entry.category ?? "tool").toLowerCase() === "tool"
+            )
+          : null;
+        const fallbackEquipped =
+          typeof window !== "undefined" ? window.shopEquippedItemId ?? null : null;
+        const equippedId = equippedEntry?.itemId ?? fallbackEquipped ?? null;
         if (typeof window !== "undefined") {
-          applyEquippedCharacterMedia(
-            window.shopEquippedItemId ?? null,
-            map
-          );
+          window.shopEquippedItemId = equippedId;
         }
+        applyEquippedCharacterMedia(equippedId, map);
       } catch (error) {
         if (!ignore) {
           console.error("상점 장비 정보를 불러오지 못했습니다.", error);
