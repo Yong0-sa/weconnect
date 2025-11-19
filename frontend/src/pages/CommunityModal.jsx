@@ -60,9 +60,7 @@ function CommunityModal({ onClose }) {
   const [comments, setComments] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyInput, setReplyInput] = useState("");
-  const [editingPost, setEditingPost] = useState(false);
-  const [editPostTitle, setEditPostTitle] = useState("");
-  const [editPostContent, setEditPostContent] = useState("");
+  const [editingPostData, setEditingPostData] = useState(null);
   const [editingComment, setEditingComment] = useState(null);
   const [editCommentContent, setEditCommentContent] = useState("");
   const [isWriting, setIsWriting] = useState(false);
@@ -104,11 +102,24 @@ function CommunityModal({ onClose }) {
     setSelectedFarm(farm);
     setSelectedPost(null);
     setIsWriting(false);
-    setEditingPost(false);
-    setEditPostTitle("");
-    setEditPostContent("");
+    setEditingPostData(null);
+    setWriteTitle("");
+    setWriteContent("");
+    setWriteImage(null);
+    setWriteImagePreview(null);
+    setWriteCategory("board");
     setActiveCategory("all");
   }, []);
+
+  const handleGoToMyFarm = useCallback(() => {
+    if (!myFarmId) return;
+    const matched = farmList.find(
+      (farm) => String(farm.farmId) === String(myFarmId)
+    );
+    if (matched) {
+      applyFarmSelection(matched);
+    }
+  }, [myFarmId, farmList, applyFarmSelection]);
 
   // 선택된 농장의 게시글만 필터링
   const noticePosts = useMemo(() => {
@@ -161,13 +172,17 @@ function CommunityModal({ onClose }) {
   const totalCount =
     (showNotice ? filteredNoticePosts.length : 0) +
     (showBoard ? filteredBoardPosts.length : 0);
+  const isEditingPost = Boolean(editingPostData);
 
   const handlePostClick = async (post) => {
     setSelectedPost(post);
     setCommentInput("");
-    setEditingPost(false);
-    setEditPostTitle("");
-    setEditPostContent("");
+    setIsWriting(false);
+    setEditingPostData(null);
+    setWriteTitle("");
+    setWriteContent("");
+    setWriteImage(null);
+    setWriteImagePreview(null);
 
     try {
       const response = await axios.get(`/api/comments?postId=${post.id}`);
@@ -263,53 +278,16 @@ function CommunityModal({ onClose }) {
     }
   };
 
-  // 게시글 수정/삭제
+  // 게시글 수정 시작
   const handleEditPost = () => {
-    setEditingPost(true);
-    setEditPostTitle(selectedPost.title);
-    setEditPostContent(selectedPost.content);
-  };
-
-  const handleSavePost = async () => {
-    if (!editPostTitle.trim() || !editPostContent.trim()) return;
-
-    try {
-      // 1. PUT 요청: 백엔드 컨트롤러와 매핑
-      const response = await axios.put(
-        `/api/posts/${selectedPost.id}?requesterId=${userId}`,
-        {
-          title: editPostTitle.trim(),
-          content: editPostContent.trim(),
-        }
-      );
-
-      setSelectedPost((prev) => ({
-        ...prev,
-        title: editPostTitle.trim(),
-        content: editPostContent.trim(),
-      }));
-
-      setLocalCommunityPosts((prevPosts) =>
-        prevPosts.map((post) =>
-          post.id === selectedPost.id
-            ? {
-                ...post,
-                title: editPostTitle.trim(),
-                content: editPostContent.trim(),
-              }
-            : post
-        )
-      );
-      setEditingPost(false);
-    } catch (error) {
-      console.error("글 수정 실패:", error);
-    }
-  };
-
-  const handleCancelEditPost = () => {
-    setEditingPost(false);
-    setEditPostTitle("");
-    setEditPostContent("");
+    if (!selectedPost) return;
+    setEditingPostData(selectedPost);
+    setIsWriting(true);
+    setWriteTitle(selectedPost.title || "");
+    setWriteContent(selectedPost.content || "");
+    setWriteCategory(selectedPost.type === "NOTICE" ? "notice" : "board");
+    setWriteImage(null);
+    setWriteImagePreview(selectedPost.image || selectedPost.photoUrl || null);
   };
 
   const confirmDelete = async (message) =>
@@ -476,16 +454,19 @@ function CommunityModal({ onClose }) {
 
   // 글쓰기 기능
   const handleWriteClick = () => {
+    setEditingPostData(null);
     setIsWriting(true);
     setWriteTitle("");
     setWriteContent("");
     setWriteImage(null);
     setWriteImagePreview(null);
-    setWriteCategory("board");
+    // 공지사항 탭에서 클릭했으면 notice, 아니면 board
+    setWriteCategory(activeCategory === "notice" ? "notice" : "board");
   };
 
   const handleWriteCancel = () => {
     setIsWriting(false);
+    setEditingPostData(null);
     setWriteTitle("");
     setWriteContent("");
     setWriteImage(null);
@@ -508,7 +489,62 @@ function CommunityModal({ onClose }) {
       return;
     }
 
-    // ✅ 수정: selectedFarm과 farmId 확인
+    // 프론트엔드 권한 검증 추가
+    if (writeCategory === "notice" && !isOwner) {
+      showToast("공지사항은 농장주만 작성할 수 있습니다.", "error");
+      return;
+    }
+
+    if (editingPostData) {
+      try {
+        await axios.put(
+          `/api/posts/${editingPostData.id}?requesterId=${userId}`,
+          {
+            title: writeTitle.trim(),
+            content: writeContent.trim(),
+          }
+        );
+
+        setLocalCommunityPosts((prev) =>
+          prev.map((post) =>
+            post.id === editingPostData.id
+              ? {
+                  ...post,
+                  title: writeTitle.trim(),
+                  content: writeContent.trim(),
+                }
+              : post
+          )
+        );
+        setSelectedPost((prev) =>
+          prev && prev.id === editingPostData.id
+            ? {
+                ...prev,
+                title: writeTitle.trim(),
+                content: writeContent.trim(),
+              }
+            : prev
+        );
+        showToast("게시글이 수정되었습니다.", "success");
+      } catch (error) {
+        console.error("글 수정 실패:", error);
+        showToast(
+          error.response?.data || error.message || "글 수정 실패",
+          "error"
+        );
+        return;
+      } finally {
+        setIsWriting(false);
+        setEditingPostData(null);
+        setWriteTitle("");
+        setWriteContent("");
+        setWriteImage(null);
+        setWriteImagePreview(null);
+        setWriteCategory("board");
+      }
+      return;
+    }
+
     if (!selectedFarm || !selectedFarm.farmId) {
       return;
     }
@@ -533,11 +569,6 @@ function CommunityModal({ onClose }) {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      console.log("✅ userId:", userId);
-      console.log("✅ farmId:", selectedFarm.farmId);
-
-      console.log("서버 응답:", response.data);
-
       const imageUrl = response.data.photoUrl || writeImagePreview || null;
       const newPost = {
         id: response.data.id || Date.now(),
@@ -550,20 +581,17 @@ function CommunityModal({ onClose }) {
         tags: [],
         likes: 0,
         replies: 0,
-        type: response.data.type || "GENERAL", // ⭐ 서버에서 받은 type 사용
+        type: response.data.type || "GENERAL",
         createdAt: new Date().toISOString(),
         image: imageUrl,
         photoUrl: imageUrl,
       };
 
       setLocalCommunityPosts((prev) => [newPost, ...prev]);
-      const rewarded = await addCoins(1, "community_post");
-      showToast(
-        rewarded
-          ? "게시글이 저장되었습니다! 코인 1개 적립!"
-          : "게시글이 저장되었습니다. (코인 적립 실패)",
-        rewarded ? "success" : "info"
-      );
+
+      addCoins(1);
+      showToast("게시글이 저장되었습니다! 코인 1개 적립!", "success");
+
       setIsWriting(false);
       setWriteTitle("");
       setWriteContent("");
@@ -574,6 +602,10 @@ function CommunityModal({ onClose }) {
       console.error("❌ 글쓰기 실패:", error);
       console.error("응답 데이터:", error.response?.data);
       console.error("응답 상태:", error.response?.status);
+      showToast(
+        error.response?.data || error.message || "글쓰기 실패",
+        "error"
+      );
     }
   };
 
@@ -624,12 +656,18 @@ function CommunityModal({ onClose }) {
 
   useEffect(() => {
     if (!selectedPost) {
-      setEditingPost(false);
-      setEditPostTitle("");
-      setEditPostContent("");
-      return;
+      setIsWriting(false);
+      setEditingPostData(null);
+      setWriteTitle("");
+      setWriteContent("");
+      setWriteImage(null);
+      setWriteImagePreview(null);
     }
-    if (selectedFarm && selectedPost.farmId !== selectedFarm.farmId) {
+    if (
+      selectedFarm &&
+      selectedPost &&
+      selectedPost.farmId !== selectedFarm.farmId
+    ) {
       setSelectedPost(null);
     }
   }, [selectedPost, selectedFarm]);
@@ -785,7 +823,23 @@ function CommunityModal({ onClose }) {
         <aside className="community-sidebar">
           <div className="community-panel combined-panel">
             <div className="panel-block">
-              <p className="panel-title">농장 선택</p>
+              <div className="farm-select-header">
+                <p className="panel-title">농장 선택</p>
+                {myFarmId && (
+                  <button
+                    type="button"
+                    className="my-farm-button"
+                    onClick={handleGoToMyFarm}
+                    disabled={
+                      !farmList.some(
+                        (farm) => String(farm.farmId) === String(myFarmId)
+                      )
+                    }
+                  >
+                    내 농장
+                  </button>
+                )}
+              </div>
               <div className="community-farm-select" ref={dropdownRef}>
                 <div className="farm-select-trigger">
                   {isFarmDropdownOpen ? (
@@ -923,20 +977,25 @@ function CommunityModal({ onClose }) {
           <div className="community-feed-card">
             {!hasSelectedFarm ? (
               <div className="community-empty large">
-                <p>
+                <p>농장을 선택해주세요.</p>
+                <span>
                   {isOwnerRole
                     ? "왼쪽에서 농장을 선택하거나 농장 정보를 등록해주세요."
                     : "왼쪽에서 농장을 선택하거나 신청하신 농장의 승인을 기다려 주세요."}
-                </p>
+                </span>
               </div>
             ) : isWriting ? (
               <div className="community-detail-panel">
                 <div className="write-header">
+                  <p className="write-mode-label">
+                    {isEditingPost ? "게시글 수정" : "새 글 작성"}
+                  </p>
                   <select
                     id="write-category-select"
                     className="write-category-select"
                     value={writeCategory}
                     onChange={(e) => setWriteCategory(e.target.value)}
+                    disabled={isEditingPost}
                   >
                     {isOwner && <option value="notice">공지사항</option>}
                     <option value="board">자유게시판</option>
@@ -1011,7 +1070,7 @@ function CommunityModal({ onClose }) {
                     className="write-submit-btn"
                     onClick={handleWriteSubmit}
                   >
-                    등록
+                    {isEditingPost ? "수정" : "등록"}
                   </button>
                 </div>
               </div>
@@ -1030,9 +1089,15 @@ function CommunityModal({ onClose }) {
                     type="button"
                     className="community-write-btn"
                     onClick={handleWriteClick}
-                    disabled={!isOwner && !isApproved}
+                    disabled={
+                      activeCategory === "notice"
+                        ? !isOwner
+                        : !isOwner && !isApproved
+                    }
                     title={
-                      !isOwner && !isApproved
+                      activeCategory === "notice" && !isOwner
+                        ? "공지사항은 농장주만 작성할 수 있습니다"
+                        : !isOwner && !isApproved
                         ? "승인된 회원만 글을 작성할 수 있습니다"
                         : ""
                     }
@@ -1147,66 +1212,36 @@ function CommunityModal({ onClose }) {
                   </div>
                 </div>
                 <div className="detail-title-block">
-                  {editingPost ? (
-                    <>
-                      <input
-                        type="text"
-                        className="edit-post-title"
-                        value={editPostTitle}
-                        onChange={(e) => setEditPostTitle(e.target.value)}
-                        placeholder="제목을 입력하세요"
-                      />
-                      <div className="edit-post-buttons">
+                  <div className="post-detail">
+                    <h4>{selectedPost.title}</h4>
+                    {canEditSelectedPost && (
+                      <div className="post-action-buttons">
                         <button
                           type="button"
-                          onClick={handleCancelEditPost}
-                          className="edit-cancel-btn"
+                          onClick={handleEditPost}
+                          className="post-edit-btn"
                         >
-                          취소
+                          수정
                         </button>
                         <button
                           type="button"
-                          onClick={handleSavePost}
-                          className="edit-save-btn"
+                          onClick={handleDeletePost}
+                          className="post-delete-btn"
                         >
-                          저장
+                          삭제
                         </button>
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="post-detail">
-                        <h4>{selectedPost.title}</h4>
-                        {canEditSelectedPost && (
-                          <div className="post-action-buttons">
-                            <button
-                              type="button"
-                              onClick={handleEditPost}
-                              className="post-edit-btn"
-                            >
-                              수정
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleDeletePost}
-                              className="post-delete-btn"
-                            >
-                              삭제
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="detail-meta">
-                        <span className="detail-author">
-                          {selectedPost.userNickname}
-                        </span>
-                        <span className="detail-date">
-                          {formatToDateString(selectedPost.createdAt)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
+                    )}
+                  </div>
+                  <div className="detail-meta">
+                    <span className="detail-author">
+                      {selectedPost.userNickname}
+                    </span>
+                    <span className="detail-date">
+                      {formatToDateString(selectedPost.createdAt)}
+                    </span>
+                  </div>
+                </div>{" "}
                 <div className="detail-separator" />
                 {selectedPost.image && (
                   <div className="detail-image-container">
@@ -1217,16 +1252,7 @@ function CommunityModal({ onClose }) {
                     />
                   </div>
                 )}
-                {editingPost ? (
-                  <textarea
-                    className="edit-post-content"
-                    value={editPostContent}
-                    onChange={(e) => setEditPostContent(e.target.value)}
-                    placeholder="내용을 입력하세요"
-                  />
-                ) : (
-                  <div className="detail-body">{selectedPost.content}</div>
-                )}
+                <div className="detail-body">{selectedPost.content}</div>
                 <div className="detail-separator" />
                 <div className="detail-comments">
                   {comments[selectedPost.id] &&

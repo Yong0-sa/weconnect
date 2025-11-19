@@ -241,6 +241,35 @@
   color: #1f2e36;
 }
 
+.farm-select-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.my-farm-button {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  margin-top: -10px;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.my-farm-button:hover {
+  background: rgba(103, 188, 99, 0.85);
+}
+
+.my-farm-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .community-panel ul {
   list-style: none;
   padding: 0;
@@ -1071,6 +1100,13 @@
 
 /* 글쓰기 패널 */
 .write-header {
+  margin-bottom: 8px;
+}
+
+.write-mode-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2e36;
   margin-bottom: 8px;
 }
 
