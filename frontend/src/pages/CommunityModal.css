@@ -581,6 +581,15 @@
   padding: 24px 16px;
 }
 
+.community-empty.large {
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  font-size: 16px;
+}
+
 .community-detail-panel {
   background: #fff;
   border-radius: 24px;
