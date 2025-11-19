@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/replies")
+@RequestMapping({"/api/replies","/replies"})
 @RequiredArgsConstructor
 public class ReplyController {
 
