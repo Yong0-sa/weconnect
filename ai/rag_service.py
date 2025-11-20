@@ -21,8 +21,14 @@ from typing import List, Literal, Optional, Sequence
 from chromadb import PersistentClient
 try:
     from chromadb.errors import InvalidCollectionException, NotFoundError
-except ImportError:  # chromadb>=0.5 drops NotFoundError
-    from chromadb.errors import InvalidCollectionException
+except ImportError:
+    # chromadb 최신 버전 호환
+    try:
+        from chromadb.errors import InvalidCollectionException
+    except ImportError:
+        # InvalidCollectionException도 없는 경우
+        class InvalidCollectionException(Exception):  # type: ignore[misc]
+            """Fallback for chromadb API."""
 
     class NotFoundError(InvalidCollectionException):  # type: ignore[misc]
         """Fallback for older chromadb API expectation."""

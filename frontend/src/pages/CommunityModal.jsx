@@ -3,6 +3,7 @@ import axios from "axios";
 import "./CommunityModal.css";
 import { fetchMyProfile } from "../api/profile";
 import { useCoins } from "../contexts/CoinContext";
+import { getTextSuggestions } from "../api/textSuggestions";
 
 const formatToDateString = (value) => {
   if (!value) return "";
@@ -77,6 +78,12 @@ function CommunityModal({ onClose }) {
   const [hasManualSelection, setHasManualSelection] = useState(false);
   const [toast, setToast] = useState(null);
   const dropdownRef = useRef(null);
+
+  // AI 문장 추천 관련 state
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const writeContentRef = useRef(null);
   const farmSearchInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const generateUniqueId = () => Date.now() + Math.random();
@@ -481,6 +488,70 @@ function CommunityModal({ onClose }) {
       const previewUrl = URL.createObjectURL(file);
       setWriteImagePreview(previewUrl);
     }
+  };
+
+  // AI 문장 추천 요청
+  const handleRequestSuggestions = async () => {
+    console.log("=== 문장 추천 버튼 클릭 ===");
+    console.log("writeContent:", writeContent);
+    console.log("selectedFarm:", selectedFarm);
+    console.log("farmId:", selectedFarm?.farmId);
+
+    if (!writeContent.trim() || !selectedFarm?.farmId) {
+      console.log("조건 불충족으로 중단");
+      return;
+    }
+
+    console.log("API 호출 시작");
+    setIsLoadingSuggestions(true);
+    setSuggestions([]);
+    setShowSuggestions(false);
+
+    try {
+      const data = await getTextSuggestions(writeContent.trim(), selectedFarm.farmId);
+      console.log("API 응답:", data);
+      setSuggestions(data.suggestions || []);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error("문장 추천 실패:", error);
+      showToast("문장 추천에 실패했습니다. 다시 시도해주세요.", "error");
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  // 추천 문장 선택 시 커서 위치에 삽입
+  const handleSelectSuggestion = (suggestion) => {
+    if (!suggestion.trim()) return;
+
+    const textarea = writeContentRef.current;
+    if (!textarea) {
+      // ref가 없으면 맨 뒤에 추가
+      setWriteContent((prev) => prev + " " + suggestion);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentContent = writeContent;
+
+    // 커서 위치에 문장 삽입
+    const newContent =
+      currentContent.substring(0, start) +
+      " " +
+      suggestion +
+      currentContent.substring(end);
+
+    setWriteContent(newContent);
+    setShowSuggestions(false);
+
+    // 커서 위치 업데이트 (삽입된 문장 뒤로)
+    setTimeout(() => {
+      const newCursorPos = start + suggestion.length + 1;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+      textarea.focus();
+    }, 0);
   };
 
   // ✅ 백엔드 API 연동 - 글쓰기 제출 (JSON만 전송)
@@ -1051,11 +1122,44 @@ function CommunityModal({ onClose }) {
                 </div>
 
                 <textarea
+                  ref={writeContentRef}
                   className="write-content-textarea"
                   placeholder="내용을 입력하세요"
                   value={writeContent}
                   onChange={(e) => setWriteContent(e.target.value)}
                 />
+
+                {/* AI 문장 추천 버튼 (공지사항 + 농장주 + 10자 이상) */}
+                {writeCategory === "notice" &&
+                  isOwner &&
+                  writeContent.length >= 10 && (
+                    <div className="ai-suggestion-container">
+                      <button
+                        type="button"
+                        className="ai-suggestion-btn"
+                        onClick={handleRequestSuggestions}
+                        disabled={isLoadingSuggestions}
+                      >
+                        {isLoadingSuggestions ? "추천 중..." : "문장 추천"}
+                      </button>
+
+                      {/* 추천 문장 버블 (인라인 표시) */}
+                      {showSuggestions && suggestions.length > 0 && (
+                        <div className="ai-suggestion-bubbles">
+                          {suggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              className="ai-suggestion-bubble"
+                              onClick={() => handleSelectSuggestion(suggestion)}
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 <div className="write-buttons">
                   <button

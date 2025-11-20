@@ -25,6 +25,7 @@ from rag_service import (
     RAGServiceError,
     ReferenceLink,
 )
+from text_suggestion_service import TextSuggestionService, TextSuggestionError
 
 # 로깅 설정 (먼저 초기화)
 logging.basicConfig(
@@ -164,6 +165,15 @@ except Exception as exc:
     logger.error(f"상세 traceback:\n{traceback.format_exc()}")
     raise
 
+logger.info("TextSuggestionService 초기화 시작...")
+try:
+    text_suggestion_service = TextSuggestionService()
+    logger.info("TextSuggestionService 초기화 완료")
+except Exception as exc:
+    logger.error(f"TextSuggestionService 초기화 실패: {exc}")
+    logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+    raise
+
 history_store = HistoryStore()
 
 
@@ -196,6 +206,40 @@ async def search_ai(payload: SearchRequest) -> HistoryItem:
 async def get_history() -> List[HistoryItem]:
     entries = await run_in_threadpool(history_store.list)
     return [_to_history_item(entry) for entry in entries]
+
+
+# ===== AI 글작성 도우미 엔드포인트 =====
+
+class TextSuggestionRequest(BaseModel):
+    """문장 추천 요청"""
+    content: str = Field(..., min_length=1, description="현재 작성 중인 내용")
+
+
+class TextSuggestionResponse(BaseModel):
+    """문장 추천 응답"""
+    suggestions: List[str] = Field(..., description="추천 문장 리스트 (2개)")
+
+
+@app.post("/text-suggestions", response_model=TextSuggestionResponse)
+async def get_text_suggestions(payload: TextSuggestionRequest) -> TextSuggestionResponse:
+    """
+    농장 공지사항 작성 시 AI 문장 추천
+    현재 작성 중인 내용을 기반으로 자연스럽게 이어질 문장 2개 제안
+    """
+    try:
+        logger.info(f"문장 추천 요청: 내용 길이={len(payload.content)} 글자")
+        suggestions = await run_in_threadpool(text_suggestion_service.get_suggestions, payload.content)
+        logger.info(f"문장 추천 완료: {len(suggestions)}개 문장 생성")
+        return TextSuggestionResponse(suggestions=suggestions)
+    except TextSuggestionError as exc:
+        logger.error(f"문장 추천 에러: {exc}")
+        logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.error(f"예상치 못한 에러: {type(exc).__name__}: {exc}")
+        logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"서버 내부 오류: {exc}") from exc
+
 
 # 작물 진단 관련 함수들
 def get_model(crop_type: str):
