@@ -9,12 +9,14 @@ from threading import Lock
 from typing import Deque, List, Literal
 from uuid import uuid4
 import numpy as np
-from pathlib import Path
 from PIL import Image
 import io
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
+# - 비동기 FastAPI 내부에서 CPU-bound or blocking 코드를 안전하게 실행하는 기능
+# - (예: 이미지 전처리, 모델 예측 등)
 from fastapi.concurrency import run_in_threadpool
+
 from pydantic import BaseModel, Field
 
 from rag_service import (
@@ -27,16 +29,17 @@ from rag_service import (
 )
 from text_suggestion_service import TextSuggestionService, TextSuggestionError
 
-# 로깅 설정 (먼저 초기화)
+# FastAPI 전체 서버 공통 로그 설정
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
+# FastAPI 서버 인스턴스 생성
 app = FastAPI(title="WeConnect AI Search API")
 
-# TensorFlow/Keras 모델 로드 (전역 변수로 한 번만 로드)
+# TensorFlow/Keras 모델 로드 (전역 1회)
 # 모델이 없어도 서버는 시작되도록 처리
 pepperbell_model = None
 potato_model = None
@@ -76,20 +79,28 @@ try:
             logger.info("토마토 모델 로드 완료")
         else:
             logger.warning(f"토마토 모델 파일을 찾을 수 없습니다: {tomato_path}")
+    
     else:
         logger.warning(f"모델 디렉토리가 존재하지 않습니다: {MODEL_DIR}")
         logger.info("모델 없이 서버를 시작합니다. 작물 진단 기능은 사용할 수 없습니다.")
 
 except ImportError as e:
+    # TensorFlow 미설치 (가벼운 서버에서 종종 발생)
     logger.warning(f"TensorFlow를 import할 수 없습니다: {e}")
     logger.info("모델 없이 서버를 시작합니다. 작물 진단 기능은 사용할 수 없습니다.")
+
 except Exception as e:
+    # 모델 로딩 중 알 수 없는 오류
     logger.error(f"모델 로드 중 오류 발생: {e}")
     logger.error(f"상세 traceback:\n{traceback.format_exc()}")
     logger.info("모델 없이 서버를 시작합니다. 작물 진단 기능은 사용할 수 없습니다.")
 
+
+# RAG 대화 히스토리 저장 구조
 @dataclass
 class HistoryEntry:
+    # 하나의 검색/답변 처리 기록을 표현하는 데이터 구조.
+    # RAGResult 정보 + 요청 메타데이터 포함.
     id: str
     question: str
     answer: str
@@ -100,13 +111,15 @@ class HistoryEntry:
 
 
 class HistoryStore:
-    """In-memory conversation history with thread-safe access."""
+    # In-memory 히스토리 저장소.
 
     def __init__(self, max_items: int = 100) -> None:
         self._items: Deque[HistoryEntry] = deque(maxlen=max_items)
         self._lock = Lock()
 
     def add(self, question: str, result: RAGResult) -> HistoryEntry:
+        #  히스토리 엔트리를 생성하고 저장.
+        # result 는 RAGService.ask()의 반환값.
         entry = HistoryEntry(
             id=str(uuid4()),
             question=question,
@@ -116,20 +129,28 @@ class HistoryStore:
             prompt_type=result.prompt_type,
             created_at=datetime.now(timezone.utc),
         )
+        
+        #  thread-safe append
+        # → 동시에 여러 사용자가 검색하더라도 안정적으로 기록됨.
         with self._lock:
             self._items.append(entry)
         return entry
 
     def list(self) -> List[HistoryEntry]:
+        # 저장된 히스토리 전체 조회. 저장 순서대로 반환.
         with self._lock:
             return list(self._items)
 
 
+# 요청/응답 구조 정의 (FastAPI 자동 문서화 및 데이터 검증)
+
 class SearchRequest(BaseModel):
+    # 사용자가 AI에게 질문할 때 사용하는 요청 바디.
     question: str = Field(..., min_length=1, description="사용자 질문")
 
 
 class HistoryItem(BaseModel):
+    # HistoryEntry를 API 응답용으로 변환한 버전.
     id: str
     question: str
     answer: str
@@ -140,11 +161,14 @@ class HistoryItem(BaseModel):
 
 
 class ReferenceLinkModel(BaseModel):
+    # RAG 결과에 포함될 PDF 문서 링크 모델.
     title: str
     url: str
 
 
 def _to_history_item(entry: HistoryEntry) -> HistoryItem:
+    # HistoryEntry → HistoryItem 변환 함수.
+    # API 응답을 위해 dataclass 형태를 Pydantic 모델로 변환함.
     return HistoryItem(
         id=entry.id,
         question=entry.question,
@@ -156,55 +180,83 @@ def _to_history_item(entry: HistoryEntry) -> HistoryItem:
     )
 
 
+# RAGService 초기화
+# - 벡터DB 연결, 임베딩 모델 로드 등 실행 시점에 필요한 자원 준비
 logger.info("RAGService 초기화 시작...")
+
 try:
     rag_service = RAGService()
     logger.info("RAGService 초기화 완료")
+
 except Exception as exc:
     logger.error(f"RAGService 초기화 실패: {exc}")
     logger.error(f"상세 traceback:\n{traceback.format_exc()}")
     raise
 
+
+# TextSuggestionService 초기화
 logger.info("TextSuggestionService 초기화 시작...")
+
 try:
     text_suggestion_service = TextSuggestionService()
     logger.info("TextSuggestionService 초기화 완료")
+
 except Exception as exc:
     logger.error(f"TextSuggestionService 초기화 실패: {exc}")
     logger.error(f"상세 traceback:\n{traceback.format_exc()}")
     raise
 
+# 전역 히스토리 저장소 (서버 살아 있는 동안 유지)
 history_store = HistoryStore()
 
 
 @app.post("/api/ai/chat", response_model=HistoryItem)
 async def search_ai(payload: SearchRequest) -> HistoryItem:
+
     try:
+        # 1) 유효성 검사를 통과한 사용자 질문 수신 로그
         logger.info(f"질문 수신: {payload.question}")
+        # - RAGService.ask()는 CPU-bound(임베딩 계산 + 벡터 검색 포함)
+        # - FastAPI event loop 차단 방지 → 대규모 동시 요청에도 안정적
         result = await run_in_threadpool(rag_service.ask, payload.question)
+        
         logger.info(f"답변 생성 완료: prompt_type={result.prompt_type}")
+    
+    # 각 예외 유형별로 HTTP 상태 코드 구분 처리
     except InappropriateQueryError as exc:
         logger.warning(f"부적절한 질문: {exc}")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    
     except EmptyQueryError as exc:
         logger.warning(f"빈 질문: {exc}")
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    
     except RAGServiceError as exc:
         logger.error(f"RAG 서비스 에러 발생: {exc}")
         logger.error(f"상세 traceback:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
     except Exception as exc:
         logger.error(f"예상치 못한 에러 발생: {type(exc).__name__}: {exc}")
         logger.error(f"상세 traceback:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"서버 내부 오류: {exc}") from exc
 
+    # 3) 정상 응답일 경우 → 히스토리 저장 후 응답 모델 생성
+    # 질문 저장 시 strip()을 한 번 더 적용해 안전성 확보
     entry = history_store.add(payload.question.strip(), result)
+
+    # API 응답용 Pydantic 모델 변환
     return _to_history_item(entry)
 
 
+# AI 검색 기록 조회 API
 @app.get("/api/ai/chat/history", response_model=List[HistoryItem])
 async def get_history() -> List[HistoryItem]:
+    # HistoryStore.list()는 thread-safe이지만 synchronous 함수이므로
+    # FastAPI event loop 블로킹을 피하기 위해 threadpool에서 실행
     entries = await run_in_threadpool(history_store.list)
+
+    # Pydantic 응답모델로 변환 후 클라이언트 반환
     return [_to_history_item(entry) for entry in entries]
 
 
