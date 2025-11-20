@@ -1121,19 +1121,11 @@ function CommunityModal({ onClose }) {
                   )}
                 </div>
 
-                <textarea
-                  ref={writeContentRef}
-                  className="write-content-textarea"
-                  placeholder="내용을 입력하세요"
-                  value={writeContent}
-                  onChange={(e) => setWriteContent(e.target.value)}
-                />
-
-                {/* AI 문장 추천 버튼 (공지사항 + 농장주 + 10자 이상) */}
+                {/* AI 문장 추천 영역 (이미지와 textarea 사이, 조건부) */}
                 {writeCategory === "notice" &&
                   isOwner &&
                   writeContent.length >= 10 && (
-                    <div className="ai-suggestion-container">
+                    <div className="ai-suggestion-area">
                       <button
                         type="button"
                         className="ai-suggestion-btn"
@@ -1143,7 +1135,7 @@ function CommunityModal({ onClose }) {
                         {isLoadingSuggestions ? "추천 중..." : "문장 추천"}
                       </button>
 
-                      {/* 추천 문장 버블 (인라인 표시) */}
+                      {/* 추천 문장 버블 */}
                       {showSuggestions && suggestions.length > 0 && (
                         <div className="ai-suggestion-bubbles">
                           {suggestions.map((suggestion, index) => (
@@ -1160,6 +1152,14 @@ function CommunityModal({ onClose }) {
                       )}
                     </div>
                   )}
+
+                <textarea
+                  ref={writeContentRef}
+                  className="write-content-textarea"
+                  placeholder="내용을 입력하세요"
+                  value={writeContent}
+                  onChange={(e) => setWriteContent(e.target.value)}
+                />
 
                 <div className="write-buttons">
                   <button

@@ -1311,11 +1311,25 @@
 
 /* ===== AI 문장 추천 스타일 ===== */
 
-.ai-suggestion-container {
-  margin-top: 12px;
+.ai-suggestion-area {
+  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+  }
 }
 
 .ai-suggestion-btn {
