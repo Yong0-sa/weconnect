@@ -6,6 +6,7 @@ import com.project.eum.dto.UserItemEquipRequest;
 import com.project.eum.dto.UserItemEquipResponse;
 import com.project.eum.dto.UserItemPurchaseRequest;
 import com.project.eum.dto.UserItemPurchaseResponse;
+import com.project.eum.dto.UserItemUnequipRequest;
 import com.project.eum.shop.UserItemService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +62,22 @@ public class UserItemController {
         }
         try {
             UserItemEquipResponse response = userItemService.equipItem(memberId, request.itemId());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/unequip")
+    public ResponseEntity<?> unequipItem(@RequestBody(required = false) UserItemUnequipRequest request, HttpSession session) {
+        Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
+        }
+        Long itemId = request != null ? request.itemId() : null;
+        String category = request != null ? request.category() : null;
+        try {
+            UserItemEquipResponse response = userItemService.unequip(memberId, itemId, category);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());

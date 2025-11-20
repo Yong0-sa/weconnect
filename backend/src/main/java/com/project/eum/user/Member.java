@@ -62,6 +62,12 @@ public class Member {
     @Builder.Default
     private Long coinBalance = 0L;
 
+    /**
+     * 현재 장착 중인 상점 아이템 ID (없으면 null).
+     */
+    @Column(name = "equipped_tool_item_id")
+    private Long equippedToolItemId;
+
     // 레코드 생성/수정 시점을 자동으로 기록한다
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -84,7 +84,38 @@ public class UserItemService {
         item.setStatus(UserItemStatus.EQUIPPED);
         userItemRepository.save(item);
 
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+        member.setEquippedToolItemId(item.getShopItem().getId());
+        memberRepository.save(member);
+
         return new UserItemEquipResponse(item.getShopItem().getId(), category, item.getStatus());
+    }
+
+    @Transactional
+    public UserItemEquipResponse unequip(Long memberId, Long itemId, String category) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("로그인이 필요합니다.");
+        }
+        if (itemId != null) {
+            UserItem item = userItemRepository.findByUserUserIdAndShopItem_Id(memberId, itemId)
+                    .orElseThrow(() -> new IllegalArgumentException("해당 아이템을 보유하고 있지 않습니다."));
+            item.setStatus(UserItemStatus.UNEQUIPPED);
+            userItemRepository.save(item);
+
+            Member member = memberRepository.findById(memberId)
+                    .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+            member.setEquippedToolItemId(null);
+            memberRepository.save(member);
+            return new UserItemEquipResponse(item.getShopItem().getId(), defaultCategory(item.getItemCategory()), item.getStatus());
+        }
+        String normalized = normalizeCategory(category);
+        userItemRepository.unequipCategory(memberId, normalized);
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+        member.setEquippedToolItemId(null);
+        memberRepository.save(member);
+        return new UserItemEquipResponse(null, normalized, UserItemStatus.UNEQUIPPED);
     }
 
     private UserItemSummaryResponse toSummary(UserItem entity) {

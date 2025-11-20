@@ -7,6 +7,7 @@ import {
   fetchShopItems,
   fetchUserItems,
   equipShopItem,
+  unequipShopItem,
 } from "../api/shop";
 
 const SHOP_EQUIPMENT_EVENT = "shopEquipmentChange";
@@ -43,7 +44,9 @@ function ShopModal({ onClose, userName = "사용자" }) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const [isUnequipping, setIsUnequipping] = useState(false);
   const { coins, purchaseItem } = useCoins();
+  const [scale, setScale] = useState(1);
 
   const setItems = useCallback((updater) => {
     setItemsState((prev) => {
@@ -166,6 +169,21 @@ function ShopModal({ onClose, userName = "사용자" }) {
     };
   }, [broadcastEquipmentChange]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 1300;
+      const heightScale = window.innerHeight / 760;
+      const nextScale = Math.min(widthScale, heightScale, 1);
+      setScale(nextScale > 0 ? nextScale : 1);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
+
   const handleItemButtonClick = async (item) => {
     if (!item.owned) {
       await handlePurchase(item.id);
@@ -191,8 +209,23 @@ function ShopModal({ onClose, userName = "사용자" }) {
   const equippedItem = items.find((i) => i.id === equippedItemId);
   const previewImage = equippedItem ? equippedItem.equippedImage : null;
 
+  const handleUnequip = async () => {
+    if (!equippedItemId || isUnequipping) return;
+    setIsUnequipping(true);
+    try {
+      await unequipShopItem({ category: "tool", itemId: equippedItemId });
+      setEquippedItemId(null);
+      broadcastEquipmentChange(null);
+    } catch (error) {
+      console.error("장착 해제 실패:", error);
+    } finally {
+      setIsUnequipping(false);
+    }
+  };
+
   return (
-    <div className="shop-modal-card">
+    <div className="shop-modal-wrapper">
+      <div className="shop-modal-card" style={{ transform: `scale(${scale})` }}>
       {onClose && (
         <button
           type="button"
@@ -230,7 +263,18 @@ function ShopModal({ onClose, userName = "사용자" }) {
           </div>
         </aside>
 
-        <div className="shop-items-grid">
+        <div className="shop-items-grid-wrapper">
+          <div className="shop-items-toolbar">
+            <button
+              type="button"
+              className="shop-unequip-button"
+              onClick={handleUnequip}
+              disabled={!equippedItemId || isUnequipping}
+            >
+              장착 해제
+            </button>
+          </div>
+          <div className="shop-items-grid">
           {isLoading ? (
             <div className="shop-item-placeholder">아이템을 불러오는 중...</div>
           ) : loadError ? (
@@ -279,9 +323,11 @@ function ShopModal({ onClose, userName = "사용자" }) {
               </div>
             ))
           )}
+          </div>
         </div>
       </div>
     </div>
+  </div>
   );
 }
 

@@ -63,3 +63,13 @@ export async function equipShopItem(itemId) {
   });
   return parseResponse(res, "아이템을 장착하지 못했습니다.");
 }
+
+export async function unequipShopItem({ category = "tool", itemId = null } = {}) {
+  const res = await fetch(`${API_BASE}/api/user-items/unequip`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ category, itemId }),
+  });
+  return parseResponse(res, "아이템 장착을 해제하지 못했습니다.");
+}
