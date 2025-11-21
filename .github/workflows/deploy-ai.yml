@@ -45,46 +45,51 @@ jobs:
           host: ${{ secrets.BASTION_HOST }}
           username: ${{ secrets.BASTION_USER }}
           password: ${{ secrets.BASTION_PASSWORD }}
+          timeout: "300s"
+          command_timeout: "300s"
           script: |
             scp -o StrictHostKeyChecking=no /tmp/ai-files.tar.gz ${{ secrets.APP_SERVER_USER }}@${{ secrets.AI_SERVER_IP }}:/tmp/
             ssh -o StrictHostKeyChecking=no ${{ secrets.APP_SERVER_USER }}@${{ secrets.AI_SERVER_IP }} "
               mkdir -p /app/ai/backup_models
+
               if [ -d /app/ai/aiModel ]; then
                 mv /app/ai/aiModel /app/ai/backup_models/
               fi
+
               if [ -f /app/ai/.model.zip ]; then
                 mv /app/ai/.model.zip /app/ai/backup_models/
               fi
-              cd /app/ai && 
+
+              cd /app/ai &&
               find . -maxdepth 1 ! -name 'aiModel' ! -name 'chroma_db_v1' ! -name '.model.zip' ! -name 'backup_models' ! -name 'venv' ! -name '.' -exec rm -rf {} + &&
-              tar -xzf /tmp/ai-files.tar.gz && 
-              rm /tmp/ai-files.tar.gz && 
+              tar -xzf /tmp/ai-files.tar.gz &&
+              rm /tmp/ai-files.tar.gz
+
+              # restore model
               if [ -d /app/ai/backup_models/aiModel ]; then
                 mv /app/ai/backup_models/aiModel /app/ai/
               fi
+
               if [ -f /app/ai/backup_models/.model.zip ]; then
                 mv /app/ai/backup_models/.model.zip /app/ai/
               fi
+
               rm -rf /app/ai/backup_models
-              # ✨ 추가: Python 캐시 삭제
-              rm -rf __pycache__
+
+              # Python cache 삭제
               find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
-              # ✨ 추가: .pyc 파일 삭제
               find . -type f -name '*.pyc' -delete 2>/dev/null || true
+
               if [ ! -d venv ]; then
                 python3 -m venv venv
               fi
-              source venv/bin/activate && 
-              pip install --upgrade pip && 
-              pip install -r requirements.txt && 
-              # ✨ 추가: 기존 uvicorn 프로세스 강제 종료
-              sudo pkill -9 -f uvicorn || true
-              # ✨ 추가: 프로세스 종료 대기
-              sleep 2
-              # ✨ 추가: 포트 점유 확인 후 종료
-              if sudo lsof -ti:8000; then
-                sudo kill -9 \$(sudo lsof -ti:8000) || true
-                sleep 1
-              fi
-              sudo systemctl restart fastapi
+
+              source venv/bin/activate &&
+              pip install --upgrade pip &&
+              pip install --no-deps -r requirements.txt
+
+              # uvicorn 대신 fastapi 서비스 stop/start
+              sudo systemctl stop fastapi || true
+              sleep 1
+              sudo systemctl start fastapi
             "

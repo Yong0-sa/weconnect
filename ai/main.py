@@ -276,7 +276,7 @@ class TextSuggestionResponse(BaseModel):
 async def get_text_suggestions(payload: TextSuggestionRequest) -> TextSuggestionResponse:
     """
     농장 공지사항 작성 시 AI 문장 추천
-    현재 작성 중인 내용을 기반으로 자연스럽게 이어질 문장 2개 제안
+    현재 작성 중인 내용을 기반으로 자연스럽게 이어질 문장 2가지 제안
     """
     try:
         logger.info(f"문장 추천 요청: 내용 길이={len(payload.content)} 글자")

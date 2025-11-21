@@ -79,7 +79,7 @@ class ReferenceLink:
 
 
 class RAGService:
-    # 간단한 인사/테스트 패턴을 정규표현식으로 정의
+    # 간단한 인사/테스트 패턴을 정규 표현식으로 정의
     GREET_PATTERN = re.compile(r"^\s*(안녕|ㅎㅇ|하이|hi|hello|테스트|고마워|감사)\s*$", re.I)
 
     #  모델/경로/임계값 등 공통 설정을 묶어서 이후 호출을 단순화
