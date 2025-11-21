@@ -17,11 +17,14 @@ except ImportError:
         class InvalidCollectionException(Exception):  # type: ignore[misc]
             # => ChromaDB 버전이 달라서 원래 예외가 없더라도
             #    코드가 깨지지 않고 동작하도록 임시 예외 클래스를 정의
+            """Fallback for older chromadb API expectation."""
+            pass
 
-    class NotFoundError(InvalidCollectionException):  # type: ignore[misc]
-        # => get_collection() 호출 시 컬렉션이 없을 때 발생시키기 위해
-        #    NotFoundError 를 InvalidCollectionException의 서브클래스로 정의
-        """Fallback for older chromadb API expectation."""
+        class NotFoundError(InvalidCollectionException):  # type: ignore[misc]
+            # => get_collection() 호출 시 컬렉션이 없을 때 발생시키기 위해
+            #    NotFoundError 를 InvalidCollectionException의 서브클래스로 정의
+            """Fallback for older chromadb API expectation."""
+            pass
 
 
 from dotenv import load_dotenv
