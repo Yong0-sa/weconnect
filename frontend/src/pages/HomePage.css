@@ -203,6 +203,10 @@
   overflow: visible;
 }
 
+.crop-modal--member-manage {
+  width: min(98vw, 1800px);
+}
+
 .crop-modal__close {
   position: absolute;
   top: 12px;

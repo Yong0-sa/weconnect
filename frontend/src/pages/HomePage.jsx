@@ -943,7 +943,7 @@ function HomePage() {
       )}
       {canManageMembers && isMemberInfoManageOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="crop-modal">
+          <div className="crop-modal crop-modal--member-manage">
             <MemberInfoManageModal
               profile={profile}
               onClose={() => setIsMemberInfoManageOpen(false)}
