@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { diagnoseCrop } from "../api/ai";
+import { diagnoseCrop, fetchDiagnosisHistory } from "../api/ai";
 import "./AICropSearchPage.css";
 
 // 작물 선택 옵션
@@ -17,7 +17,25 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
   const [requestError, setRequestError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [diagnosis, setDiagnosis] = useState(null);
+  const [diagnosisHistory, setDiagnosisHistory] = useState([]);
+  const [selectedHistory, setSelectedHistory] = useState(null);
+  const [currentView, setCurrentView] = useState("main"); // "main" | "history" | "detail"
   const fileInputRef = useRef(null);
+
+  // 서버에서 진단 내역 불러오기
+  const loadDiagnosisHistory = async () => {
+    try {
+      const history = await fetchDiagnosisHistory();
+      setDiagnosisHistory(history);
+    } catch (error) {
+      console.error("진단 내역 조회 실패:", error);
+      // 에러 시 빈 배열 유지
+    }
+  };
+
+  useEffect(() => {
+    loadDiagnosisHistory();
+  }, []);
 
   // 미리보기 URL 해제 (메모리 누수 방지)
   const cleanupPreview = (previewUrl) => {
@@ -100,6 +118,8 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
       }
 
       setDiagnosis(result);
+      // 진단 성공 시 내역 새로고침
+      loadDiagnosisHistory();
     } catch (error) {
       console.error("진단 요청 오류:", error); // 디버깅용
       setRequestError(error.message || "진단 요청 중 오류가 발생했습니다.");
@@ -134,6 +154,9 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
             ×
           </button>
         )}
+        <div className="ai-crop-card-header">
+          <h2 className="ai-crop-title">작물진단</h2>
+        </div>
         <div className="ai-crop-card-body">
           <div className="ai-crop-left">
             <input
@@ -246,9 +269,7 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
                   <button
                     type="button"
                     className="history-btn"
-                    onClick={() =>
-                      alert("진단 목록 기능은 추후 제공될 예정입니다.")
-                    }
+                    onClick={() => setCurrentView("history")}
                   >
                     진단 목록
                   </button>
@@ -265,6 +286,100 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
             )}
           </div>
         </div>
+
+        {/* 진단 목록 뷰 */}
+        {currentView === "history" && (
+          <div className="view-overlay">
+            <div className="view-content">
+              <div className="view-header">
+                <h3>진단 목록</h3>
+                <button
+                  type="button"
+                  className="back-btn"
+                  onClick={() => setCurrentView("main")}
+                  aria-label="돌아가기"
+                >
+                  ←
+                </button>
+              </div>
+              <div className="diagnosis-history-grid">
+                {diagnosisHistory.length === 0 ? (
+                  <div className="history-empty">
+                    아직 진단 내역이 없습니다.
+                  </div>
+                ) : (
+                  diagnosisHistory.map((item) => (
+                    <div
+                      key={item.diagnosisId}
+                      className="history-card"
+                      onClick={() => {
+                        setSelectedHistory(item);
+                        setCurrentView("detail");
+                      }}
+                    >
+                      <div className="history-card-image">
+                        <img src={item.photoUrl} alt={item.cropName} />
+                      </div>
+                      <div className="history-card-info">
+                        <h4>{item.diseaseName}</h4>
+                        <p className="history-date">
+                          {new Date(item.createdAt).toLocaleDateString('ko-KR')}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 상세 결과 뷰 */}
+        {currentView === "detail" && selectedHistory && (
+          <div className="view-overlay">
+            <div className="view-content">
+              <div className="view-header">
+                <h3>진단 상세</h3>
+                <button
+                  type="button"
+                  className="back-btn"
+                  onClick={() => {
+                    setSelectedHistory(null);
+                    setCurrentView("history");
+                  }}
+                  aria-label="목록으로"
+                >
+                  ←
+                </button>
+              </div>
+              <div className="diagnosis-detail-content">
+                <div className="diagnosis-detail-image">
+                  <img src={selectedHistory.photoUrl} alt="진단 사진" />
+                </div>
+                <div className="diagnosis-detail-info">
+                  <h3>AI 진단 결과</h3>
+                  <div className="detail-meta">
+                    <span className="detail-chip">{selectedHistory.cropName}</span>
+                  </div>
+                  <dl className="detail-summary">
+                    <div>
+                      <dt>예측 결과</dt>
+                      <dd>{selectedHistory.diseaseName}</dd>
+                    </div>
+                    <div>
+                      <dt>관리 방법</dt>
+                      <dd>{selectedHistory.recommendation}</dd>
+                    </div>
+                    <div>
+                      <dt>진단 날짜</dt>
+                      <dd>{new Date(selectedHistory.createdAt).toLocaleString('ko-KR')}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

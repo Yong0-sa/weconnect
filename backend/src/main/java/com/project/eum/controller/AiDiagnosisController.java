@@ -1,8 +1,8 @@
 package com.project.eum.controller;
 
 import com.project.eum.config.SessionConst;
+import com.project.eum.diagnosis.Diagnosis;
 import com.project.eum.dto.AiDiagnosisResponse;
-import com.project.eum.dto.DiaryResponse;
 import com.project.eum.service.AiDiagnosisService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /**
  * AI 작물 진단 관련 REST API 컨트롤러
@@ -64,34 +66,22 @@ public class AiDiagnosisController {
     }
 
     /**
-     * 진단 결과를 재배일기로 공유
-     * @param diagnosisId 진단 결과 ID
+     * 사용자의 진단 내역 목록 조회
      * @param session HTTP 세션
-     * @return 생성된 일기 정보
+     * @return 진단 내역 목록 (최신순)
      */
-    @PostMapping("/diagnosis/{diagnosisId}/share-to-diary")
-    public ResponseEntity<DiaryResponse> shareDiagnosisToDiary(
-            @PathVariable Long diagnosisId,
-            HttpSession session
-    ) {
-        log.info("진단 결과 재배일기 공유 요청: diagnosisId={}, sessionId={}", diagnosisId, session.getId());
+    @GetMapping("/diagnosis/history")
+    public ResponseEntity<List<Diagnosis>> getDiagnosisHistory(HttpSession session) {
+        log.info("진단 내역 목록 조회 요청: sessionId={}", session.getId());
 
         Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
         if (memberId == null) {
-            log.warn("로그인하지 않은 사용자의 재배일기 공유 요청");
+            log.warn("로그인하지 않은 사용자의 진단 내역 조회 요청");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        try {
-            DiaryResponse diary = aiDiagnosisService.shareDiagnosisToDiary(diagnosisId, memberId);
-            log.info("진단 결과 재배일기 공유 완료: diaryId={}", diary.getDiaryId());
-            return ResponseEntity.status(HttpStatus.CREATED).body(diary);
-        } catch (IllegalArgumentException e) {
-            log.warn("진단 결과 재배일기 공유 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (Exception e) {
-            log.error("진단 결과 재배일기 공유 중 오류 발생", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<Diagnosis> history = aiDiagnosisService.getDiagnosisHistory(memberId);
+        log.info("진단 내역 조회 완료: userId={}, count={}", memberId, history.size());
+        return ResponseEntity.ok(history);
     }
 }

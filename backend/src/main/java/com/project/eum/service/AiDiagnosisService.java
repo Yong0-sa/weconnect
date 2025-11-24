@@ -238,4 +238,13 @@ public class AiDiagnosisService {
     private AiDiagnosisResponse createErrorResponse(String cropType, String message) {
         return new AiDiagnosisResponse(false, cropType, "", -1, 0.0, message, "", null);
     }
+
+    /**
+     * 사용자의 진단 내역 목록 조회
+     * @param userId 사용자 ID
+     * @return 진단 내역 목록 (최신순)
+     */
+    public List<Diagnosis> getDiagnosisHistory(Long userId) {
+        return diagnosisRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
 }

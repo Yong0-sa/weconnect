@@ -10,9 +10,9 @@
 .ai-crop-card {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 18px;
-  padding: 40px clamp(28px, 4vw, 48px);
+  padding: 32px clamp(28px, 4vw, 48px) 40px;
   width: min(1100px, 92vw);
-  max-height: 80vh;
+  max-height: 85vh;
   position: relative;
   margin-top: 32px;
   box-shadow: 0 30px 50px rgba(0, 0, 0, 0.15);
@@ -20,11 +20,21 @@
   transform: scale(var(--ai-scale));
 }
 
+.ai-crop-card-header {
+  margin-bottom: 20px;
+}
+
+.ai-crop-title {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 34px);
+  color: #1f2e36;
+}
+
 .ai-crop-card-body {
   display: grid;
   grid-template-columns: 1fr 1.3fr;
   gap: 32px;
-  max-height: calc(80vh - 80px);
+  max-height: calc(85vh - 120px);
   overflow-y: auto;
 }
 
@@ -353,5 +363,240 @@
 @media (max-width: 640px) {
   .ai-crop-page {
     --ai-scale: 0.82;
+  }
+}
+
+/* 뷰 오버레이 (진단 목록, 상세 결과) */
+.view-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 18px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.view-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 32px clamp(28px, 4vw, 48px) 40px;
+}
+
+.view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.view-header h3 {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 34px);
+  color: #1f2e36;
+}
+
+.back-btn {
+  border: none;
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  background: rgba(103, 188, 99, 0.15);
+  color: #4a9146;
+  font-size: 24px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.back-btn:hover {
+  background: rgba(103, 188, 99, 0.25);
+}
+
+/* 진단 내역 그리드 */
+.diagnosis-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 24px;
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px;
+}
+
+.history-card {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.history-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(103, 188, 99, 0.3);
+}
+
+.history-card-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background: rgba(103, 188, 99, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.history-card-info {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-card-info h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-date {
+  margin: 0;
+  font-size: 14px;
+  color: #7a8a9a;
+}
+
+.history-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: #7a8a9a;
+  font-size: 16px;
+}
+
+/* 상세 결과 보기 */
+.diagnosis-detail-content {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 32px;
+  align-items: start;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.diagnosis-detail-image {
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(103, 188, 99, 0.05);
+  border: 2px solid rgba(103, 188, 99, 0.2);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diagnosis-detail-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.diagnosis-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.diagnosis-detail-info h3 {
+  margin: 0;
+  font-size: 22px;
+  color: #2c3e50;
+}
+
+.detail-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.detail-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #fff;
+  color: #2c3e50;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.detail-chip.subtle {
+  background: transparent;
+  border-style: dashed;
+  color: #4a9146;
+}
+
+.detail-summary {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  border-radius: 14px;
+  background: rgba(103, 188, 99, 0.08);
+  border: 1px solid rgba(103, 188, 99, 0.15);
+}
+
+.detail-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-summary dt {
+  font-weight: 700;
+  color: #2c3e50;
+  font-size: 15px;
+}
+
+.detail-summary dd {
+  margin: 0;
+  line-height: 1.6;
+  color: #4f5965;
+  white-space: pre-line;
+}
+
+@media (max-width: 768px) {
+  .diagnosis-history-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .diagnosis-detail-content {
+    grid-template-columns: 1fr;
+  }
+
+  .diagnosis-history-header {
+    padding: 24px 24px 20px;
+  }
+
+  .diagnosis-history-body {
+    padding: 24px;
   }
 }

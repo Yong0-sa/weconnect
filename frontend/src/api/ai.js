@@ -150,3 +150,26 @@ export async function diagnoseCrop(formData) {
     throw error;
   }
 }
+
+// 🗂️ 5️⃣ 진단 내역 목록 조회
+export async function fetchDiagnosisHistory() {
+  try {
+    const res = await fetch(`${API_BASE}/api/ai/diagnosis/history`, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error("로그인이 필요합니다.");
+      }
+      throw new Error("진단 내역을 불러오지 못했습니다.");
+    }
+
+    const history = await res.json();
+    return history;
+  } catch (error) {
+    console.error("진단 내역 조회 실패:", error);
+    throw error;
+  }
+}
