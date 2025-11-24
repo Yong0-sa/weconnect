@@ -964,7 +964,10 @@ function HomePage() {
       {isShopModalOpen && (
         <div className="crop-modal-backdrop" role="dialog" aria-modal="true">
           <div className="crop-modal">
-            <ShopModal onClose={() => setIsShopModalOpen(false)} />
+            <ShopModal
+              onClose={() => setIsShopModalOpen(false)}
+              userName={profile?.nickname || profile?.name || "사용자"}
+            />
           </div>
         </div>
       )}
