@@ -337,9 +337,8 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
         {/* 상세 결과 뷰 */}
         {currentView === "detail" && selectedHistory && (
           <div className="view-overlay">
-            <div className="view-content">
+            <div className="view-content history-detail-view">
               <div className="view-header">
-                <h3>진단 상세</h3>
                 <button
                   type="button"
                   className="back-btn"
@@ -352,29 +351,55 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
                   ←
                 </button>
               </div>
-              <div className="diagnosis-detail-content">
-                <div className="diagnosis-detail-image">
-                  <img src={selectedHistory.photoUrl} alt="진단 사진" />
-                </div>
-                <div className="diagnosis-detail-info">
-                  <h3>AI 진단 결과</h3>
-                  <div className="detail-meta">
-                    <span className="detail-chip">{selectedHistory.cropName}</span>
+              <div className="ai-crop-card-body">
+                <div className="ai-crop-left">
+                  <div className="image-preview">
+                    <img src={selectedHistory.photoUrl} alt="진단 사진" />
                   </div>
-                  <dl className="detail-summary">
-                    <div>
-                      <dt>예측 결과</dt>
-                      <dd>{selectedHistory.diseaseName}</dd>
+                </div>
+                <div className="ai-crop-right">
+                  <div className="diagnosis-report">
+                    <h3>AI 진단 결과</h3>
+                    <div className="report-meta">
+                      <span className="report-chip">{selectedHistory.cropName}</span>
+                      <button
+                        type="button"
+                        className="diary-share-btn"
+                        onClick={() => {
+                          // 재배일기 모달 열기
+                          if (onOpenDiaryModal) {
+                            onOpenDiaryModal({
+                              title: `[${selectedHistory.cropName} 진단] ${selectedHistory.diseaseName}`,
+                              content: `작물: ${selectedHistory.cropName}\n질병: ${selectedHistory.diseaseName}\n\n관리 방법:\n${selectedHistory.recommendation}`,
+                              photoUrl: selectedHistory.photoUrl,
+                            });
+                          }
+                          // 작물 진단 모달 닫기
+                          if (onClose) {
+                            onClose();
+                          }
+                        }}
+                      >
+                        재배 일기로 공유하기
+                      </button>
                     </div>
-                    <div>
-                      <dt>관리 방법</dt>
-                      <dd>{selectedHistory.recommendation}</dd>
+                    <div className="report-scroll-area">
+                      <dl className="diagnosis-summary">
+                        <div>
+                          <dt>예측 결과</dt>
+                          <dd>{selectedHistory.diseaseName}</dd>
+                        </div>
+                        <div>
+                          <dt>관리 방법</dt>
+                          <dd>{selectedHistory.recommendation}</dd>
+                        </div>
+                        <div>
+                          <dt>진단 날짜</dt>
+                          <dd>{new Date(selectedHistory.createdAt).toLocaleString('ko-KR')}</dd>
+                        </div>
+                      </dl>
                     </div>
-                    <div>
-                      <dt>진단 날짜</dt>
-                      <dd>{new Date(selectedHistory.createdAt).toLocaleString('ko-KR')}</dd>
-                    </div>
-                  </dl>
+                  </div>
                 </div>
               </div>
             </div>
