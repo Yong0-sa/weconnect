@@ -59,7 +59,7 @@ def _detect_model_root() -> Path:
         return path
 
     project_root = Path(__file__).resolve().parents[1]
-    default_path = project_root / "backend" / "src" / "main" / "java" / "com" / "project" / "eum" / "models"
+    default_path = project_root / "models"
     if default_path.exists():
         logger.info("저장소 models 디렉터리를 사용합니다: %s", default_path)
         return default_path
