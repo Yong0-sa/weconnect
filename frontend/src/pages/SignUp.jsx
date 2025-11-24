@@ -236,6 +236,7 @@ function SignUp() {
       </div>
 
       <div className="signup-modal-shell">
+        <form className="modal-content" onSubmit={handleSubmit} noValidate>
         <button
           type="button"
           className="signup-close-btn"
@@ -244,7 +245,6 @@ function SignUp() {
         >
           ×
         </button>
-        <form className="modal-content" onSubmit={handleSubmit} noValidate>
         <div className="modal-header">
           <h1>회원가입</h1>
         </div>

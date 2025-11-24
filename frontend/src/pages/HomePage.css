@@ -364,14 +364,13 @@
 .menu-panel {
   position: absolute;
   left: 1.5%;
-  top: calc(2.92% + 10%);
+  top: 12.92%;
   width: 12%;
-  --panel-padding: clamp(12px, 1.5vw, 24px);
-  --panel-radius: clamp(8px, 1vw, 16px);
-  --panel-gap: clamp(10px, 1vw, 18px);
+  min-width: 0;
+  max-width: 240px;
   background: rgba(102, 186, 98, 0.9);
-  border-radius: var(--panel-radius);
-  padding: var(--panel-padding);
+  border-radius: min(1vw, 16px);
+  padding: min(1.5vw, 24px);
   color: #f2f2da;
   z-index: 12;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
@@ -384,15 +383,14 @@
   gap: 4px;
   text-align: center;
   background: #66ba62;
-  border-radius: clamp(8px, 0.9vw, 14px);
-  padding: clamp(10px, 1.2vw, 18px);
-  width: calc(100% + var(--panel-padding) * 2);
-  margin: calc(-1 * var(--panel-padding)) calc(-1 * var(--panel-padding))
-    var(--panel-gap);
+  border-radius: min(0.9vw, 14px);
+  padding: min(1.2vw, 18px);
+  width: calc(100% + 2 * min(1.5vw, 24px));
+  margin: calc(-1 * min(1.5vw, 24px)) calc(-1 * min(1.5vw, 24px)) min(1vw, 18px);
 }
 
 .menu-panel__title {
-  font-size: clamp(18px, 1.8vw, 30px);
+  font-size: min(1.8vw, 30px);
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -403,7 +401,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: clamp(3px, 0.4vw, 8px);
+  gap: min(0.5vw, 8px);
 }
 
 .menu-panel__item {
@@ -412,9 +410,9 @@
   background: transparent;
   color: #f2f2da;
   border-radius: 0;
-  padding: clamp(8px, 0.8vw, 14px) 0;
+  padding: min(0.8vw, 15px) 0;
   text-align: right;
-  font-size: clamp(12px, 1.2vw, 25px);
+  font-size: min(1.2vw, 23px);
   font-weight: 700;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.2s ease;
@@ -424,11 +422,11 @@
 .menu-panel__item:focus-visible {
   background: rgba(255, 255, 255, 0.15);
   outline: none;
-  transform: translateX(-4px);
+  transform: translateX(min(-0.3vw, -6px));
 }
 
 .menu-panel__item:active {
-  transform: translateX(-4px) scale(0.98);
+  transform: translateX(min(-0.3vw, -6px)) scale(0.98);
 }
 
 .profile-panel {
@@ -436,13 +434,13 @@
   right: 2%;
   top: calc(2.92% + 10%);
   width: 8%;
-  --panel-padding: clamp(12px, 1.5vw, 24px);
-  --panel-radius: clamp(8px, 1vw, 16px);
+  min-width: 0;
+  max-width: 160px;
   background: rgba(102, 186, 98, 0.9);
   color: #f2f2da;
-  border-radius: var(--panel-radius);
-  padding: var(--panel-padding);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  border-radius: min(1vw, 12px);
+  padding: min(1.5vw, 20px);
+  box-shadow: 0 min(1.5vw, 20px) min(3vw, 40px) rgba(0, 0, 0, 0.35);
   z-index: 12;
 }
 
@@ -452,16 +450,16 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: clamp(6px, 0.5vw, 10px);
+  gap: min(0.5vw, 10px);
 }
 
 .profile-panel__item,
 .profile-panel__logout {
   width: 100%;
   border: none;
-  border-radius: 12px;
-  padding: clamp(10px, 0.9vw, 15px) 0;
-  font-size: clamp(10px, 1.2vw, 18px);
+  border-radius: min(0.9vw, 12px);
+  padding: min(0.9vw, 15px) 0;
+  font-size: min(1.2vw, 18px);
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.2s ease, background 0.2s ease;
@@ -476,7 +474,7 @@
 .profile-panel__item:focus-visible {
   background: rgba(255, 255, 255, 0.25);
   outline: none;
-  transform: translateY(-2px);
+  transform: translateY(min(-0.15vw, -3px));
 }
 
 .profile-panel__logout {
@@ -487,7 +485,7 @@
 .profile-panel__logout:hover,
 .profile-panel__logout:focus-visible {
   background: #fff;
-  transform: translateY(-2px);
+  transform: translateY(min(-0.15vw, -3px));
 }
 
 /* 코인 아이콘 */
@@ -503,14 +501,14 @@
   margin-top: -0.3rem;
   margin-left: -0.6rem;
   position: absolute;
-  left: calc(78.37% + 1.015%);
+  left: 79.385%;
   top: calc(6.93% + 0.975%);
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: clamp(18px, 1.9vw, 32px);
+  font-size: min(1.9vw, 32px);
   color: #7f7460;
   pointer-events: none;
   z-index: 4;
@@ -541,42 +539,6 @@
   height: 8.88%;
 }
 
-/* 반응형 */
-@media (max-width: 768px) {
-  .image-label,
-  .ai-action-btn {
-    font-size: 12px;
-    padding: 8px 12px;
-  }
-
-  .menu-panel {
-    width: 60vw;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .profile-panel {
-    position: fixed;
-    top: 18%;
-    right: 50%;
-    transform: translateX(50%);
-    width: 60vw;
-  }
-}
-
-@media (max-width: 540px) {
-  .menu-panel {
-    position: fixed;
-    left: 50%;
-    top: 18%;
-    transform: translateX(-50%);
-    width: min(90vw, 360px);
-  }
-
-  .profile-panel {
-    width: min(80vw, 320px);
-  }
-}
 .tutorial-icon .image-label {
   top: auto;
   bottom: calc(100% + 12px);
