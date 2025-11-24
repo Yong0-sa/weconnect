@@ -350,17 +350,20 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
         {currentView === "detail" && selectedHistory && (
           <div className="view-overlay">
             <div className="view-content history-detail-view">
-              <button
-                type="button"
-                className="history-detail-back-btn"
-                onClick={() => {
-                  setSelectedHistory(null);
-                  setCurrentView("history");
-                }}
-                aria-label="목록으로"
-              >
-                ←
-              </button>
+              <div className="ai-crop-card-header">
+                <h2 className="ai-crop-title">작물진단</h2>
+                <button
+                  type="button"
+                  className="history-detail-back-btn"
+                  onClick={() => {
+                    setSelectedHistory(null);
+                    setCurrentView("history");
+                  }}
+                  aria-label="목록으로"
+                >
+                  ×
+                </button>
+              </div>
               <div className="ai-crop-card-body">
                 <div className="ai-crop-left">
                   <div className="image-preview">
