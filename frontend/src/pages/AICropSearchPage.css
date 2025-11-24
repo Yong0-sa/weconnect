@@ -35,7 +35,7 @@
   display: grid;
   grid-template-columns: 1fr 1.3fr;
   gap: 32px;
-  max-height: calc(88vh - 120px);
+  max-height: calc(85vh - 120px);
   overflow-y: auto;
 }
 
@@ -370,7 +370,7 @@
 /* 뷰 오버레이 (진단 목록, 상세 결과) */
 .view-overlay {
   position: absolute;
-  inset: 0;
+  inset: -40px -48px -48px -48px;
   background: rgba(255, 255, 255, 0.98);
   border-radius: 18px;
   z-index: 10;
