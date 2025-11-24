@@ -7,32 +7,24 @@ import com.project.eum.diagnosis.DiagnosisRepository;
 import com.project.eum.dto.AiDiagnosisResponse;
 import com.project.eum.dto.DiaryRequest;
 import com.project.eum.dto.DiaryResponse;
+import com.project.eum.util.MultipartInputStreamFileResource;   // ← 반드시 필요
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.Resource;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
-/**
- * AI 작물 진단 관련 비즈니스 로직을 처리하는 서비스
- * 외부 AI 서버와 통신하여 작물 질병을 진단하고 결과를 DB에 저장합니다.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -71,26 +63,29 @@ public class AiDiagnosisService {
             Map.entry("tomato healthy", "적정 온도와 습도를 유지하고 가지치기로 통풍을 확보하세요. 물과 비료는 소량씩 자주 공급해 스트레스를 줄입니다.")
     );
 
-    /** AI 서버 URL (application.properties에서 설정) */
     @Value("${ai.predict.server.url:http://10.171.4.7:8000/predict}")
     private String aiServerBaseUrl;
 
-    /** Python 명령어 (application.properties에서 설정) */
-    @Value("${diagnosis.python-command:python}")
-    private String pythonCommand;
-
-    /** Python 스크립트 경로 (application.properties에서 설정) */
-    @Value("${diagnosis.script-path:src/main/resources/scripts/predict_crop.py}")
-    private String scriptPath;
-
     /**
-     * 작물 진단 수행
-     * AI 서버에 이미지를 전송하여 질병을 진단하고 결과를 DB에 저장합니다.
-     * @param cropType 작물 타입 (apple, tomato)
-     * @param image 작물 이미지 파일
-     * @param userId 사용자 ID
-     * @return 진단 결과
+     * AI 서버로 전송할 Multipart 요청 생성
+     * (413 에러 해결 버전: InputStream 기반 전송)
      */
+    private HttpEntity<MultiValueMap<String, Object>> createRequest(MultipartFile file) throws IOException {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+
+        MultipartInputStreamFileResource fileResource =
+                new MultipartInputStreamFileResource(file.getInputStream(), file.getOriginalFilename());
+
+        body.add("file", fileResource);
+
+        return new HttpEntity<>(body, headers);
+    }
+
+
     @Transactional
     public AiDiagnosisResponse diagnose(String cropType, MultipartFile image, Long userId) {
         String normalizedCropType = cropType == null ? "" : cropType.trim().toLowerCase(Locale.ROOT);
@@ -111,9 +106,10 @@ public class AiDiagnosisService {
         double confidence;
         String message;
         String responseLabel;
+
         try {
             String aiServerUrl = aiServerBaseUrl + "/" + cropEndpoint;
-            log.info("AI 서버 진단 요청: URL={}, 작물타입={}, 사용자ID={}", aiServerUrl, normalizedCropType, userId);
+            log.info("AI 서버 진단 요청: URL={}, cropType={}, userId={}", aiServerUrl, normalizedCropType, userId);
 
             HttpEntity<MultiValueMap<String, Object>> request = createRequest(image);
             ResponseEntity<String> response = restTemplate.postForEntity(aiServerUrl, request, String.class);
@@ -122,7 +118,6 @@ public class AiDiagnosisService {
             log.debug("AI 서버 응답 본문: {}", response.getBody());
 
             if (response.getBody() == null || response.getBody().isBlank()) {
-                log.error("AI 서버 응답이 비어있습니다.");
                 return createErrorResponse(normalizedCropType, "AI 서버로부터 응답을 받지 못했습니다.");
             }
 
@@ -132,99 +127,35 @@ public class AiDiagnosisService {
             message = json.path("message").asText("");
             responseLabel = json.path("label").asText("");
 
-            log.info("AI 서버 응답 파싱: predictedIndex={}, confidence={}, message={}",
-                    predictedIndex, confidence, message);
-
-            if (message.isBlank()) {
-                message = "분석이 완료되었습니다.";
-            }
+            if (message.isBlank()) message = "분석이 완료되었습니다.";
 
             if (predictedIndex < 0) {
-                log.warn("AI 서버에서 오류 응답: predictedIndex={}, message={}", predictedIndex, message);
                 return createErrorResponse(normalizedCropType, message);
             }
 
-        } catch (IOException e) {
-            log.error("파일 처리 중 오류 발생", e);
-            return createErrorResponse(normalizedCropType, "파일 처리 중 오류가 발생했습니다: " + e.getMessage());
-        } catch (HttpClientErrorException e) {
-            log.error("AI 서버 HTTP 오류: URL={}, 상태코드={}, 응답={}",
-                    aiServerBaseUrl + "/" + cropEndpoint, e.getStatusCode(), e.getResponseBodyAsString(), e);
-            String errorMessage = "AI 서버 연결 실패";
-            if (e.getStatusCode().value() == 404) {
-                errorMessage = "AI 서버에서 해당 작물 타입의 진단 엔드포인트를 찾을 수 없습니다. 서버 설정을 확인해주세요.";
-            } else if (e.getStatusCode().value() == 400) {
-                errorMessage = "잘못된 요청입니다. 이미지 파일 형식을 확인해주세요.";
-            } else {
-                errorMessage = "AI 서버 오류 (" + e.getStatusCode().value() + "): " + e.getMessage();
-            }
-            return createErrorResponse(normalizedCropType, errorMessage);
-        } catch (ResourceAccessException e) {
-            log.error("AI 서버 연결 불가: URL={}, 작물타입={}", aiServerBaseUrl + "/" + cropEndpoint, normalizedCropType, e);
-            return createErrorResponse(normalizedCropType, "AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.");
         } catch (Exception e) {
-            log.error("AI 서버 연결 실패: URL={}, 작물타입={}", aiServerBaseUrl + "/" + cropEndpoint, normalizedCropType, e);
-            String errorMsg = e.getMessage();
-            if (errorMsg != null && errorMsg.contains("404")) {
-                return createErrorResponse(normalizedCropType, "AI 서버에서 해당 엔드포인트를 찾을 수 없습니다. (404 Not Found)");
-            }
-            return createErrorResponse(normalizedCropType, "AI 서버 연결 실패: " + errorMsg);
+            log.error("AI 서버 오류: {}", e.getMessage());
+            return createErrorResponse(normalizedCropType, "AI 서버 연결 실패: " + e.getMessage());
         }
 
         String label = getCanonicalLabel(normalizedCropType, predictedIndex);
-        if (!StringUtils.hasText(label)) {
-            label = responseLabel;
-        }
+        if (!StringUtils.hasText(label)) label = responseLabel;
+
         String careComment = getCareComment(normalizedCropType, label);
 
-        String photoUrl;
+        String photoUrl = "";
         try {
             photoUrl = objectStorageService.uploadDiagnosisImage(image, userId);
-            log.info("이미지 업로드 성공: photoUrl={}", photoUrl);
         } catch (Exception e) {
-            log.error("이미지 업로드 실패, 빈 문자열로 저장", e);
-            photoUrl = "";
+            log.error("이미지 업로드 실패", e);
         }
-
-        log.info("진단 결과: label={}, careComment 길이={}, photoUrl={}",
-                label, careComment != null ? careComment.length() : 0, photoUrl);
 
         Long diagnosisId = saveDiagnosis(userId, normalizedCropType, label, careComment, photoUrl);
 
-        AiDiagnosisResponse result = new AiDiagnosisResponse(true, normalizedCropType, label, predictedIndex, confidence, message, careComment, diagnosisId);
-        log.info("진단 완료: success={}, label={}, diagnosisId={}", result.isSuccess(), result.getLabel(), diagnosisId);
-        return result;
+        return new AiDiagnosisResponse(true, normalizedCropType, label, predictedIndex, confidence, message, careComment, diagnosisId);
     }
 
-    /**
-     * AI 서버로 전송할 Multipart 요청 생성
-     * @param file 이미지 파일
-     * @return HttpEntity
-     * @throws IOException 파일 읽기 오류 시
-     */
-    private HttpEntity<MultiValueMap<String, Object>> createRequest(MultipartFile file) throws IOException {
-        // MultipartFile을 Resource로 변환
-        Resource resource = new ByteArrayResource(file.getBytes()) {
-            @Override
-            public String getFilename() {
-                return file.getOriginalFilename();
-            }
-        };
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("file", resource);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-        return new HttpEntity<>(body, headers);
-    }
-
-    /**
-     * 작물 타입을 AI 서버 엔드포인트로 변환
-     * @param cropType 작물 타입
-     * @return AI 서버 엔드포인트 (null이면 지원하지 않는 타입)
-     */
     private String getCropEndpoint(String cropType) {
         return switch (cropType) {
             case "apple" -> "apple";
@@ -233,13 +164,6 @@ public class AiDiagnosisService {
         };
     }
 
-    /**
-     * 작물 타입과 예측 인덱스로 질병 라벨 이름 가져오기
-     * @param cropType 작물 타입
-     * @param index 예측 인덱스
-     * @param json AI 서버 응답 JSON
-     * @return 질병 라벨 이름
-     */
     private String getCanonicalLabel(String cropType, int index) {
         if ("tomato".equals(cropType)) {
             return switch (index) {
@@ -249,18 +173,11 @@ public class AiDiagnosisService {
                 default -> "";
             };
         }
+
         String[] labels = getLabels(cropType);
-        if (index >= 0 && index < labels.length) {
-            return labels[index];
-        }
-        return "";
+        return (index >= 0 && index < labels.length) ? labels[index] : "";
     }
 
-    /**
-     * 작물별 질병 라벨 배열 반환
-     * @param cropType 작물 타입
-     * @return 질병 라벨 배열
-     */
     private String[] getLabels(String cropType) {
         return switch (cropType) {
             case "apple" -> new String[]{
@@ -277,24 +194,12 @@ public class AiDiagnosisService {
         };
     }
 
-    /**
-     * 질병 라벨에 따른 관리 방법 가져오기
-     * @param cropType 작물 타입
-     * @param label 질병 라벨 이름
-     * @return 관리 방법 설명
-     */
     private String getCareComment(String cropType, String label) {
         String fallback = DEFAULT_CARE_TIPS.getOrDefault(cropType, GENERIC_CARE_TIP);
-        if (!StringUtils.hasText(label)) {
-            return fallback;
-        }
+        if (!StringUtils.hasText(label)) return fallback;
 
         String normalizedLabel = normalizeLabel(label);
-        List<String> searchTargets = new ArrayList<>();
-        searchTargets.add(normalizedLabel);
-        if (StringUtils.hasText(cropType)) {
-            searchTargets.add(normalizeLabel(cropType + " " + label));
-        }
+        List<String> searchTargets = List.of(normalizedLabel, normalizeLabel(cropType + " " + label));
 
         for (String candidate : searchTargets) {
             for (Map.Entry<String, String> entry : CARE_COMMENT_RULES) {
@@ -303,15 +208,13 @@ public class AiDiagnosisService {
                 }
             }
         }
+
         return fallback;
     }
 
     private String normalizeLabel(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-                .toLowerCase(Locale.ROOT)
+        if (value == null) return "";
+        return value.toLowerCase(Locale.ROOT)
                 .replace("___", " ")
                 .replace("__", " ")
                 .replace("_", " ")
@@ -320,15 +223,6 @@ public class AiDiagnosisService {
                 .trim();
     }
 
-    /**
-     * 진단 결과를 DB에 저장
-     * @param userId 사용자 ID
-     * @param cropName 작물 이름
-     * @param diseaseName 질병 이름
-     * @param recommendation 관리 방법
-     * @param photoUrl 이미지 URL
-     * @return 저장된 진단 결과 ID
-     */
     private Long saveDiagnosis(Long userId, String cropName, String diseaseName, String recommendation, String photoUrl) {
         Diagnosis diagnosis = Diagnosis.builder()
                 .userId(userId)
@@ -337,49 +231,10 @@ public class AiDiagnosisService {
                 .diseaseName(diseaseName)
                 .recommendation(recommendation)
                 .build();
-        Diagnosis saved = diagnosisRepository.save(diagnosis);
-        return saved.getDiagnosisId();
+
+        return diagnosisRepository.save(diagnosis).getDiagnosisId();
     }
 
-    /**
-     * 진단 결과를 재배일기로 공유
-     * @param diagnosisId 진단 결과 ID
-     * @param userId 사용자 ID
-     * @return 생성된 일기 정보
-     * @throws IllegalArgumentException 진단 결과를 찾을 수 없거나 본인의 진단 결과가 아닌 경우
-     */
-    @Transactional
-    public DiaryResponse shareDiagnosisToDiary(Long diagnosisId, Long userId) {
-        Diagnosis diagnosis = diagnosisRepository.findByDiagnosisIdAndUserId(diagnosisId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("진단 결과를 찾을 수 없습니다."));
-
-        // 진단 결과를 일기 형식으로 변환
-        String title = String.format("[%s 진단] %s", diagnosis.getCropName(), diagnosis.getDiseaseName());
-        String content = String.format(
-                "작물: %s\n질병: %s\n\n관리 방법:\n%s",
-                diagnosis.getCropName(),
-                diagnosis.getDiseaseName(),
-                diagnosis.getRecommendation()
-        );
-
-        DiaryRequest diaryRequest = new DiaryRequest();
-        diaryRequest.setTitle(title);
-        diaryRequest.setContent(content);
-        diaryRequest.setDate(java.time.LocalDate.now());
-
-        // 이미지는 photoUrl을 그대로 사용 (진단 결과의 photoUrl을 일기에 포함)
-        // photoUrl이 Base64 형식이면 DiaryService에서 처리
-        // 여기서는 photoUrl을 content에 포함시키거나, 별도로 처리하지 않음
-
-        return diaryService.createDiary(userId, diaryRequest, null);
-    }
-
-    /**
-     * 에러 응답 생성
-     * @param cropType 작물 타입
-     * @param message 에러 메시지
-     * @return 에러 응답
-     */
     private AiDiagnosisResponse createErrorResponse(String cropType, String message) {
         return new AiDiagnosisResponse(false, cropType, "", -1, 0.0, message, "", null);
     }
