@@ -190,15 +190,18 @@ function ShopModal({ onClose, userName = "사용자" }) {
       return;
     }
 
-    if (item.id !== equippedItemId) {
-      await handleEquip(item.id);
+    if (item.id === equippedItemId) {
+      await handleUnequip(item.id);
+      return;
     }
+
+    await handleEquip(item.id);
   };
 
   const getButtonLabel = (item) => {
     if (!item.owned) return "구매";
-    if (item.id === equippedItemId) return "장착중";
-    return "장착";
+    if (item.id === equippedItemId) return "장착 해제";
+    return "장착하기";
   };
 
   const getButtonClass = (item) => {
@@ -209,13 +212,15 @@ function ShopModal({ onClose, userName = "사용자" }) {
   const equippedItem = items.find((i) => i.id === equippedItemId);
   const previewImage = equippedItem ? equippedItem.equippedImage : null;
 
-  const handleUnequip = async () => {
-    if (!equippedItemId || isUnequipping) return;
+  const handleUnequip = async (targetItemId = equippedItemId) => {
+    if (!targetItemId || isUnequipping) return;
     setIsUnequipping(true);
     try {
-      await unequipShopItem({ category: "tool", itemId: equippedItemId });
-      setEquippedItemId(null);
-      broadcastEquipmentChange(null);
+      await unequipShopItem({ category: "tool", itemId: targetItemId });
+      if (equippedItemId === targetItemId) {
+        setEquippedItemId(null);
+        broadcastEquipmentChange(null);
+      }
     } catch (error) {
       console.error("장착 해제 실패:", error);
     } finally {
@@ -264,16 +269,6 @@ function ShopModal({ onClose, userName = "사용자" }) {
         </aside>
 
         <div className="shop-items-grid-wrapper">
-          <div className="shop-items-toolbar">
-            <button
-              type="button"
-              className="shop-unequip-button"
-              onClick={handleUnequip}
-              disabled={!equippedItemId || isUnequipping}
-            >
-              장착 해제
-            </button>
-          </div>
           <div className="shop-items-grid">
           {isLoading ? (
             <div className="shop-item-placeholder">아이템을 불러오는 중...</div>

@@ -273,12 +273,12 @@
   transform: scale(1.1);
 }
 
-.character-base-art--item-2 {
+.character-base-art--item-4 {
   /* 곡괭이 장착 캐릭터 - 필요시 크기 조정 */
   transform: scale(1.25);
 }
 
-.character-base-art--item-3 {
+.character-base-art--item-7 {
   /* 트랙터 장착 캐릭터 - 필요시 크기 조정 */
   transform: scale(1.5);
 }
@@ -306,7 +306,7 @@
 }
 
 /* 아이템 2번 - 곡괭이 */
-.character-video-area--item-2 {
+.character-video-area--item-4 {
   left: 11.5%;
   top: 34%;
   width: 30%;
@@ -314,7 +314,7 @@
 }
 
 /* 아이템 3번 - 트랙터 */
-.character-video-area--item-3 {
+.character-video-area--item-7 {
   left: 0%;
   top: 32%;
   width: 50%;
