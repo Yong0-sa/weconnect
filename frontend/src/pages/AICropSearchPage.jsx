@@ -177,9 +177,21 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
                 <button
                   type="button"
                   className="change-photo-btn"
-                  onClick={handleUploadClick}
+                  onClick={() => {
+                    // 진단 결과 화면에서 메인으로 돌아가기
+                    if (diagnosis) {
+                      setDiagnosis(null);
+                      setPhotoPreview(null);
+                      setSelectedFile(null);
+                      setUploadError("");
+                      setRequestError("");
+                    } else {
+                      // 기존 동작 (파일 선택 창 열기)
+                      handleUploadClick();
+                    }
+                  }}
                 >
-                  다른 사진 선택
+                  {diagnosis ? "다시 진단하기" : "다른 사진 선택"}
                 </button>
               </div>
             ) : (
@@ -338,19 +350,17 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
         {currentView === "detail" && selectedHistory && (
           <div className="view-overlay">
             <div className="view-content history-detail-view">
-              <div className="view-header">
-                <button
-                  type="button"
-                  className="back-btn"
-                  onClick={() => {
-                    setSelectedHistory(null);
-                    setCurrentView("history");
-                  }}
-                  aria-label="목록으로"
-                >
-                  ←
-                </button>
-              </div>
+              <button
+                type="button"
+                className="history-detail-back-btn"
+                onClick={() => {
+                  setSelectedHistory(null);
+                  setCurrentView("history");
+                }}
+                aria-label="목록으로"
+              >
+                ←
+              </button>
               <div className="ai-crop-card-body">
                 <div className="ai-crop-left">
                   <div className="image-preview">

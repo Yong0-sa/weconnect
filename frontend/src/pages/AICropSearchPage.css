@@ -494,13 +494,38 @@
 }
 
 /* 상세 결과 보기 */
-.history-detail-view .view-header {
-  margin-bottom: 0;
+.history-detail-view {
+  padding: 32px clamp(28px, 4vw, 48px) 40px;
+}
+
+.history-detail-back-btn {
+  position: absolute;
+  top: 32px;
+  right: clamp(28px, 4vw, 48px);
+  border: none;
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  background: rgba(103, 188, 99, 0.15);
+  color: #4a9146;
+  font-size: 24px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.history-detail-back-btn:hover {
+  background: rgba(103, 188, 99, 0.25);
 }
 
 .history-detail-view .ai-crop-card-body {
-  max-height: none;
-  overflow: visible;
+  max-height: calc(85vh - 160px);
+  overflow-y: auto;
 }
 
 @media (max-width: 768px) {
