@@ -591,12 +591,4 @@
   .diagnosis-detail-content {
     grid-template-columns: 1fr;
   }
-
-  .diagnosis-history-header {
-    padding: 24px 24px 20px;
-  }
-
-  .diagnosis-history-body {
-    padding: 24px;
-  }
 }
