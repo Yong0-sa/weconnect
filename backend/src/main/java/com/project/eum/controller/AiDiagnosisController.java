@@ -27,7 +27,7 @@ public class AiDiagnosisController {
     /**
      * 작물 진단 요청
      * AI 서버에 이미지를 전송하여 작물 질병을 진단하고 결과를 DB에 저장합니다.
-     * @param cropType 작물 타입 (potato, paprika, tomato)
+     * @param cropType 작물 타입 (apple, tomato)
      * @param image 작물 이미지 파일
      * @param session HTTP 세션
      * @return 진단 결과

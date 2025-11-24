@@ -17,12 +17,17 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * AI 작물 진단 관련 비즈니스 로직을 처리하는 서비스
@@ -39,40 +44,68 @@ public class AiDiagnosisService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private static final String GENERIC_CARE_TIP = "해당 작물은 통풍을 확보하고 과습을 피하면서 주기적으로 상태를 확인하세요.";
+
+    private static final Map<String, String> DEFAULT_CARE_TIPS = Map.of(
+            "apple", "사과는 감염 잎과 낙엽을 바로 제거하고 수관을 가볍게 전정해 통풍을 유지하세요.",
+            "grape", "포도는 덩굴을 정리해 통풍을 높이고 잎이 젖은 상태가 오래가지 않도록 관리하세요.",
+            "tomato", "토마토는 20~25℃의 온도와 낮은 습도를 유지하고 토양 과습을 피하면서 균형 잡힌 비료를 공급하세요."
+    );
+
+    private static final List<Map.Entry<String, String>> CARE_COMMENT_RULES = List.of(
+            Map.entry("apple powdery mildew", "감염 잎을 바로 제거하고 통풍을 높이세요. 유황·구리계 살균제를 개화 직후 살포하면 확산을 억제할 수 있습니다."),
+            Map.entry("apple rust", "주변 향나무 등 중간 기주를 관리하고 감염 잎을 제거하세요. 우기 전에 보호 살균제를 살포하면 전염을 줄일 수 있습니다."),
+            Map.entry("apple scab", "낙엽과 병든 과실을 수거 후 소각하고, 비 예보 시 예방 살균제를 살포하세요. 과습을 줄이면 재감염이 감소합니다."),
+            Map.entry("grape blackrot", "병반이 있는 잎과 송이를 조기에 제거하고 덩굴을 정리해 햇빛을 받게 하세요. 디티오카바메이트·스티로빌루린계 살균제를 교호 살포합니다."),
+            Map.entry("grape esca", "갈변한 줄기·주지를 과감히 제거하고 절단면을 보호제로 처리하세요. 수분·비료 과다를 피하며 수세를 안정시킵니다."),
+            Map.entry("grape leafblight", "밀집된 잎을 솎아 통풍을 확보하고, 이소프로티올란·벤조이미다졸계 살균제를 번갈아 살포하세요."),
+            Map.entry("tomato bacterial spot", "씨앗과 도구를 소독하고 감염 잎은 즉시 제거하세요. 구리제나 스트렙토마이신계 약제를 번갈아 살포하면 균 확산을 막을 수 있습니다."),
+            Map.entry("tomato early blight", "하엽을 제거해 통풍을 높이고 클로로탈로닐·디티오카바메이트계를 주기적으로 살포하세요. 잎에 물이 튀지 않게 점적관수합니다."),
+            Map.entry("tomato late blight", "온실 습도를 낮추고 감염된 잎과 줄기를 제거하세요. 메탈락실·프로피네브 등 예방 약제를 우기 전에 살포하면 효과적입니다."),
+            Map.entry("tomato leaf mold", "저녁 관수를 피하고 환기를 강화해 습도를 60% 이하로 유지하세요. 필요 시 구리계 약제를 살포해 포자 발아를 억제합니다."),
+            Map.entry("tomato septoria leaf spot", "잎이 젖어 있는 시간을 줄이고 만코제브·클로로탈로닐을 교호 살포하세요. 병든 잎은 바로 제거해 포자원이 남지 않도록 합니다."),
+            Map.entry("tomato spider mites two spotted spider mite", "잎 뒷면을 물로 세척하고 고온·건조 환경을 피하세요. 필요 시 아바멕틴 등 선택 살충제를 사용합니다."),
+            Map.entry("tomato target spot", "밀식된 잎을 솎아내고 감염 잎을 제거하세요. 아족시스트로빈·디티오카바메이트계 살균제를 교대로 사용하면 도움이 됩니다."),
+            Map.entry("tomato tomato yellow leaf curl virus", "감염 개체를 즉시 제거하고 담배가루이 방제를 위해 끈끈이 트랩과 살충제를 병행하세요. 반사 멀칭으로 매개충을 차단합니다."),
+            Map.entry("tomato tomato mosaic virus", "작업 전후 손과 도구를 소독하고 감염주를 뽑아내세요. 내병성 품종과 깨끗한 묘를 사용하면 예방에 효과적입니다."),
+            Map.entry("tomato healthy", "적정 온도와 습도를 유지하고 가지치기로 통풍을 확보하세요. 물과 비료는 소량씩 자주 공급해 스트레스를 줄입니다.")
+    );
+
     /** AI 서버 URL (application.properties에서 설정) */
-    @Value("${ai.predict.server.url:http://10.171.4.7:8000/predict}")
+    @Value("${ai.predict.server.url:http://localhost:8000/predict}")
     private String aiServerBaseUrl;
-
-    /** Python 명령어 (application.properties에서 설정) */
-    @Value("${diagnosis.python-command:python}")
-    private String pythonCommand;
-
-    /** Python 스크립트 경로 (application.properties에서 설정) */
-    @Value("${diagnosis.script-path:src/main/resources/scripts/predict_crop.py}")
-    private String scriptPath;
 
     /**
      * 작물 진단 수행
      * AI 서버에 이미지를 전송하여 질병을 진단하고 결과를 DB에 저장합니다.
-     * @param cropType 작물 타입 (potato, paprika, tomato)
+     * @param cropType 작물 타입 (apple, tomato)
      * @param image 작물 이미지 파일
      * @param userId 사용자 ID
      * @return 진단 결과
      */
     @Transactional
     public AiDiagnosisResponse diagnose(String cropType, MultipartFile image, Long userId) {
+        String normalizedCropType = cropType == null ? "" : cropType.trim().toLowerCase(Locale.ROOT);
         if (image == null || image.isEmpty()) {
-            return createErrorResponse(cropType, "이미지 파일이 없습니다.");
+            return createErrorResponse(normalizedCropType, "이미지 파일이 없습니다.");
         }
 
-        String cropEndpoint = getCropEndpoint(cropType);
+        if (!StringUtils.hasText(normalizedCropType)) {
+            return createErrorResponse(normalizedCropType, "작물 타입을 선택해 주세요.");
+        }
+
+        String cropEndpoint = getCropEndpoint(normalizedCropType);
         if (cropEndpoint == null) {
-            return createErrorResponse(cropType, "지원하지 않는 작물 타입입니다.");
+            return createErrorResponse(normalizedCropType, "지원하지 않는 작물 타입입니다.");
         }
 
+        int predictedIndex;
+        double confidence;
+        String message;
+        String responseLabel;
         try {
             String aiServerUrl = aiServerBaseUrl + "/" + cropEndpoint;
-            log.info("AI 서버 진단 요청: URL={}, 작물타입={}, 사용자ID={}", aiServerUrl, cropType, userId);
+            log.info("AI 서버 진단 요청: URL={}, 작물타입={}, 사용자ID={}", aiServerUrl, normalizedCropType, userId);
 
             HttpEntity<MultiValueMap<String, Object>> request = createRequest(image);
             ResponseEntity<String> response = restTemplate.postForEntity(aiServerUrl, request, String.class);
@@ -82,13 +115,14 @@ public class AiDiagnosisService {
 
             if (response.getBody() == null || response.getBody().isBlank()) {
                 log.error("AI 서버 응답이 비어있습니다.");
-                return createErrorResponse(cropType, "AI 서버로부터 응답을 받지 못했습니다.");
+                return createErrorResponse(normalizedCropType, "AI 서버로부터 응답을 받지 못했습니다.");
             }
 
             JsonNode json = objectMapper.readTree(response.getBody());
-            int predictedIndex = json.path("predicted_index").asInt(-1);
-            double confidence = json.path("confidence").asDouble(0.0);
-            String message = json.path("message").asText("");
+            predictedIndex = json.path("predicted_index").asInt(-1);
+            confidence = json.path("confidence").asDouble(0.0);
+            message = json.path("message").asText("");
+            responseLabel = json.path("label").asText("");
 
             log.info("AI 서버 응답 파싱: predictedIndex={}, confidence={}, message={}",
                     predictedIndex, confidence, message);
@@ -99,34 +133,12 @@ public class AiDiagnosisService {
 
             if (predictedIndex < 0) {
                 log.warn("AI 서버에서 오류 응답: predictedIndex={}, message={}", predictedIndex, message);
-                return createErrorResponse(cropType, message);
+                return createErrorResponse(normalizedCropType, message);
             }
-
-            String label = getLabel(cropType, predictedIndex, json);
-            String careComment = getCareComment(label);
-
-            // Object Storage에 이미지 업로드
-            String photoUrl;
-            try {
-                photoUrl = objectStorageService.uploadDiagnosisImage(image, userId);
-                log.info("이미지 업로드 성공: photoUrl={}", photoUrl);
-            } catch (Exception e) {
-                log.error("이미지 업로드 실패, 빈 문자열로 저장", e);
-                photoUrl = "";
-            }
-
-            log.info("진단 결과: label={}, careComment 길이={}, photoUrl={}",
-                    label, careComment != null ? careComment.length() : 0, photoUrl);
-
-            Long diagnosisId = saveDiagnosis(userId, cropType, label, careComment, photoUrl);
-
-            AiDiagnosisResponse result = new AiDiagnosisResponse(true, cropType, label, predictedIndex, confidence, message, careComment, diagnosisId);
-            log.info("진단 완료: success={}, label={}, diagnosisId={}", result.isSuccess(), result.getLabel(), diagnosisId);
-            return result;
 
         } catch (IOException e) {
             log.error("파일 처리 중 오류 발생", e);
-            return createErrorResponse(cropType, "파일 처리 중 오류가 발생했습니다: " + e.getMessage());
+            return createErrorResponse(normalizedCropType, "파일 처리 중 오류가 발생했습니다: " + e.getMessage());
         } catch (HttpClientErrorException e) {
             log.error("AI 서버 HTTP 오류: URL={}, 상태코드={}, 응답={}",
                     aiServerBaseUrl + "/" + cropEndpoint, e.getStatusCode(), e.getResponseBodyAsString(), e);
@@ -138,18 +150,42 @@ public class AiDiagnosisService {
             } else {
                 errorMessage = "AI 서버 오류 (" + e.getStatusCode().value() + "): " + e.getMessage();
             }
-            return createErrorResponse(cropType, errorMessage);
+            return createErrorResponse(normalizedCropType, errorMessage);
         } catch (ResourceAccessException e) {
-            log.error("AI 서버 연결 불가: URL={}, 작물타입={}", aiServerBaseUrl + "/" + cropEndpoint, cropType, e);
-            return createErrorResponse(cropType, "AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.");
+            log.error("AI 서버 연결 불가: URL={}, 작물타입={}", aiServerBaseUrl + "/" + cropEndpoint, normalizedCropType, e);
+            return createErrorResponse(normalizedCropType, "AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.");
         } catch (Exception e) {
-            log.error("AI 서버 연결 실패: URL={}, 작물타입={}", aiServerBaseUrl + "/" + cropEndpoint, cropType, e);
+            log.error("AI 서버 연결 실패: URL={}, 작물타입={}", aiServerBaseUrl + "/" + cropEndpoint, normalizedCropType, e);
             String errorMsg = e.getMessage();
             if (errorMsg != null && errorMsg.contains("404")) {
-                return createErrorResponse(cropType, "AI 서버에서 해당 엔드포인트를 찾을 수 없습니다. (404 Not Found)");
+                return createErrorResponse(normalizedCropType, "AI 서버에서 해당 엔드포인트를 찾을 수 없습니다. (404 Not Found)");
             }
-            return createErrorResponse(cropType, "AI 서버 연결 실패: " + errorMsg);
+            return createErrorResponse(normalizedCropType, "AI 서버 연결 실패: " + errorMsg);
         }
+
+        String label = getCanonicalLabel(normalizedCropType, predictedIndex);
+        if (!StringUtils.hasText(label)) {
+            label = responseLabel;
+        }
+        String careComment = getCareComment(normalizedCropType, label);
+
+        String photoUrl;
+        try {
+            photoUrl = objectStorageService.uploadDiagnosisImage(image, userId);
+            log.info("이미지 업로드 성공: photoUrl={}", photoUrl);
+        } catch (Exception e) {
+            log.error("이미지 업로드 실패, 빈 문자열로 저장", e);
+            photoUrl = "";
+        }
+
+        log.info("진단 결과: label={}, careComment 길이={}, photoUrl={}",
+                label, careComment != null ? careComment.length() : 0, photoUrl);
+
+        Long diagnosisId = saveDiagnosis(userId, normalizedCropType, label, careComment, photoUrl);
+
+        AiDiagnosisResponse result = new AiDiagnosisResponse(true, normalizedCropType, label, predictedIndex, confidence, message, careComment, diagnosisId);
+        log.info("진단 완료: success={}, label={}, diagnosisId={}", result.isSuccess(), result.getLabel(), diagnosisId);
+        return result;
     }
 
     /**
@@ -183,8 +219,7 @@ public class AiDiagnosisService {
      */
     private String getCropEndpoint(String cropType) {
         return switch (cropType) {
-            case "potato" -> "potato";
-            case "paprika" -> "pepperbell";
+            case "apple" -> "apple";
             case "tomato" -> "tomato";
             default -> null;
         };
@@ -197,13 +232,20 @@ public class AiDiagnosisService {
      * @param json AI 서버 응답 JSON
      * @return 질병 라벨 이름
      */
-    private String getLabel(String cropType, int index, JsonNode json) {
+    private String getCanonicalLabel(String cropType, int index) {
+        if ("tomato".equals(cropType)) {
+            return switch (index) {
+                case 0, 1, 2, 3 -> "Tomato___Early_blight";
+                case 4, 5, 6 -> "Tomato___Spider_mites Two-spotted_spider_mite";
+                case 7, 8, 9 -> "Tomato___Tomato_Yellow_Leaf_Curl_Virus";
+                default -> "";
+            };
+        }
         String[] labels = getLabels(cropType);
         if (index >= 0 && index < labels.length) {
             return labels[index];
         }
-        String labelFromJson = json.path("label").asText("");
-        return labelFromJson.isBlank() ? "" : labelFromJson;
+        return "";
     }
 
     /**
@@ -213,26 +255,15 @@ public class AiDiagnosisService {
      */
     private String[] getLabels(String cropType) {
         return switch (cropType) {
-            case "potato" -> new String[]{
-                    "감자 갈색무늬병(조기마름병)",
-                    "감자 역병",
-                    "감자 건강한 잎"
-            };
-            case "paprika" -> new String[]{
-                    "파프리카 세균성 점무늬병",
-                    "파프리카 건강한 잎"
+            case "apple" -> new String[]{
+                    "Apple___Powdery_mildew",
+                    "Apple___Rust",
+                    "Apple___Scab"
             };
             case "tomato" -> new String[]{
-                    "토마토 세균성 점무늬병",
-                    "토마토 잎마름병(조기마름병)",
-                    "토마토 역병",
-                    "토마토 잎곰팡이병",
-                    "토마토 세포리아 잎반점병",
-                    "토마토 거미응애 피해",
-                    "토마토 탄저병",
-                    "토마토 황화잎말림바이러스병",
-                    "토마토 모자이크바이러스병",
-                    "토마토 건강한 잎"
+                    "Tomato___Early_blight",
+                    "Tomato___Spider_mites Two-spotted_spider_mite",
+                    "Tomato___Tomato_Yellow_Leaf_Curl_Virus"
             };
             default -> new String[0];
         };
@@ -240,61 +271,45 @@ public class AiDiagnosisService {
 
     /**
      * 질병 라벨에 따른 관리 방법 가져오기
+     * @param cropType 작물 타입
      * @param label 질병 라벨 이름
      * @return 관리 방법 설명
      */
-    private String getCareComment(String label) {
-        if (label == null || label.isBlank()) {
-            return "해당 작물은 통풍을 확보하고 과습을 피하면서 주기적으로 상태를 확인하세요.";
+    private String getCareComment(String cropType, String label) {
+        String fallback = DEFAULT_CARE_TIPS.getOrDefault(cropType, GENERIC_CARE_TIP);
+        if (!StringUtils.hasText(label)) {
+            return fallback;
         }
 
-        if (label.contains("파프리카 세균성 점무늬병")) {
-            return "감염 잎을 제거하고 물방울이 튀지 않도록 관수하며 구리계 농약을 살포하세요. 연작은 피하는 것이 좋습니다.";
-        }
-        if (label.contains("파프리카 건강한 잎")) {
-            return "통풍을 유지하고 과습을 피하면서 영양 균형을 맞춰 관리하세요.";
-        }
-        if (label.contains("감자 갈색무늬병")) {
-            return "병든 잎을 바로 제거하고 디티오카바메이트계나 클로로탈로닐 살균제를 살포하세요. 질소 비료는 과하게 주지 마세요.";
-        }
-        if (label.contains("감자 역병")) {
-            return "습도가 높을 때 예방 살균제를 살포하고 감염된 줄기와 괴경을 제거하세요. 통풍과 배수를 확보하세요.";
-        }
-        if (label.contains("감자 건강한 잎")) {
-            return "배수가 잘되는 토양을 유지하고 작물을 정기적으로 점검하세요.";
-        }
-        if (label.contains("토마토 세균성 점무늬병")) {
-            return "감염 잎을 제거하고 구리계 살균제를 살포하세요. 종자는 소독하고 잎이 젖지 않게 관수하세요.";
-        }
-        if (label.contains("토마토 잎마름병")) {
-            return "병든 잎을 제거하고 가지치기로 통풍을 확보한 뒤 클로로탈로닐이나 보르도액을 살포하세요.";
-        }
-        if (label.contains("토마토 역병")) {
-            return "습도를 낮추고 예방 살균제를 살포하며 연작을 피하세요. 배수가 잘되도록 관리하세요.";
-        }
-        if (label.contains("토마토 잎곰팡이병")) {
-            return "온실 습도를 60% 이하로 낮추고 환기를 강화하세요. 필요 시 예방 살균제를 살포하세요.";
-        }
-        if (label.contains("토마토 세포리아 잎반점병")) {
-            return "감염 잎을 제거하고 통풍을 확보하세요. 만코제브나 클로로탈로닐 등 예방 살균제를 사용하세요.";
-        }
-        if (label.contains("토마토 모자이크바이러스병")) {
-            return "감염 식물을 즉시 제거하고 손과 도구를 소독하세요. 담배에 닿은 손으로 작물을 만지지 말고 내병성 품종을 선택하세요.";
-        }
-        if (label.contains("토마토 황화잎말림바이러스병")) {
-            return "감염 식물을 제거하고 담배가루이를 끈끈이 트랩이나 살충제로 방제하세요. 내병성 품종을 심는 것이 좋습니다.";
-        }
-        if (label.contains("토마토 거미응애")) {
-            return "잎 뒷면을 물 분무로 씻어주고 필요하면 등록 살충제를 사용하세요. 건조한 환경을 피하세요.";
-        }
-        if (label.contains("토마토 탄저병")) {
-            return "감염 부위를 제거하고 통풍을 개선하며 살균제를 살포하세요.";
-        }
-        if (label.contains("토마토 건강한 잎")) {
-            return "적정 온도(20~25℃)와 습도를 유지하고 과습을 피하면서 균형 잡힌 영양을 공급하세요.";
+        String normalizedLabel = normalizeLabel(label);
+        List<String> searchTargets = new ArrayList<>();
+        searchTargets.add(normalizedLabel);
+        if (StringUtils.hasText(cropType)) {
+            searchTargets.add(normalizeLabel(cropType + " " + label));
         }
 
-        return "해당 작물은 통풍을 확보하고 과습을 피하면서 주기적으로 상태를 확인하세요.";
+        for (String candidate : searchTargets) {
+            for (Map.Entry<String, String> entry : CARE_COMMENT_RULES) {
+                if (candidate.contains(entry.getKey())) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private String normalizeLabel(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value
+                .toLowerCase(Locale.ROOT)
+                .replace("___", " ")
+                .replace("__", " ")
+                .replace("_", " ")
+                .replace("-", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     /**

@@ -4,9 +4,8 @@ import "./AICropSearchPage.css";
 
 // 작물 선택 옵션
 const cropOptions = [
+  { value: "apple", label: "사과" },
   { value: "tomato", label: "토마토" },
-  { value: "potato", label: "감자" },
-  { value: "paprika", label: "파프리카" },
 ];
 
 function AICropSearchPage({ onClose, onOpenDiaryModal }) {

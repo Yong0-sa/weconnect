@@ -1,23 +1,23 @@
 from __future__ import annotations
 
+import io
 import logging
+import os
 import traceback
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from threading import Lock
-from typing import Deque, List, Literal
+from typing import Deque, Dict, List, Literal, Union
 from uuid import uuid4
+
 import numpy as np
 from PIL import Image
-import io
-
-from fastapi import FastAPI, HTTPException, UploadFile, File
-# - 비동기 FastAPI 내부에서 CPU-bound or blocking 코드를 안전하게 실행하는 기능
-# - (예: 이미지 전처리, 모델 예측 등)
+from fastapi import File, FastAPI, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
-
 from pydantic import BaseModel, Field
+from ultralytics import YOLO
 
 from rag_service import (
     EmptyQueryError,
@@ -39,61 +39,168 @@ logger = logging.getLogger(__name__)
 # FastAPI 서버 인스턴스 생성
 app = FastAPI(title="WeConnect AI Search API")
 
-# TensorFlow/Keras 모델 로드 (전역 1회)
-# 모델이 없어도 서버는 시작되도록 처리
-pepperbell_model = None
-potato_model = None
-tomato_model = None
 
-try:
-    from tensorflow import keras
-    import os
+@dataclass
+class EnsemblePrediction:
+    predicted_index: int
+    confidence: float
+    label: str
 
-    MODEL_DIR = os.getenv("MODEL_DIR", "/app/ai/aiModel")
 
-    logger.info(f"모델 로드 시작: {MODEL_DIR}")
+def _detect_model_root() -> Path:
+    """
+    저장소 내부 models 디렉터리를 우선적으로 사용한다.
+    환경 변수(YOLO_MODEL_DIR/MODEL_DIR)로 재정의할 수 있다.
+    """
+    env_dir = os.getenv("YOLO_MODEL_DIR") or os.getenv("MODEL_DIR")
+    if env_dir:
+        path = Path(env_dir)
+        logger.info("환경 변수 모델 경로 사용: %s", path)
+        return path
 
-    # 모델 파일 존재 여부 확인
-    import pathlib
-    model_dir_path = pathlib.Path(MODEL_DIR)
+    project_root = Path(__file__).resolve().parents[1]
+    default_path = project_root / "backend" / "src" / "main" / "java" / "com" / "project" / "eum" / "models"
+    if default_path.exists():
+        logger.info("저장소 models 디렉터리를 사용합니다: %s", default_path)
+        return default_path
 
-    if model_dir_path.exists():
-        pepperbell_path = model_dir_path / "pepperbell_finetuned_model.keras"
-        potato_path = model_dir_path / "potato_finetuned_model.keras"
-        tomato_path = model_dir_path / "tomato_finetuned_model_final2.keras"
+    fallback = project_root / "models"
+    logger.warning("기본 models 디렉터리를 찾지 못해 %s 를 사용합니다.", fallback)
+    return fallback
 
-        if pepperbell_path.exists():
-            pepperbell_model = keras.models.load_model(str(pepperbell_path))
-            logger.info("파프리카 모델 로드 완료")
+
+MODEL_ROOT = _detect_model_root()
+
+CROP_MODEL_FOLDERS: Dict[str, Dict[str, str]] = {
+    "apple": {"folder": "apple_yolo11_models", "display_name": "사과"},
+    "tomato": {"folder": "tomato_yolo11_models", "display_name": "토마토"},
+}
+
+
+def _normalise_class_names(names: Union[Dict[int, str], List[str]]) -> List[str]:
+    if isinstance(names, dict):
+        return [names[idx] for idx in sorted(names.keys())]
+    return list(names)
+
+
+class YOLOEnsemble:
+    """
+    폴드 모델 여러 개를 앙상블하여 하나의 예측을 반환한다.
+    """
+
+    def __init__(self, crop_type: str, model_paths: List[Path]) -> None:
+        self.crop_type = crop_type
+        self.model_paths = model_paths
+        self._models: List[YOLO] = []
+        self._class_names: List[str] = []
+        self._load_lock = Lock()
+
+    def _ensure_loaded(self) -> None:
+        if self._models:
+            return
+
+        if not self.model_paths:
+            raise RuntimeError(f"{self.crop_type} 모델 경로가 비어 있습니다.")
+
+        logger.info(
+            "YOLO 앙상블 로드 시작: crop=%s, models=%s",
+            self.crop_type,
+            ", ".join(str(path) for path in self.model_paths),
+        )
+        loaded: List[YOLO] = []
+        for path in self.model_paths:
+            if not path.exists():
+                logger.warning("모델 파일을 찾을 수 없습니다: %s", path)
+                continue
+            loaded.append(YOLO(str(path)))
+
+        if not loaded:
+            raise RuntimeError(f"{self.crop_type} 모델을 로드하지 못했습니다.")
+
+        names = loaded[0].names
+        self._class_names = _normalise_class_names(names)
+        self._models = loaded
+        logger.info("YOLO 앙상블 로드 완료: crop=%s, class_count=%d", self.crop_type, len(self._class_names))
+
+    def _extract_scores(self, result) -> np.ndarray:
+        scores = np.zeros(len(self._class_names), dtype=np.float32)
+        probs = getattr(result, "probs", None)
+        if probs is not None and getattr(probs, "data", None) is not None:
+            data = probs.data.cpu().numpy()
+            length = min(len(data), len(scores))
+            scores[:length] = data[:length]
+            return scores
+
+        boxes = getattr(result, "boxes", None)
+        if boxes is not None and getattr(boxes, "cls", None) is not None and getattr(boxes, "conf", None) is not None:
+            classes = boxes.cls.tolist()
+            confidences = boxes.conf.tolist()
+            for cls_idx, conf in zip(classes, confidences):
+                idx = int(cls_idx)
+                if 0 <= idx < len(scores):
+                    scores[idx] = max(scores[idx], float(conf))
+        return scores
+
+    def predict(self, image: Image.Image) -> EnsemblePrediction:
+        with self._load_lock:
+            self._ensure_loaded()
+
+        aggregated = np.zeros(len(self._class_names), dtype=np.float32)
+        # 모델별 추론은 thread-safe 하지 않을 수 있으므로 순차 실행
+        for model in self._models:
+            result = model(image, verbose=False)[0]
+            aggregated += self._extract_scores(result)
+
+        if not np.any(aggregated):
+            raise RuntimeError("모델이 유효한 신뢰도를 반환하지 않았습니다.")
+
+        averaged = aggregated / len(self._models)
+        predicted_index = int(np.argmax(averaged))
+        confidence = float(averaged[predicted_index])
+        if predicted_index < len(self._class_names):
+            label = self._class_names[predicted_index]
         else:
-            logger.warning(f"파프리카 모델 파일을 찾을 수 없습니다: {pepperbell_path}")
+            label = f"class_{predicted_index}"
 
-        if potato_path.exists():
-            potato_model = keras.models.load_model(str(potato_path))
-            logger.info("감자 모델 로드 완료")
-        else:
-            logger.warning(f"감자 모델 파일을 찾을 수 없습니다: {potato_path}")
+        return EnsemblePrediction(predicted_index=predicted_index, confidence=confidence, label=label)
 
-        if tomato_path.exists():
-            tomato_model = keras.models.load_model(str(tomato_path))
-            logger.info("토마토 모델 로드 완료")
-        else:
-            logger.warning(f"토마토 모델 파일을 찾을 수 없습니다: {tomato_path}")
-    
-    else:
-        logger.warning(f"모델 디렉토리가 존재하지 않습니다: {MODEL_DIR}")
-        logger.info("모델 없이 서버를 시작합니다. 작물 진단 기능은 사용할 수 없습니다.")
 
-except ImportError as e:
-    # TensorFlow 미설치 (가벼운 서버에서 종종 발생)
-    logger.warning(f"TensorFlow를 import할 수 없습니다: {e}")
-    logger.info("모델 없이 서버를 시작합니다. 작물 진단 기능은 사용할 수 없습니다.")
+_ensemble_registry: Dict[str, YOLOEnsemble] = {}
+_ensemble_lock = Lock()
 
-except Exception as e:
-    # 모델 로딩 중 알 수 없는 오류
-    logger.error(f"모델 로드 중 오류 발생: {e}")
-    logger.error(f"상세 traceback:\n{traceback.format_exc()}")
-    logger.info("모델 없이 서버를 시작합니다. 작물 진단 기능은 사용할 수 없습니다.")
+
+def _collect_model_paths(crop_type: str) -> List[Path]:
+    config = CROP_MODEL_FOLDERS[crop_type]
+    folder = MODEL_ROOT / config["folder"]
+    if not folder.exists():
+        raise FileNotFoundError(f"{crop_type} 모델 폴더를 찾을 수 없습니다: {folder}")
+
+    model_files = sorted(folder.glob("*.pt"))
+    if not model_files:
+        raise FileNotFoundError(f"{crop_type} 모델 파일이 비어 있습니다: {folder}")
+    return model_files
+
+
+def get_yolo_ensemble(crop_type: str) -> YOLOEnsemble:
+    normalized = crop_type.lower()
+    if normalized not in CROP_MODEL_FOLDERS:
+        raise ValueError(f"지원하지 않는 작물 타입: {crop_type}")
+
+    with _ensemble_lock:
+        if normalized not in _ensemble_registry:
+            model_paths = _collect_model_paths(normalized)
+            _ensemble_registry[normalized] = YOLOEnsemble(normalized, model_paths)
+    return _ensemble_registry[normalized]
+
+
+def load_image(image_bytes: bytes) -> Image.Image:
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+        return image
+    except Exception as exc:
+        raise ValueError(f"이미지 파일을 열 수 없습니다: {exc}") from exc
 
 
 # RAG 대화 히스토리 저장 구조
@@ -129,7 +236,7 @@ class HistoryStore:
             prompt_type=result.prompt_type,
             created_at=datetime.now(timezone.utc),
         )
-        
+
         #  thread-safe append
         # → 동시에 여러 사용자가 검색하더라도 안정적으로 기록됨.
         with self._lock:
@@ -219,23 +326,23 @@ async def search_ai(payload: SearchRequest) -> HistoryItem:
         # - RAGService.ask()는 CPU-bound(임베딩 계산 + 벡터 검색 포함)
         # - FastAPI event loop 차단 방지 → 대규모 동시 요청에도 안정적
         result = await run_in_threadpool(rag_service.ask, payload.question)
-        
+
         logger.info(f"답변 생성 완료: prompt_type={result.prompt_type}")
-    
+
     # 각 예외 유형별로 HTTP 상태 코드 구분 처리
     except InappropriateQueryError as exc:
         logger.warning(f"부적절한 질문: {exc}")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    
+
     except EmptyQueryError as exc:
         logger.warning(f"빈 질문: {exc}")
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    
+
     except RAGServiceError as exc:
         logger.error(f"RAG 서비스 에러 발생: {exc}")
         logger.error(f"상세 traceback:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    
+
     except Exception as exc:
         logger.error(f"예상치 못한 에러 발생: {type(exc).__name__}: {exc}")
         logger.error(f"상세 traceback:\n{traceback.format_exc()}")
@@ -293,117 +400,73 @@ async def get_text_suggestions(payload: TextSuggestionRequest) -> TextSuggestion
         raise HTTPException(status_code=500, detail=f"서버 내부 오류: {exc}") from exc
 
 
-# 작물 진단 관련 함수들
-def get_model(crop_type: str):
-    """작물 타입에 따라 해당 모델 반환"""
-    if crop_type == "potato":
-        return potato_model
-    elif crop_type == "paprika":
-        return pepperbell_model
-    elif crop_type == "tomato":
-        return tomato_model
-    else:
-        raise ValueError(f"지원하지 않는 작물 타입: {crop_type}")
+@app.post("/predict/apple")
+async def predict_apple(file: UploadFile = File(...)):
+    """사과 질병 진단"""
+    logger.info("사과 진단 요청 수신: filename=%s", file.filename)
+    return await predict_crop("apple", file)
 
 
-def preprocess_image(image_bytes: bytes, target_size=(300, 300)):
-    """이미지를 모델 입력 형태로 전처리"""
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-        img = img.resize(target_size)
-        img_array = np.array(img)
-        img_array = img_array.astype('float32') / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
-        return img_array
-    except Exception as e:
-        raise ValueError(f"이미지 전처리 실패: {str(e)}")
-
-
-def predict(model, image_array):
-    """모델을 사용하여 예측 수행"""
-    try:
-        predictions = model.predict(image_array, verbose=0)
-        predicted_index = int(np.argmax(predictions[0]))
-        confidence = float(predictions[0][predicted_index])
-        return predicted_index, confidence
-    except Exception as e:
-        raise RuntimeError(f"예측 실패: {str(e)}")
-
-
-@app.post("/predict/potato")
-async def predict_potato(file: UploadFile = File(...)):
-    """감자 질병 진단"""
-    logger.info("감자 진단 요청 수신")
-    return await predict_crop("potato", file)
-
-
-@app.post("/predict/pepperbell")
-async def predict_pepperbell(file: UploadFile = File(...)):
-    """파프리카 질병 진단"""
-    logger.info("파프리카 진단 요청 수신")
-    return await predict_crop("paprika", file)
+@app.post("/predict/grape")
+async def predict_grape(file: UploadFile = File(...)):
+    """포도 질병 진단"""
+    logger.info("포도 진단 요청 수신: filename=%s", file.filename)
+    return await predict_crop("grape", file)
 
 
 @app.post("/predict/tomato")
 async def predict_tomato(file: UploadFile = File(...)):
     """토마토 질병 진단"""
-    logger.info("토마토 진단 요청 수신")
+    logger.info("토마토 진단 요청 수신: filename=%s", file.filename)
     return await predict_crop("tomato", file)
 
 
 async def predict_crop(crop_type: str, file: UploadFile):
-    """작물 질병 진단 공통 함수"""
+    """YOLO 앙상블을 활용한 작물 질병 진단 공통 함수"""
+    normalized = crop_type.lower()
+    if normalized not in CROP_MODEL_FOLDERS:
+        raise HTTPException(status_code=400, detail=f"지원하지 않는 작물 타입입니다: {crop_type}")
+
+    image_bytes = await file.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="이미지 파일이 비어있습니다.")
+
     try:
-        logger.info(f"진단 요청 처리 시작: 작물={crop_type}, 파일명={file.filename}")
+        image = await run_in_threadpool(load_image, image_bytes)
+        logger.info("이미지 로딩 완료: crop=%s, size=%s", crop_type, image.size)
+    except ValueError as exc:
+        logger.error("이미지 전처리 실패: %s", exc)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        # 모델 확인
-        model = get_model(crop_type)
-        if model is None:
-            logger.error(f"모델이 로드되지 않았습니다: 작물={crop_type}")
-            raise HTTPException(
-                status_code=503,
-                detail=f"{crop_type} 모델이 로드되지 않았습니다. 서버 관리자에게 문의하세요."
-            )
+    try:
+        ensemble = get_yolo_ensemble(normalized)
+    except FileNotFoundError as exc:
+        logger.error("모델 파일 누락: %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail=f"{crop_type} 모델 파일을 찾을 수 없습니다. 관리자에게 문의하세요.",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        # 이미지 읽기
-        image_bytes = await file.read()
-        if not image_bytes:
-            raise HTTPException(status_code=400, detail="이미지 파일이 비어있습니다.")
+    try:
+        prediction = await run_in_threadpool(ensemble.predict, image.copy())
+    except Exception as exc:
+        logger.error("YOLO 추론 실패: crop=%s, error=%s", crop_type, exc)
+        logger.error("상세 traceback:\n%s", traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"작물 진단 중 오류가 발생했습니다: {exc}") from exc
 
-        logger.info(f"이미지 읽기 완료: 크기={len(image_bytes)} bytes")
+    logger.info(
+        "진단 완료: crop=%s, label=%s, index=%s, confidence=%.4f",
+        crop_type,
+        prediction.label,
+        prediction.predicted_index,
+        prediction.confidence,
+    )
 
-        # 이미지 전처리
-        image_array = await run_in_threadpool(preprocess_image, image_bytes)
-        logger.info(f"이미지 전처리 완료: shape={image_array.shape}")
-
-        # 예측 수행
-        predicted_index, confidence = await run_in_threadpool(predict, model, image_array)
-        logger.info(f"예측 완료: 인덱스={predicted_index}, 신뢰도={confidence}")
-
-        # 결과 반환
-        result = {
-            "predicted_index": predicted_index,
-            "confidence": round(confidence, 4),
-            "message": "진단이 완료되었습니다.",
-            "label": ""
-        }
-
-        logger.info(f"진단 완료: 작물={crop_type}, 인덱스={predicted_index}, 신뢰도={confidence}")
-        return result
-
-    except HTTPException:
-        # HTTPException은 그대로 전달
-        raise
-    except ValueError as e:
-        logger.error(f"값 오류: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except RuntimeError as e:
-        logger.error(f"실행 오류: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        logger.error(f"예상치 못한 오류: {type(e).__name__}: {e}")
-        logger.error(f"상세 traceback:\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"서버 내부 오류: {e}")
-
+    return {
+        "predicted_index": prediction.predicted_index,
+        "confidence": round(prediction.confidence, 4),
+        "message": "진단이 완료되었습니다.",
+        "label": prediction.label,
+    }
