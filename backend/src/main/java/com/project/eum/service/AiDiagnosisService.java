@@ -72,8 +72,16 @@ public class AiDiagnosisService {
     );
 
     /** AI 서버 URL (application.properties에서 설정) */
-    @Value("${ai.predict.server.url:http://localhost:8000/predict}")
+    @Value("${ai.predict.server.url:http://10.171.4.7:8000/predict}")
     private String aiServerBaseUrl;
+
+    /** Python 명령어 (application.properties에서 설정) */
+    @Value("${diagnosis.python-command:python}")
+    private String pythonCommand;
+
+    /** Python 스크립트 경로 (application.properties에서 설정) */
+    @Value("${diagnosis.script-path:src/main/resources/scripts/predict_crop.py}")
+    private String scriptPath;
 
     /**
      * 작물 진단 수행
