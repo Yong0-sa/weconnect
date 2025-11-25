@@ -35,6 +35,7 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
   const [chatContact, setChatContact] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [scale, setScale] = useState(1);
 
   const totalMembers = contracts.length;
   const allSelected = totalMembers > 0 && selectedIds.length === totalMembers;
@@ -338,8 +339,23 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
     return "회원 현황";
   }, [profile?.farmName]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 1568;  // 1500 + 34×2
+      const heightScale = window.innerHeight / 711;  // 655 + 30 + 26
+      const nextScale = Math.min(widthScale, heightScale, 1);
+      setScale(nextScale > 0 ? nextScale : 1);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
+
   return (
-    <div className="member-manage-modal">
+    <div className="member-manage-modal" style={{ transform: `scale(${scale})` }}>
       <header className="member-manage-modal__header">
         <div>
           <p className="member-manage-eyebrow">회원 정보 관리</p>

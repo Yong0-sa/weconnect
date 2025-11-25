@@ -192,8 +192,6 @@
 
 .crop-modal {
   position: relative;
-  width: min(95vw, 1500px);
-  max-height: 90vh;
   background: transparent;
   box-sizing: border-box;
   display: flex;
@@ -203,7 +201,8 @@
 }
 
 .crop-modal--member-manage {
-  width: min(98vw, 1800px);
+  width: auto;
+  height: auto;
 }
 
 .crop-modal__close {

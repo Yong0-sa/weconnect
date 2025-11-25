@@ -145,6 +145,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
   const [isSavingFarm, setIsSavingFarm] = useState(false);
   const [contractInfo, setContractInfo] = useState(null);
   const [contractStatusError, setContractStatusError] = useState(null);
+  const [scale, setScale] = useState(1);
 
   const trimmedNickname = (formData.nickname || "").trim();
   const memberTypeLabel = savedProfile.memberType || "PERSONAL";
@@ -682,6 +683,22 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
     }
   };
 
+  // 📌 모달 크기 자동 조정 (무한축소)
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 900;
+      const heightScale = window.innerHeight / 800;
+      const nextScale = Math.min(widthScale, heightScale, 1);
+      setScale(nextScale > 0 ? nextScale : 1);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
+
   // 📌 모달이 아예 닫혀있으면 렌더 X
   if (!isOpen) {
     return null;
@@ -695,7 +712,7 @@ function ProfilePage({ isOpen, onClose = () => {} }) {
         aria-modal="true"
         onClick={handleOverlayClick}
       >
-        <div className="profile-card">
+        <div className="profile-card" style={{ transform: `scale(${scale})` }}>
           <button
             type="button"
             className="profile-modal__close"

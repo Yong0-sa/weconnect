@@ -2,7 +2,8 @@
   --member-grid: 32px minmax(90px, 1fr) minmax(140px, 1.2fr)
     minmax(120px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr)
     minmax(130px, 1fr) minmax(130px, 1fr) minmax(80px, auto);
-  width: min(1500px, 97vw);
+  width: 1500px;
+  height: 655px;
   background: #fff;
   border-radius: 28px;
   padding: 30px 34px 26px;
@@ -12,11 +13,14 @@
   color: #141b2f;
   position: relative;
   border: 2px solid rgba(14, 135, 102, 0.45);
-  overflow: visible;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .member-manage-modal--edit-mode {
-  width: min(1600px, 97vw);
+  width: 1600px;
   --member-grid: 32px minmax(90px, 1fr) minmax(170px, 1.2fr)
     minmax(130px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr)
     minmax(140px, 1fr) minmax(140px, 1fr) minmax(90px, auto);
@@ -56,8 +60,8 @@
 
 .member-manage-close {
   position: absolute;
-  top: 0px;
-  right: -45px;
+  top: 20px;
+  right: 20px;
   border: none;
   background: #f0f2f4;
   font-size: 1.5rem;
@@ -75,6 +79,9 @@
   border-radius: 22px;
   padding: 14px 20px 12px;
   background: rgba(255, 255, 255, 0.95);
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
 }
 
 .member-manage-panel__head {
@@ -117,7 +124,7 @@
 
 .member-manage-table {
   width: 100%;
-  overflow-x: visible;
+  overflow-x: auto;
 }
 
 .member-manage-row {
@@ -198,7 +205,7 @@
 
 .member-manage-cell input,
 .member-manage-cell select {
-  width: 90%;
+  width: 100%;
   border-radius: 10px;
   border: 1px solid rgba(26, 131, 103, 0.4);
   padding: 6px 8px;
@@ -318,7 +325,8 @@
   box-sizing: border-box;
 }
 
-@media (max-width: 768px) {
+/* 미디어 쿼리 비활성화 - scale로 반응형 처리 */
+/* @media (max-width: 768px) {
   .member-manage-modal {
     padding: 24px 20px 20px;
     --member-grid: minmax(100px, 1fr) minmax(200px, 1.35fr)
@@ -335,4 +343,4 @@
   .member-manage-row {
     font-size: 14px;
   }
-}
+} */

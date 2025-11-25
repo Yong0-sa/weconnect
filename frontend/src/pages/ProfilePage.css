@@ -6,13 +6,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(24px, 5vw, 48px);
+  padding: 0;
   z-index: 30;
 }
 
 .profile-card {
-  width: min(900px, 94vw);
-  max-height: calc(100vh - clamp(40px, 8vw, 80px));
+  width: 900px;
+  height: 800px;
   background: #fff;
   border: 1px solid #dfe5ef;
   border-radius: 18px;
@@ -20,7 +20,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .profile-card__scroll {
@@ -30,8 +31,8 @@
 
 .profile-modal__close {
   position: absolute;
-  top: 0px;
-  right: -45px;
+  top: 20px;
+  right: 20px;
   border: none;
   background: #f0f2f4;
   font-size: 1.5rem;
@@ -42,6 +43,7 @@
   height: 42px;
   border-radius: 50%;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  z-index: 10;
 }
 
 .profile-modal__close:hover {
@@ -49,7 +51,7 @@
 }
 
 .profile-card__header {
-  padding: 28px clamp(20px, 4vw, 40px);
+  padding: 28px 40px;
   border-bottom: 1px solid #e9edf5;
   display: flex;
   align-items: flex-start;
@@ -82,7 +84,7 @@
 }
 
 .profile-card__title {
-  font-size: clamp(24px, 4vw, 32px);
+  font-size: 32px;
   color: #1f2737;
   margin: 0;
 }
@@ -143,7 +145,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 24px clamp(20px, 4vw, 40px) 0;
+  margin: 24px 40px 0;
   padding: 12px 16px;
   border-radius: 10px;
   font-size: 14px;
@@ -178,7 +180,7 @@
 .profile-loading {
   font-size: 14px;
   color: #5f6b7c;
-  margin: 16px clamp(20px, 4vw, 40px) 0;
+  margin: 16px 40px 0;
 }
 
 .profile-info-table {
@@ -188,8 +190,8 @@
 .profile-row {
   display: grid;
   grid-template-columns: 190px 1fr;
-  gap: clamp(16px, 3vw, 32px);
-  padding: 20px clamp(20px, 4vw, 40px);
+  gap: 32px;
+  padding: 20px 40px;
   border-bottom: 1px solid #edf1f6;
 }
 
@@ -270,7 +272,7 @@
 
 .profile-row__value--input {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) auto;
+  grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: center;
 }
@@ -282,7 +284,7 @@
 
 .profile-row__content--grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
@@ -293,7 +295,7 @@
 .farm-fields-grid {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
@@ -444,7 +446,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 24px clamp(20px, 4vw, 40px) 32px;
+  padding: 24px 40px 32px;
   border-top: 1px solid #edf1f6;
 }
 
@@ -528,20 +530,21 @@
 }
 
 .password-modal {
-  width: min(420px, 90vw);
+  width: 420px;
   background: #ffffff;
   border-radius: 18px;
-  padding: clamp(24px, 4vw, 36px);
+  padding: 36px;
   box-shadow: 0 32px 60px rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(223, 229, 239, 0.8);
   display: flex;
   flex-direction: column;
   gap: 12px;
   animation: modal-pop 0.2s ease;
+  flex-shrink: 0;
 }
 
 .password-modal__header {
-  font-size: clamp(20px, 2vw, 26px);
+  font-size: 26px;
   font-weight: 800;
   color: #1f2737;
   text-align: center;
@@ -601,7 +604,8 @@
   }
 }
 
-@media (max-width: 768px) {
+/* 미디어 쿼리 비활성화 - scale로 반응형 처리 */
+/* @media (max-width: 768px) {
   .profile-row {
     grid-template-columns: 1fr;
   }
@@ -623,4 +627,4 @@
     flex-direction: column;
     align-items: flex-start;
   }
-}
+} */
