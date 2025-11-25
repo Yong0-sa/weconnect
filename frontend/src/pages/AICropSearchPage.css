@@ -377,6 +377,12 @@
   gap: 10px;
 }
 
+.history-delete-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .history-delete-btn {
   border: none;
   padding: 0 10px;
@@ -390,6 +396,31 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.history-delete-separator {
+  color: #4a9146;
+  font-weight: 700;
+}
+
+.history-delete-cancel-btn {
+  border: none;
+  padding: 0 10px;
+  height: 40px;
+  background: transparent;
+  color: #4a9146;
+  font-size: 19px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-delete-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .history-delete-btn:disabled {

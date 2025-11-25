@@ -189,13 +189,16 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
     }
   };
 
+  const handleCancelDeleteMode = () => {
+    setIsDeleteMode(false);
+    setSelectedIds(new Set());
+    setHistoryError("");
+  };
+
   const handleDetailDelete = async () => {
     if (!selectedHistory) return;
-    setDetailToast({ type: "info", message: "삭제하시겠습니까?" });
     const confirmed = window.confirm("삭제하시겠습니까?");
     if (!confirmed) {
-      setDetailToast({ type: "info", message: "삭제를 취소했습니다." });
-      setTimeout(() => setDetailToast(null), 2000);
       return;
     }
     setIsDeleting(true);
@@ -413,19 +416,37 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
               <div className="view-header">
                 <h3>진단 목록</h3>
                 <div className="view-header-actions">
-                  <button
-                    type="button"
-                    className="history-delete-btn"
-                    onClick={handleDeleteSelected}
-                    disabled={isDeleting}
-                    aria-pressed={isDeleteMode}
-                  >
-                    {isDeleteMode
-                      ? isDeleting
-                        ? "삭제 중..."
-                        : "선택 삭제"
-                      : "삭제"}
-                  </button>
+                  {!isDeleteMode ? (
+                    <button
+                      type="button"
+                      className="history-delete-btn"
+                      onClick={handleDeleteSelected}
+                      disabled={isDeleting}
+                    >
+                      삭제
+                    </button>
+                  ) : (
+                    <div className="history-delete-group">
+                      <button
+                        type="button"
+                        className="history-delete-btn"
+                        onClick={handleDeleteSelected}
+                        disabled={isDeleting}
+                        aria-pressed={isDeleteMode}
+                      >
+                        {isDeleting ? "삭제 중..." : "선택 삭제"}
+                      </button>
+                      <span className="history-delete-separator">|</span>
+                      <button
+                        type="button"
+                        className="history-delete-cancel-btn"
+                        onClick={handleCancelDeleteMode}
+                        disabled={isDeleting}
+                      >
+                        취소
+                      </button>
+                    </div>
+                  )}
                   <button
                     type="button"
                     className="back-btn"
