@@ -73,6 +73,7 @@ function AIInfoSearchPage({ onClose }) {
   // 스크롤/메시지 DOM 접근용 ref
   const historyRef = useRef(null);
   const messageRefs = useRef({});
+  const [scale, setScale] = useState(1);
 
   // 메시지 DOM ref 저장
   // side navigation에서 특정 메시지로 스크롤하기 위해 필요
@@ -102,6 +103,22 @@ function AIInfoSearchPage({ onClose }) {
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
+
+  // 모달 크기 자동 조정 (무한축소)
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 1264;  // 1200 + 32×2
+      const heightScale = window.innerHeight / 900;  // 추정치, 실제 높이에 맞게 조정 필요
+      const nextScale = Math.min(widthScale, heightScale, 1);
+      setScale(nextScale > 0 ? nextScale : 1);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
 
   // 📌 DB 기록을 메시지 형태로 평탄화(flatten)
   //   - 각 로그를 user/assistant 두 줄로 변환
@@ -307,7 +324,7 @@ function AIInfoSearchPage({ onClose }) {
   };
 
   return (
-    <div className={`ai-info-page${isSidebarOpen ? " sidebar-visible" : ""}`}>
+    <div className={`ai-info-page${isSidebarOpen ? " sidebar-visible" : ""}`} style={{ transform: `scale(${scale})` }}>
       <div className={`ai-info-shell${isSidebarOpen ? " with-sidebar" : ""}`}>
         <aside className={`ai-info-sidebar ${isSidebarOpen ? "open" : ""}`}>
           <div className="sidebar-header">

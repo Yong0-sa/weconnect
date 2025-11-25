@@ -78,6 +78,7 @@ function CommunityModal({ onClose }) {
   const [hasManualSelection, setHasManualSelection] = useState(false);
   const [toast, setToast] = useState(null);
   const dropdownRef = useRef(null);
+  const [scale, setScale] = useState(1);
 
   // AI 문장 추천 관련 state
   const [suggestions, setSuggestions] = useState([]);
@@ -761,6 +762,22 @@ function CommunityModal({ onClose }) {
     };
   }, [isFarmDropdownOpen]);
 
+  // 모달 크기 자동 조정 (무한축소)
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 1264;
+      const heightScale = window.innerHeight / 904;
+      const nextScale = Math.min(widthScale, heightScale, 1);
+      setScale(nextScale > 0 ? nextScale : 1);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
+
   // 농장 목록 조회
   useEffect(() => {
     const fetchFarms = async () => {
@@ -854,7 +871,7 @@ function CommunityModal({ onClose }) {
   }, [isFarmDropdownOpen]);
 
   return (
-    <div className="community-modal-card">
+    <div className="community-modal-card" style={{ transform: `scale(${scale})` }}>
       {toast && (
         <div className={`community-toast community-toast--${toast.type}`}>
           <span>{toast.message}</span>

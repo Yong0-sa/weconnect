@@ -1,23 +1,20 @@
 .ai-crop-page {
   background: transparent;
-  padding: clamp(16px, 4vh, 32px);
+  padding: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  --ai-scale: 1;
 }
 
 .ai-crop-card {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 18px;
-  padding: 32px clamp(28px, 4vw, 48px) 40px;
-  width: min(1100px, 92vw);
-  max-height: 88vh;
+  padding: 32px 48px 40px;
+  width: 1100px;
   position: relative;
   margin-top: 32px;
   box-shadow: 0 30px 50px rgba(0, 0, 0, 0.15);
-  transform-origin: top center;
-  transform: scale(var(--ai-scale));
+  flex-shrink: 0;
 }
 
 .ai-crop-card-header {
@@ -27,7 +24,7 @@
 
 .ai-crop-title {
   margin: 0;
-  font-size: clamp(26px, 4vw, 34px);
+  font-size: 34px;
   color: #1f2e36;
 }
 
@@ -35,8 +32,6 @@
   display: grid;
   grid-template-columns: 1fr 1.3fr;
   gap: 32px;
-  max-height: calc(85vh - 120px);
-  overflow-y: auto;
 }
 
 .ai-close-btn {
@@ -136,7 +131,7 @@
 
 .image-preview {
   border-radius: 18px;
-  height: clamp(280px, 40vw, 420px);
+  height: 420px;
   border: 2px solid rgba(102, 186, 98, 0.2);
   background: #f8fbf6;
   display: flex;
@@ -343,29 +338,6 @@
   transform: none;
 }
 
-@media (max-width: 1200px) {
-  .ai-crop-page {
-    --ai-scale: 0.95;
-  }
-}
-
-@media (max-width: 1024px) {
-  .ai-crop-page {
-    --ai-scale: 0.92;
-  }
-}
-
-@media (max-width: 860px) {
-  .ai-crop-page {
-    --ai-scale: 0.88;
-  }
-}
-
-@media (max-width: 640px) {
-  .ai-crop-page {
-    --ai-scale: 0.82;
-  }
-}
 
 /* 뷰 오버레이 (진단 목록, 상세 결과) */
 .view-overlay {
@@ -384,7 +356,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 32px clamp(28px, 4vw, 48px) 40px;
+  padding: 32px 48px 40px;
 }
 
 .view-header {
@@ -396,7 +368,7 @@
 
 .view-header h3 {
   margin: 0;
-  font-size: clamp(26px, 4vw, 34px);
+  font-size: 34px;
   color: #1f2e36;
 }
 
@@ -519,13 +491,3 @@
   background: rgba(103, 188, 99, 0.25);
 }
 
-@media (max-width: 768px) {
-  .diagnosis-history-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 16px;
-  }
-
-  .diagnosis-detail-content {
-    grid-template-columns: 1fr;
-  }
-}

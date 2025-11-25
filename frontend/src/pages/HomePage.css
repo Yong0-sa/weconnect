@@ -195,7 +195,6 @@
   width: min(95vw, 1500px);
   max-height: 90vh;
   background: transparent;
-  padding: 24px;
   box-sizing: border-box;
   display: flex;
   align-items: center;

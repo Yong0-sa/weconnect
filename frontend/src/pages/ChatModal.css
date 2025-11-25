@@ -1,14 +1,15 @@
 .chat-modal-card {
-  width: min(1180px, 94vw);
-  height: min(780px, 92vh);
+  width: 1180px;
+  height: 780px;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 32px;
-  padding: clamp(24px, 3vw, 40px);
+  padding: 40px;
   display: flex;
   flex-direction: column;
   position: relative;
   box-shadow: 0 40px 80px rgba(0, 0, 0, 0.25);
   overflow: visible;
+  flex-shrink: 0;
 }
 
 .chat-modal-close {

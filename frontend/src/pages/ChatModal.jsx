@@ -132,6 +132,7 @@ function ChatModal({ onClose, initialContact }) {
   const chatScrollRef = useRef(null);
   const ensuredContactKeyRef = useRef(null);
   const roomSubscriptionsRef = useRef(new Map());
+  const [scale, setScale] = useState(1);
 
   const getMyLastReadAt = useCallback(
     (room) => {
@@ -619,8 +620,26 @@ function ChatModal({ onClose, initialContact }) {
     chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
   }, [messages]);
 
+  // ============================================================
+  // 📌 15) 모달 크기 자동 조정 (무한축소)
+  // ============================================================
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 1260;  // 1180 + 40×2
+      const heightScale = window.innerHeight / 860;  // 780 + 40×2
+      const nextScale = Math.min(widthScale, heightScale, 1);
+      setScale(nextScale > 0 ? nextScale : 1);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
+
   return (
-    <div className="chat-modal-card">
+    <div className="chat-modal-card" style={{ transform: `scale(${scale})` }}>
       {onClose && (
         <button
           type="button"

@@ -22,6 +22,7 @@ function DiaryModal({ onClose, initialData = null }) {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const { addCoins } = useCoins();
+  const [scale, setScale] = useState(1);
   const [draft, setDraft] = useState(() => {
     // initialData가 있으면 진단 결과로 초기화
     if (initialData) {
@@ -103,6 +104,22 @@ function DiaryModal({ onClose, initialData = null }) {
   // 컴포넌트 마운트 시 일기 목록 불러오기
   useEffect(() => {
     loadDiaries();
+  }, []);
+
+  // 모달 크기 자동 조정 (무한축소)
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 1180;
+      const heightScale = window.innerHeight / 900;
+      const nextScale = Math.min(widthScale, heightScale, 1);
+      setScale(nextScale > 0 ? nextScale : 1);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
   }, []);
 
   // 검색 실행
@@ -217,7 +234,7 @@ function DiaryModal({ onClose, initialData = null }) {
   const filteredEntries = entries;
 
   return (
-    <div className="diary-modal-card">
+    <div className="diary-modal-card" style={{ transform: `scale(${scale})` }}>
       {toast && (
         <div
           className={`diary-toast diary-toast--${toast.type}`}

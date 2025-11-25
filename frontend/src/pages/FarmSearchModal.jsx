@@ -7,7 +7,6 @@ import { regionOptions } from "../data/farms";
 const DEFAULT_MAP_LEVEL = 3; // 약 100m 축척에 해당하는 카카오맵 레벨
 
 function FarmSearchModal({ onClose, onChatRequest }) {
-
   // 📌 검색/필터/선택 관련 상태
   const [selectedSido, setSelectedSido] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,6 +25,7 @@ function FarmSearchModal({ onClose, onChatRequest }) {
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const listContainerRef = useRef(null);
+  const [scale, setScale] = useState(1);
 
   // 📌 지도 중심을 특정 농장 좌표로 이동
   const focusMapOnFarm = useCallback((farm) => {
@@ -75,21 +75,21 @@ function FarmSearchModal({ onClose, onChatRequest }) {
         await applyToFarm(farmId);
         setStatusModal({
           title: "신청 완료",
-          message: "신청이 접수되었습니다. 승인 여부는 회원 정보 관리에서 확인해 주세요.",
+          message:
+            "신청이 접수되었습니다. 승인 여부는 회원 정보 관리에서 확인해 주세요.",
         });
       } catch (error) {
-        const message =
-          error?.message || "신청을 완료하지 못했습니다.";
+        const message = error?.message || "신청을 완료하지 못했습니다.";
         if (message.includes("이미 신청 내역이 있습니다.")) {
           setStatusModal({
             title: "신청 제한",
             message: "해당 농장에 이미 신청하셨습니다.",
           });
         } else {
-        setStatusModal({
-          title: "신청 실패",
-              message,
-        });
+          setStatusModal({
+            title: "신청 실패",
+            message,
+          });
         }
       } finally {
         setApplyingFarmId(null);
@@ -129,7 +129,6 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     );
   }, [farms, selectedSido, searchTerm]);
 
-
   // ============================================================
   // 📌 농장 불러오기 (초기 1회)
   //   - 응답을 화면에서 쓰기 좋은 형태로 정규화
@@ -158,7 +157,6 @@ function FarmSearchModal({ onClose, onChatRequest }) {
           lng: Number(farm.longitude ?? 0),
         }));
 
-
         setFarms(normalized);
       } catch (err) {
         if (active) {
@@ -175,6 +173,24 @@ function FarmSearchModal({ onClose, onChatRequest }) {
 
     return () => {
       active = false;
+    };
+  }, []);
+
+  // ============================================================
+  // 📌 모달 크기 자동 조정 (무한축소)
+  // ============================================================
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 1100;
+      const heightScale = window.innerHeight / 786;
+      const nextScale = Math.min(widthScale, heightScale, 1);
+      setScale(nextScale > 0 ? nextScale : 1);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
     };
   }, []);
 
@@ -291,7 +307,6 @@ function FarmSearchModal({ onClose, onChatRequest }) {
     }
   }, [filteredFarms, isMapReady, selectedFarmId, focusMapOnFarm]);
 
-
   // ============================================================
   // 📌 unmount 시 마커 정리
   // ============================================================
@@ -304,7 +319,10 @@ function FarmSearchModal({ onClose, onChatRequest }) {
 
   return (
     <>
-      <div className="farm-modal-shell">
+      <div
+        className="farm-modal-shell"
+        style={{ transform: `scale(${scale})` }}
+      >
         {onClose && (
           <button
             type="button"
@@ -321,117 +339,119 @@ function FarmSearchModal({ onClose, onChatRequest }) {
               <h2>농장 찾기</h2>
             </header>
             <section className="farm-modal-body">
-            <div className="region-select-row">
-              <label>
-                <span>지역</span>
-                <select
-                  value={selectedSido}
-                  onChange={(event) => setSelectedSido(event.target.value)}
-                >
-                  <option value="">시·도</option>
-                  {regionOptions.map((sido) => (
-                    <option key={sido} value={sido}>
-                      {sido}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="search-field">
-                <span>검색</span>
-                <div className="search-input-group">
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="동/읍/면 또는 농장명을 입력하세요"
-                  />
-                  <button
-                    type="button"
-                    className="search-button"
-                    onClick={() => setSearchTerm((prev) => prev.trim())}
-                    aria-label="검색"
+              <div className="region-select-row">
+                <label>
+                  <span>지역</span>
+                  <select
+                    value={selectedSido}
+                    onChange={(event) => setSelectedSido(event.target.value)}
                   >
-                    🔍
-                  </button>
-                </div>
-              </label>
-            </div>
-            <div className="map-container" ref={mapContainerRef}>
-              {!isMapReady && <span>카카오맵을 불러오는 중입니다...</span>}
-            </div>
-            <div className="farm-list-panel">
-              <div className="farm-list-header">
-                <h3>주말농장 리스트</h3>
-                <p>
-                  {searchTerm.trim()
-                    ? `"${searchTerm.trim()}" 검색 결과`
-                    : selectedSido
-                    ? `${selectedSido} 지역 추천 농장`
-                    : "전체 농장 목록"}
-                </p>
-              </div>
-              <div className="farm-list-scroll" ref={listContainerRef}>
-                {isLoading ? (
-                  <div className="farm-empty">농장 정보를 불러오는 중입니다...</div>
-                ) : error ? (
-                  <div className="farm-empty">{error}</div>
-                ) : filteredFarms.length ? (
-                  filteredFarms.map((farm) => (
-                    <article
-                      key={farm.id}
-                      data-farm-id={farm.id}
-                      className={`farm-card${
-                        selectedFarmId === farm.id ? " highlighted" : ""
-                      }`}
-                      onClick={(event) => handleFarmCardClick(farm, event)}
+                    <option value="">시·도</option>
+                    {regionOptions.map((sido) => (
+                      <option key={sido} value={sido}>
+                        {sido}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="search-field">
+                  <span>검색</span>
+                  <div className="search-input-group">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="동/읍/면 또는 농장명을 입력하세요"
+                    />
+                    <button
+                      type="button"
+                      className="search-button"
+                      onClick={() => setSearchTerm((prev) => prev.trim())}
+                      aria-label="검색"
                     >
-                      <div>
-                        <h4>{farm.name}</h4>
-                        <p className="farm-address">{farm.address}</p>
-                        <p className="farm-phone">{farm.phone}</p>
-                      </div>
-                      <div className="farm-card-actions">
-                        <button
-                          type="button"
-                          className="farm-action secondary"
-                          onClick={() => {
-                            if (onChatRequest) {
-                              onChatRequest(farm);
-                            }
-                          }}
-                        >
-                          채팅하기
-                        </button>
-                        <button
-                          type="button"
-                          className="farm-action request"
-                          onClick={() => handleApplyFarm(farm)}
-                          disabled={applyingFarmId === farm.id}
-                        >
-                          신청하기
-                        </button>
-                        <button
-                          type="button"
-                          className="farm-action primary"
-                          onClick={() => {
-                            const url = `https://map.kakao.com/link/to/${encodeURIComponent(
-                              farm.name
-                            )},${farm.lat},${farm.lng}`;
-                            window.open(url, "_blank", "noopener,noreferrer");
-                          }}
-                        >
-                          길찾기
-                        </button>
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <div className="farm-empty">
-                    해당 조건의 농장을 준비 중입니다.
+                      🔍
+                    </button>
                   </div>
-                )}
+                </label>
               </div>
-            </div>
+              <div className="map-container" ref={mapContainerRef}>
+                {!isMapReady && <span>카카오맵을 불러오는 중입니다...</span>}
+              </div>
+              <div className="farm-list-panel">
+                <div className="farm-list-header">
+                  <h3>주말농장 리스트</h3>
+                  <p>
+                    {searchTerm.trim()
+                      ? `"${searchTerm.trim()}" 검색 결과`
+                      : selectedSido
+                      ? `${selectedSido} 지역 추천 농장`
+                      : "전체 농장 목록"}
+                  </p>
+                </div>
+                <div className="farm-list-scroll" ref={listContainerRef}>
+                  {isLoading ? (
+                    <div className="farm-empty">
+                      농장 정보를 불러오는 중입니다...
+                    </div>
+                  ) : error ? (
+                    <div className="farm-empty">{error}</div>
+                  ) : filteredFarms.length ? (
+                    filteredFarms.map((farm) => (
+                      <article
+                        key={farm.id}
+                        data-farm-id={farm.id}
+                        className={`farm-card${
+                          selectedFarmId === farm.id ? " highlighted" : ""
+                        }`}
+                        onClick={(event) => handleFarmCardClick(farm, event)}
+                      >
+                        <div>
+                          <h4>{farm.name}</h4>
+                          <p className="farm-address">{farm.address}</p>
+                          <p className="farm-phone">{farm.phone}</p>
+                        </div>
+                        <div className="farm-card-actions">
+                          <button
+                            type="button"
+                            className="farm-action secondary"
+                            onClick={() => {
+                              if (onChatRequest) {
+                                onChatRequest(farm);
+                              }
+                            }}
+                          >
+                            채팅하기
+                          </button>
+                          <button
+                            type="button"
+                            className="farm-action request"
+                            onClick={() => handleApplyFarm(farm)}
+                            disabled={applyingFarmId === farm.id}
+                          >
+                            신청하기
+                          </button>
+                          <button
+                            type="button"
+                            className="farm-action primary"
+                            onClick={() => {
+                              const url = `https://map.kakao.com/link/to/${encodeURIComponent(
+                                farm.name
+                              )},${farm.lat},${farm.lng}`;
+                              window.open(url, "_blank", "noopener,noreferrer");
+                            }}
+                          >
+                            길찾기
+                          </button>
+                        </div>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="farm-empty">
+                      해당 조건의 농장을 준비 중입니다.
+                    </div>
+                  )}
+                </div>
+              </div>
             </section>
           </div>
         </div>

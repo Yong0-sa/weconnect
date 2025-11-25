@@ -22,6 +22,7 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
   const [selectedHistory, setSelectedHistory] = useState(null);
   const [currentView, setCurrentView] = useState("main"); // "main" | "history" | "detail"
   const fileInputRef = useRef(null);
+  const [scale, setScale] = useState(1);
 
   // 서버에서 진단 내역 불러오기
   const loadDiagnosisHistory = async () => {
@@ -136,6 +137,22 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
     };
   }, [photoPreview]);
 
+  // 모달 크기 자동 조정 (무한축소)
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 1196;  // 1100 + 48×2
+      const heightScale = window.innerHeight / 900;  // 추정치, 실제 높이에 맞게 조정 필요
+      const nextScale = Math.min(widthScale, heightScale, 1);
+      setScale(nextScale > 0 ? nextScale : 1);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
+
   // 신뢰도(%) 계산
   const confidencePercent = diagnosis
     ? Math.round((diagnosis.confidence || 0) * 100)
@@ -144,7 +161,7 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
   // UI 렌더링
   return (
     <div className="ai-crop-page">
-      <div className="ai-crop-card">
+      <div className="ai-crop-card" style={{ transform: `scale(${scale})` }}>
         {onClose && (
           <button
             type="button"
