@@ -109,7 +109,7 @@ function AIInfoSearchPage({ onClose }) {
     if (typeof window === "undefined") return undefined;
     const updateScale = () => {
       const baseWidth = 1920;
-      const baseHeight = 1080;
+      const baseHeight = 919;
       const widthScale = window.innerWidth / baseWidth;
       const heightScale = window.innerHeight / baseHeight;
       const nextScale = Math.min(widthScale, heightScale);
