@@ -63,7 +63,7 @@ public class AiDiagnosisService {
             Map.entry("tomato healthy", "적정 온도와 습도를 유지하고 가지치기로 통풍을 확보하세요. 물과 비료는 소량씩 자주 공급해 스트레스를 줄입니다.")
     );
 
-    @Value("${ai.predict.server.url:http://10.171.4.7:8000/predict}")
+    @Value("${ai.server.url}")
     private String aiServerBaseUrl;
 
     /**
@@ -108,7 +108,7 @@ public class AiDiagnosisService {
         String responseLabel;
 
         try {
-            String aiServerUrl = aiServerBaseUrl + "/" + cropEndpoint;
+            String aiServerUrl = buildPredictUrl(cropEndpoint);
             log.info("AI 서버 진단 요청: URL={}, cropType={}, userId={}", aiServerUrl, normalizedCropType, userId);
 
             HttpEntity<MultiValueMap<String, Object>> request = createRequest(image);
@@ -162,6 +162,14 @@ public class AiDiagnosisService {
             case "tomato" -> "tomato";
             default -> null;
         };
+    }
+
+    private String buildPredictUrl(String cropEndpoint) {
+        String base = aiServerBaseUrl == null ? "" : aiServerBaseUrl.trim();
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/predict/" + cropEndpoint;
     }
 
     private String getCanonicalLabel(String cropType, int index) {

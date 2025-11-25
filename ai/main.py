@@ -49,24 +49,15 @@ class EnsemblePrediction:
 
 def _detect_model_root() -> Path:
     """
-    저장소 내부 models 디렉터리를 우선적으로 사용한다.
-    환경 변수(YOLO_MODEL_DIR/MODEL_DIR)로 재정의할 수 있다.
+    저장소 내부 ai/models 디렉터리를 기본 모델 경로로 사용한다.
     """
-    env_dir = os.getenv("YOLO_MODEL_DIR") or os.getenv("MODEL_DIR")
-    if env_dir:
-        path = Path(env_dir)
-        logger.info("환경 변수 모델 경로 사용: %s", path)
-        return path
-
     project_root = Path(__file__).resolve().parents[1]
-    default_path = project_root / "models"
-    if default_path.exists():
-        logger.info("저장소 models 디렉터리를 사용합니다: %s", default_path)
-        return default_path
-
-    fallback = project_root / "models"
-    logger.warning("기본 models 디렉터리를 찾지 못해 %s 를 사용합니다.", fallback)
-    return fallback
+    ai_models = project_root / "ai" / "models"
+    if ai_models.exists():
+        logger.info("저장소 ai/models 디렉터리를 사용합니다: %s", ai_models)
+    else:
+        logger.warning("ai/models 디렉터리가 없어도 기본 경로로 사용합니다: %s", ai_models)
+    return ai_models
 
 
 MODEL_ROOT = _detect_model_root()
