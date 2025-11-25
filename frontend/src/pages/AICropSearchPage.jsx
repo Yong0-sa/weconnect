@@ -413,6 +413,14 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
         {currentView === "history" && (
           <div className="view-overlay">
             <div className="view-content">
+              <button
+                type="button"
+                className="view-close-btn"
+                onClick={onClose}
+                aria-label="작물진단 창 닫기"
+              >
+                ×
+              </button>
               <div className="view-header">
                 <h3>진단 목록</h3>
                 <div className="view-header-actions">
