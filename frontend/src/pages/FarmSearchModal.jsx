@@ -182,10 +182,12 @@ function FarmSearchModal({ onClose, onChatRequest }) {
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const updateScale = () => {
-      const widthScale = window.innerWidth / 1100;
-      const heightScale = window.innerHeight / 786;
-      const nextScale = Math.min(widthScale, heightScale, 1);
-      setScale(nextScale > 0 ? nextScale : 1);
+      const baseWidth = 1920;
+      const baseHeight = 1080;
+      const widthScale = window.innerWidth / baseWidth;
+      const heightScale = window.innerHeight / baseHeight;
+      const nextScale = Math.min(widthScale, heightScale);
+      setScale(nextScale > 0 ? nextScale : 0.5);
     };
     updateScale();
     window.addEventListener("resize", updateScale);
