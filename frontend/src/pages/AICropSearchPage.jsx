@@ -6,6 +6,7 @@ import "./AICropSearchPage.css";
 const cropOptions = [
   { value: "apple", label: "사과" },
   { value: "tomato", label: "토마토" },
+  { value: "grape", label: "포도"},
 ];
 
 function AICropSearchPage({ onClose, onOpenDiaryModal }) {

@@ -51,16 +51,9 @@ public class AiDiagnosisService {
             Map.entry("grape blackrot", "병반이 있는 잎과 송이를 조기에 제거하고 덩굴을 정리해 햇빛을 받게 하세요. 디티오카바메이트·스티로빌루린계 살균제를 교호 살포합니다."),
             Map.entry("grape esca", "갈변한 줄기·주지를 과감히 제거하고 절단면을 보호제로 처리하세요. 수분·비료 과다를 피하며 수세를 안정시킵니다."),
             Map.entry("grape leafblight", "밀집된 잎을 솎아 통풍을 확보하고, 이소프로티올란·벤조이미다졸계 살균제를 번갈아 살포하세요."),
-            Map.entry("tomato bacterial spot", "씨앗과 도구를 소독하고 감염 잎은 즉시 제거하세요. 구리제나 스트렙토마이신계 약제를 번갈아 살포하면 균 확산을 막을 수 있습니다."),
             Map.entry("tomato early blight", "하엽을 제거해 통풍을 높이고 클로로탈로닐·디티오카바메이트계를 주기적으로 살포하세요. 잎에 물이 튀지 않게 점적관수합니다."),
-            Map.entry("tomato late blight", "온실 습도를 낮추고 감염된 잎과 줄기를 제거하세요. 메탈락실·프로피네브 등 예방 약제를 우기 전에 살포하면 효과적입니다."),
-            Map.entry("tomato leaf mold", "저녁 관수를 피하고 환기를 강화해 습도를 60% 이하로 유지하세요. 필요 시 구리계 약제를 살포해 포자 발아를 억제합니다."),
-            Map.entry("tomato septoria leaf spot", "잎이 젖어 있는 시간을 줄이고 만코제브·클로로탈로닐을 교호 살포하세요. 병든 잎은 바로 제거해 포자원이 남지 않도록 합니다."),
             Map.entry("tomato spider mites two spotted spider mite", "잎 뒷면을 물로 세척하고 고온·건조 환경을 피하세요. 필요 시 아바멕틴 등 선택 살충제를 사용합니다."),
-            Map.entry("tomato target spot", "밀식된 잎을 솎아내고 감염 잎을 제거하세요. 아족시스트로빈·디티오카바메이트계 살균제를 교대로 사용하면 도움이 됩니다."),
-            Map.entry("tomato tomato yellow leaf curl virus", "감염 개체를 즉시 제거하고 담배가루이 방제를 위해 끈끈이 트랩과 살충제를 병행하세요. 반사 멀칭으로 매개충을 차단합니다."),
-            Map.entry("tomato tomato mosaic virus", "작업 전후 손과 도구를 소독하고 감염주를 뽑아내세요. 내병성 품종과 깨끗한 묘를 사용하면 예방에 효과적입니다."),
-            Map.entry("tomato healthy", "적정 온도와 습도를 유지하고 가지치기로 통풍을 확보하세요. 물과 비료는 소량씩 자주 공급해 스트레스를 줄입니다.")
+            Map.entry("tomato tomato yellow leaf curl virus", "감염 개체를 즉시 제거하고 담배가루이 방제를 위해 끈끈이 트랩과 살충제를 병행하세요. 반사 멀칭으로 매개충을 차단합니다.")
     );
 
     @Value("${ai.server.url}")
@@ -138,8 +131,10 @@ public class AiDiagnosisService {
             return createErrorResponse(normalizedCropType, "AI 서버 연결 실패: " + e.getMessage());
         }
 
-        String label = getCanonicalLabel(normalizedCropType, predictedIndex);
-        if (!StringUtils.hasText(label)) label = responseLabel;
+        String[] labels = getLabels(normalizedCropType);
+        String label = (predictedIndex >= 0 && predictedIndex < labels.length)
+                ? labels[predictedIndex]
+                : responseLabel;
 
         String careComment = getCareComment(normalizedCropType, label);
 
@@ -160,6 +155,7 @@ public class AiDiagnosisService {
         return switch (cropType) {
             case "apple" -> "apple";
             case "tomato" -> "tomato";
+            case "grape" -> "grape";
             default -> null;
         };
     }
@@ -170,20 +166,6 @@ public class AiDiagnosisService {
             base = base.substring(0, base.length() - 1);
         }
         return base + "/predict/" + cropEndpoint;
-    }
-
-    private String getCanonicalLabel(String cropType, int index) {
-        if ("tomato".equals(cropType)) {
-            return switch (index) {
-                case 0, 1, 2, 3 -> "Tomato___Early_blight";
-                case 4, 5, 6 -> "Tomato___Spider_mites Two-spotted_spider_mite";
-                case 7, 8, 9 -> "Tomato___Tomato_Yellow_Leaf_Curl_Virus";
-                default -> "";
-            };
-        }
-
-        String[] labels = getLabels(cropType);
-        return (index >= 0 && index < labels.length) ? labels[index] : "";
     }
 
     private String[] getLabels(String cropType) {
@@ -197,6 +179,11 @@ public class AiDiagnosisService {
                     "Tomato___Early_blight",
                     "Tomato___Spider_mites Two-spotted_spider_mite",
                     "Tomato___Tomato_Yellow_Leaf_Curl_Virus"
+            };
+            case "grape" -> new String[]{
+                    "Grape___Black_rot",
+                    "Grape___ESCA",
+                    "Grape___Leaf_blight"
             };
             default -> new String[0];
         };

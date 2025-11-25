@@ -65,6 +65,7 @@ MODEL_ROOT = _detect_model_root()
 CROP_MODEL_FOLDERS: Dict[str, Dict[str, str]] = {
     "apple": {"folder": "apple_yolo11_models", "display_name": "사과"},
     "tomato": {"folder": "tomato_yolo11_models", "display_name": "토마토"},
+    "grape": {"folder": "grape_yolo11_models", "display_name": "포도"},
 }
 
 
