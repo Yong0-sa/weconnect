@@ -304,6 +304,7 @@ function DiaryModal({ onClose, initialData = null }) {
                     setEditingEntryId(null);
                     setDraft({ date: "", content: "", file: null, title: "", preview: null });
                     setIsWriting(true);
+                    setIsEditing(false);
                   }}
           >
             글쓰기
@@ -329,7 +330,6 @@ function DiaryModal({ onClose, initialData = null }) {
                     selectedEntryId === entry.id ? " selected" : ""
                   }${isEditing ? " editing" : ""}`}
                   onClick={() => {
-                    if (isEditing) return;
                     setIsWriting(false);
                     setEditingEntryId(null);
                     setSelectedEntryId(entry.id);
@@ -337,6 +337,7 @@ function DiaryModal({ onClose, initialData = null }) {
                 >
                   <div className="diary-list-info">
                     <p className="diary-list-date">{entry.date}</p>
+                    <p className="diary-list-title">{entry.title}</p>
                     <p className="diary-list-summary">{entry.summary}</p>
                   </div>
                   {entry.previewImg && (
@@ -409,6 +410,7 @@ function DiaryModal({ onClose, initialData = null }) {
                     setDraft((prev) => ({ ...prev, title: event.target.value }))
                   }
                   placeholder="일기 제목을 입력하세요"
+                  required
                 />
               </label>
               <label>

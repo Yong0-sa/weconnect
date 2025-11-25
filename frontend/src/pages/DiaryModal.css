@@ -224,9 +224,9 @@
 .diary-list-item {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 12px 4px;
-  border-radius: 14px;
+  gap: 16px;
+  padding: 16px 8px;
+  border-radius: 16px;
   background: transparent;
   transition: background-color 0.2s ease, padding-bottom 0.2s ease;
   cursor: pointer;
@@ -255,19 +255,26 @@
 
 .diary-list-date {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 18px;
+}
+
+.diary-list-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #586167;
 }
 
 .diary-list-summary {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   color: #586167;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .diary-list-thumb img {
-  width: 70px;
-  height: 70px;
+  width: 90px;
+  height: 90px;
   object-fit: cover;
   border-radius: 16px;
 }
