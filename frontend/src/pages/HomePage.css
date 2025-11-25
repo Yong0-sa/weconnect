@@ -497,17 +497,33 @@
 /* 코인 수량 라벨 */
 .coin-label {
   position: absolute;
-  left: 79.385%;
-  top: calc(6.93% + 0.975%);
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: min(1.9vw, 32px);
-  color: #7f7460;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: 4;
+}
+
+.coin-label__x {
+  position: absolute;
+  left: 77.5%;
+  top: calc(6.93% + 0.4%);
+  transform: translate(-50%, -50%);
+  font-weight: 700;
+  font-size: min(1.9vw, 30px);
+  color: #7f7460;
+  white-space: nowrap;
+}
+
+.coin-label__number {
+  position: absolute;
+  left: 79.3%;
+  top: calc(6.93% + 0.7%);
+  transform: translate(-50%, -50%);
+  font-weight: 700;
+  font-size: min(1.9vw, 30px);
+  color: #7f7460;
   white-space: nowrap;
 }
 

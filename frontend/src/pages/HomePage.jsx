@@ -631,9 +631,8 @@ function HomePage() {
         </div>
 
         <div className="coin-label" aria-hidden="true">
-          <span>
-            x<span>{coins}</span>
-          </span>
+          <span className="coin-label__x">x</span>
+          <span className="coin-label__number">{coins}</span>
         </div>
 
         {/* 채팅 아이콘 */}

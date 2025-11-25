@@ -1,7 +1,7 @@
 .member-manage-modal {
-  --member-grid: 32px minmax(90px, 1fr) minmax(140px, 1.2fr)
-    minmax(120px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr)
-    minmax(130px, 1fr) minmax(130px, 1fr) minmax(80px, auto);
+  --member-grid: 32px minmax(90px, 1fr) minmax(140px, 1.2fr) minmax(120px, 1fr)
+    minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr)
+    minmax(80px, auto);
   width: 1500px;
   height: 655px;
   background: #fff;
@@ -21,9 +21,9 @@
 
 .member-manage-modal--edit-mode {
   width: 1600px;
-  --member-grid: 32px minmax(90px, 1fr) minmax(170px, 1.2fr)
-    minmax(130px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr)
-    minmax(140px, 1fr) minmax(140px, 1fr) minmax(90px, auto);
+  --member-grid: 32px minmax(90px, 1fr) minmax(170px, 1.2fr) minmax(130px, 1fr)
+    minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr)
+    minmax(90px, auto);
 }
 
 .member-manage-modal--create-mode {
@@ -60,8 +60,8 @@
 
 .member-manage-close {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 10px;
+  right: 10px;
   border: none;
   background: #f0f2f4;
   font-size: 1.5rem;
@@ -71,7 +71,12 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.member-manage-close:hover {
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
 }
 
 .member-manage-panel {
