@@ -254,17 +254,6 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
         {onClose && (
           <button
             type="button"
-            className="ai-delete-btn"
-            onClick={handleDeleteSelected}
-            disabled={isDeleting}
-            aria-pressed={isDeleteMode}
-          >
-            {isDeleteMode ? (isDeleting ? "삭제 중..." : "선택 삭제") : "삭제"}
-          </button>
-        )}
-        {onClose && (
-          <button
-            type="button"
             className="ai-close-btn"
             onClick={onClose}
             aria-label="작물 진단 창 닫기"
@@ -420,28 +409,43 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
         {/* 진단 목록 뷰 */}
         {currentView === "history" && (
           <div className="view-overlay">
-              <div className="view-content">
-                <div className="view-header">
-                  <h3>진단 목록</h3>
+            <div className="view-content">
+              <div className="view-header">
+                <h3>진단 목록</h3>
+                <div className="view-header-actions">
                   <button
                     type="button"
-                  className="back-btn"
-                  onClick={() => setCurrentView("main")}
+                    className="history-delete-btn"
+                    onClick={handleDeleteSelected}
+                    disabled={isDeleting}
+                    aria-pressed={isDeleteMode}
+                  >
+                    {isDeleteMode
+                      ? isDeleting
+                        ? "삭제 중..."
+                        : "선택 삭제"
+                      : "삭제"}
+                  </button>
+                  <button
+                    type="button"
+                    className="back-btn"
+                    onClick={() => setCurrentView("main")}
                     aria-label="돌아가기"
                   >
                     ←
                   </button>
                 </div>
-                {historyError && (
-                  <p className="history-error" role="alert">
-                    {historyError}
-                  </p>
-                )}
-                <div className="diagnosis-history-grid">
-                  {diagnosisHistory.length === 0 ? (
-                    <div className="history-empty">
-                      아직 진단 내역이 없습니다.
-                    </div>
+              </div>
+              {historyError && (
+                <p className="history-error" role="alert">
+                  {historyError}
+                </p>
+              )}
+              <div className="diagnosis-history-grid">
+                {diagnosisHistory.length === 0 ? (
+                  <div className="history-empty">
+                    아직 진단 내역이 없습니다.
+                  </div>
                 ) : (
                   diagnosisHistory.map((item) => (
                     <div
@@ -477,7 +481,7 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
                       <div className="history-card-info">
                         <h4>{item.diseaseName}</h4>
                         <p className="history-date">
-                          {new Date(item.createdAt).toLocaleDateString('ko-KR')}
+                          {new Date(item.createdAt).toLocaleDateString("ko-KR")}
                         </p>
                       </div>
                     </div>
