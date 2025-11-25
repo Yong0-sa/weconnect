@@ -173,3 +173,26 @@ export async function fetchDiagnosisHistory() {
     throw error;
   }
 }
+
+// 🗑️ 6️⃣ 진단 내역 삭제
+export async function deleteDiagnosisEntry(diagnosisId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/ai/diagnosis/${diagnosisId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    if (res.status === 401) {
+      throw new Error("로그인이 필요합니다.");
+    }
+    if (res.status === 404) {
+      throw new Error("삭제할 진단 내역을 찾을 수 없습니다.");
+    }
+    if (!res.ok) {
+      throw new Error("진단 내역을 삭제하지 못했습니다.");
+    }
+  } catch (error) {
+    console.error("진단 내역 삭제 실패:", error);
+    throw error;
+  }
+}

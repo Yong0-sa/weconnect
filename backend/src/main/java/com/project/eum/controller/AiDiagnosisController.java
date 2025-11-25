@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * AI 작물 진단 관련 REST API 컨트롤러
@@ -83,5 +84,30 @@ public class AiDiagnosisController {
         List<Diagnosis> history = aiDiagnosisService.getDiagnosisHistory(memberId);
         log.info("진단 내역 조회 완료: userId={}, count={}", memberId, history.size());
         return ResponseEntity.ok(history);
+    }
+
+    /**
+     * 진단 내역 삭제 (사용자 본인만)
+     */
+    @DeleteMapping("/diagnosis/{diagnosisId}")
+    public ResponseEntity<Void> deleteDiagnosis(
+            @PathVariable Long diagnosisId,
+            HttpSession session
+    ) {
+        Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
+        if (memberId == null) {
+            log.warn("로그인하지 않은 사용자의 진단 내역 삭제 시도");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            aiDiagnosisService.deleteDiagnosis(diagnosisId, memberId);
+            return ResponseEntity.noContent().build();
+        } catch (NoSuchElementException e) {
+            log.warn("삭제 대상 진단을 찾을 수 없음: diagnosisId={}, userId={}", diagnosisId, memberId);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("진단 삭제 실패: diagnosisId={}, userId={}, error={}", diagnosisId, memberId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { diagnoseCrop, fetchDiagnosisHistory } from "../api/ai";
+import {
+  diagnoseCrop,
+  fetchDiagnosisHistory,
+  deleteDiagnosisEntry,
+} from "../api/ai";
 import "./AICropSearchPage.css";
 
 // 작물 선택 옵션
@@ -23,14 +27,23 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
   const [currentView, setCurrentView] = useState("main"); // "main" | "history" | "detail"
   const fileInputRef = useRef(null);
   const [scale, setScale] = useState(1);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [detailToast, setDetailToast] = useState(null);
 
   // 서버에서 진단 내역 불러오기
   const loadDiagnosisHistory = async () => {
     try {
       const history = await fetchDiagnosisHistory();
       setDiagnosisHistory(history);
+      setIsDeleteMode(false);
+      setSelectedIds(new Set());
+      setHistoryError("");
     } catch (error) {
       console.error("진단 내역 조회 실패:", error);
+      setHistoryError(error.message || "진단 내역을 불러오지 못했습니다.");
       // 에러 시 빈 배열 유지
     }
   };
@@ -130,6 +143,80 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
     }
   };
 
+  const toggleDeleteMode = () => {
+    setIsDeleteMode((prev) => !prev);
+    setSelectedIds(new Set());
+    setHistoryError("");
+  };
+
+  const toggleSelect = (diagnosisId) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(diagnosisId)) {
+        next.delete(diagnosisId);
+      } else {
+        next.add(diagnosisId);
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!isDeleteMode) {
+      setCurrentView("history");
+      toggleDeleteMode();
+      return;
+    }
+    if (selectedIds.size === 0) {
+      setHistoryError("삭제할 항목을 선택해 주세요.");
+      return;
+    }
+    setIsDeleting(true);
+    setHistoryError("");
+    try {
+      const ids = Array.from(selectedIds);
+      for (const id of ids) {
+        await deleteDiagnosisEntry(id);
+      }
+      await loadDiagnosisHistory();
+      setIsDeleteMode(false);
+      setSelectedHistory(null);
+      setCurrentView("history");
+    } catch (error) {
+      setHistoryError(error.message || "삭제 중 문제가 발생했습니다.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDetailDelete = async () => {
+    if (!selectedHistory) return;
+    setDetailToast({ type: "info", message: "삭제하시겠습니까?" });
+    const confirmed = window.confirm("삭제하시겠습니까?");
+    if (!confirmed) {
+      setDetailToast({ type: "info", message: "삭제를 취소했습니다." });
+      setTimeout(() => setDetailToast(null), 2000);
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteDiagnosisEntry(selectedHistory.diagnosisId);
+      setDetailToast({ type: "success", message: "삭제되었습니다." });
+      await loadDiagnosisHistory();
+      setSelectedHistory(null);
+      setCurrentView("history");
+      setIsDeleteMode(false);
+    } catch (error) {
+      setDetailToast({
+        type: "error",
+        message: error.message || "삭제에 실패했습니다.",
+      });
+    } finally {
+      setIsDeleting(false);
+      setTimeout(() => setDetailToast(null), 2500);
+    }
+  };
+
   // 컴포넌트 unmount 시 미리보기 URL 해제
   useEffect(() => {
     return () => {
@@ -164,6 +251,17 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
   return (
     <div className="ai-crop-page">
       <div className="ai-crop-card" style={{ transform: `scale(${scale})` }}>
+        {onClose && (
+          <button
+            type="button"
+            className="ai-delete-btn"
+            onClick={handleDeleteSelected}
+            disabled={isDeleting}
+            aria-pressed={isDeleteMode}
+          >
+            {isDeleteMode ? (isDeleting ? "삭제 중..." : "선택 삭제") : "삭제"}
+          </button>
+        )}
         {onClose && (
           <button
             type="button"
@@ -322,33 +420,57 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
         {/* 진단 목록 뷰 */}
         {currentView === "history" && (
           <div className="view-overlay">
-            <div className="view-content">
-              <div className="view-header">
-                <h3>진단 목록</h3>
-                <button
-                  type="button"
+              <div className="view-content">
+                <div className="view-header">
+                  <h3>진단 목록</h3>
+                  <button
+                    type="button"
                   className="back-btn"
                   onClick={() => setCurrentView("main")}
-                  aria-label="돌아가기"
-                >
-                  ←
-                </button>
-              </div>
-              <div className="diagnosis-history-grid">
-                {diagnosisHistory.length === 0 ? (
-                  <div className="history-empty">
-                    아직 진단 내역이 없습니다.
-                  </div>
+                    aria-label="돌아가기"
+                  >
+                    ←
+                  </button>
+                </div>
+                {historyError && (
+                  <p className="history-error" role="alert">
+                    {historyError}
+                  </p>
+                )}
+                <div className="diagnosis-history-grid">
+                  {diagnosisHistory.length === 0 ? (
+                    <div className="history-empty">
+                      아직 진단 내역이 없습니다.
+                    </div>
                 ) : (
                   diagnosisHistory.map((item) => (
                     <div
                       key={item.diagnosisId}
-                      className="history-card"
+                      className={`history-card${isDeleteMode ? " delete-mode" : ""}${
+                        selectedIds.has(item.diagnosisId) ? " selected" : ""
+                      }`}
                       onClick={() => {
+                        if (isDeleteMode) {
+                          toggleSelect(item.diagnosisId);
+                          return;
+                        }
                         setSelectedHistory(item);
                         setCurrentView("detail");
                       }}
                     >
+                      {isDeleteMode && (
+                        <label
+                          className="history-check"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(item.diagnosisId)}
+                            onChange={() => toggleSelect(item.diagnosisId)}
+                            aria-label="삭제 선택"
+                          />
+                        </label>
+                      )}
                       <div className="history-card-image">
                         <img src={item.photoUrl} alt={item.cropName} />
                       </div>
@@ -374,6 +496,15 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
                 <h2 className="ai-crop-title">작물진단</h2>
                 <button
                   type="button"
+                  className="history-detail-delete-btn"
+                  onClick={handleDetailDelete}
+                  disabled={isDeleting}
+                  aria-label="진단 삭제"
+                >
+                  {isDeleting ? "삭제 중..." : "삭제"}
+                </button>
+                <button
+                  type="button"
                   className="history-detail-back-btn"
                   onClick={() => {
                     setSelectedHistory(null);
@@ -384,6 +515,11 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
                   ×
                 </button>
               </div>
+              {detailToast && (
+                <div className={`detail-toast detail-toast--${detailToast.type}`}>
+                  {detailToast.message}
+                </div>
+              )}
               <div className="ai-crop-card-body">
                 <div className="ai-crop-left">
                   <div className="image-preview">

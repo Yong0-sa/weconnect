@@ -24,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -232,6 +233,18 @@ public class AiDiagnosisService {
 
     private AiDiagnosisResponse createErrorResponse(String cropType, String message) {
         return new AiDiagnosisResponse(false, cropType, "", -1, 0.0, message, "", null);
+    }
+
+    /**
+     * 진단 내역 삭제 (사용자 본인만)
+     */
+    @Transactional
+    public void deleteDiagnosis(Long diagnosisId, Long userId) {
+        Optional<Diagnosis> target = diagnosisRepository.findByDiagnosisIdAndUserId(diagnosisId, userId);
+        if (target.isEmpty()) {
+            throw new NoSuchElementException("진단 내역을 찾을 수 없습니다.");
+        }
+        diagnosisRepository.delete(target.get());
     }
 
     /**
