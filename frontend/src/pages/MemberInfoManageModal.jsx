@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import ChatModal from "./ChatModal";
 import "./MemberInfoManageModal.css";
 import {
@@ -502,11 +503,14 @@ function MemberInfoManageModal({
           )}
         </div>
       </section>
-      {isChatModalOpen && (
-        <div className="member-manage-chat-modal">
-          <ChatModal initialContact={chatContact} onClose={handleCloseChat} />
-        </div>
-      )}
+      {isChatModalOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="member-manage-chat-modal">
+            <ChatModal initialContact={chatContact} onClose={handleCloseChat} />
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
