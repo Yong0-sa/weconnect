@@ -104,7 +104,7 @@ public class PostService {
                 .farm(farm)
                 .build();
 
-        return new PostResponseDto(postRepository.save(post));
+        return toResponse(postRepository.save(post));
     }
 
     // 게시글 수정
@@ -118,7 +118,7 @@ public class PostService {
         post.setTitle(request.getTitle());
         post.setContent(request.getContent());
 
-        return new PostResponseDto(postRepository.save(post));
+        return toResponse(postRepository.save(post));
     }
 
     // 게시글 삭제
@@ -143,8 +143,18 @@ public class PostService {
         );
 
         return posts.stream()
-                .map(PostResponseDto::new)
+                .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Post 엔티티를 PostResponseDto로 변환하며 이미지 URL을 CDN으로 변환
+     */
+    private PostResponseDto toResponse(Post post) {
+        PostResponseDto dto = new PostResponseDto(post);
+        // DB에 저장된 경로를 공개 URL로 변환
+        dto.setPhotoUrl(objectStorageService.buildPublicUrl(post.getPhotoUrl()));
+        return dto;
     }
 
     private void validateImageSize(MultipartFile imageFile) {

@@ -69,10 +69,10 @@ public class AiDiagnosisController {
     /**
      * 사용자의 진단 내역 목록 조회
      * @param session HTTP 세션
-     * @return 진단 내역 목록 (최신순)
+     * @return 진단 내역 목록 (최신순, 이미지 URL은 CDN으로 변환)
      */
     @GetMapping("/diagnosis/history")
-    public ResponseEntity<List<Diagnosis>> getDiagnosisHistory(HttpSession session) {
+    public ResponseEntity<List<com.project.eum.dto.DiagnosisHistoryDto>> getDiagnosisHistory(HttpSession session) {
         log.info("진단 내역 목록 조회 요청: sessionId={}", session.getId());
 
         Long memberId = (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
@@ -81,7 +81,7 @@ public class AiDiagnosisController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        List<Diagnosis> history = aiDiagnosisService.getDiagnosisHistory(memberId);
+        List<com.project.eum.dto.DiagnosisHistoryDto> history = aiDiagnosisService.getDiagnosisHistory(memberId);
         log.info("진단 내역 조회 완료: userId={}, count={}", memberId, history.size());
         return ResponseEntity.ok(history);
     }

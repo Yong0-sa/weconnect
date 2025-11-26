@@ -245,9 +245,15 @@ public class AiDiagnosisService {
     /**
      * 사용자의 진단 내역 목록 조회
      * @param userId 사용자 ID
-     * @return 진단 내역 목록 (최신순)
+     * @return 진단 내역 목록 (최신순, photoUrl은 CDN URL로 변환)
      */
-    public List<Diagnosis> getDiagnosisHistory(Long userId) {
-        return diagnosisRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    public List<com.project.eum.dto.DiagnosisHistoryDto> getDiagnosisHistory(Long userId) {
+        List<Diagnosis> diagnoses = diagnosisRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        return diagnoses.stream()
+                .map(diagnosis -> com.project.eum.dto.DiagnosisHistoryDto.from(
+                        diagnosis,
+                        objectStorageService.buildPublicUrl(diagnosis.getPhotoUrl())
+                ))
+                .toList();
     }
 }

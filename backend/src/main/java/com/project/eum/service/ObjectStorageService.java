@@ -30,8 +30,9 @@ public class ObjectStorageService {
     private final S3Client s3Client;
     private final String bucketName;
     private final String endpoint;
+    private final String cdnDomain;
 
-    
+
     /* ============================================================
        생성자 — Object Storage 연결 설정
        ============================================================ */
@@ -40,10 +41,12 @@ public class ObjectStorageService {
             @Value("${cloud.ncp.object-storage.region}") String region,
             @Value("${cloud.ncp.object-storage.access-key}") String accessKey,
             @Value("${cloud.ncp.object-storage.secret-key}") String secretKey,
-            @Value("${cloud.ncp.object-storage.bucket-name}") String bucketName
+            @Value("${cloud.ncp.object-storage.bucket-name}") String bucketName,
+            @Value("${CDN_DOMAIN:}") String cdnDomain
     ) {
         this.endpoint = endpoint;
         this.bucketName = bucketName;
+        this.cdnDomain = cdnDomain;
 
         // 1) 인증 정보 생성
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
@@ -55,7 +58,7 @@ public class ObjectStorageService {
                 .credentialsProvider(StaticCredentialsProvider.create(credentials))
                 .build();
 
-        log.info("ObjectStorageService 초기화: endpoint={}, bucket={}", endpoint, bucketName);
+        log.info("ObjectStorageService 초기화: endpoint={}, bucket={}, cdnDomain={}", endpoint, bucketName, cdnDomain);
     }
 
     /**
@@ -101,11 +104,9 @@ public class ObjectStorageService {
             // 실제 업로드 실행
             s3Client.putObject(putRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            // 업로드된 파일의 공개 URL 생성
-            String publicUrl = String.format("%s/%s/%s", endpoint, bucketName, filename);
-            log.info("Object Storage 업로드 완료: url={}", publicUrl);
-
-            return publicUrl;
+            // 경로만 반환 (DB에 저장용)
+            log.info("Object Storage 업로드 완료: path={}", filename);
+            return filename;
 
         // 예외 처리
         } catch (IOException e) {
@@ -117,18 +118,60 @@ public class ObjectStorageService {
         }
     }
 
+    /**
+     * 저장된 경로를 공개 URL로 변환
+     * CDN 도메인이 설정되어 있으면 CDN URL, 없으면 Object Storage URL 반환
+     */
+    public String buildPublicUrl(String path) {
+        if (!StringUtils.hasText(path)) {
+            return null;
+        }
+
+        if (StringUtils.hasText(cdnDomain)) {
+            // CDN 도메인이 설정되어 있으면 CDN URL 반환
+            String cleanCdnDomain = cdnDomain.trim();
+            if (!cleanCdnDomain.startsWith("http://") && !cleanCdnDomain.startsWith("https://")) {
+                cleanCdnDomain = "https://" + cleanCdnDomain;
+            }
+            return String.format("%s/%s", cleanCdnDomain, path);
+        } else {
+            // CDN 도메인이 없으면 Object Storage URL 반환
+            return String.format("%s/%s/%s", endpoint, bucketName, path);
+        }
+    }
+
+    /**
+     * URL 또는 경로에서 Object 삭제
+     */
     public void deleteObjectByUrl(String url) {
         if (!StringUtils.hasText(url)) {
             return;
         }
-        String prefix = endpoint.endsWith("/")
-                ? endpoint + bucketName + "/"
-                : endpoint + "/" + bucketName + "/";
-        if (!url.startsWith(prefix)) {
-            log.warn("URL {} does not match bucket prefix {}, skip delete", url, prefix);
-            return;
+
+        // URL이 전체 URL인지 경로만인지 확인
+        String key;
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            // 전체 URL인 경우 경로 추출
+            String prefix = endpoint.endsWith("/")
+                    ? endpoint + bucketName + "/"
+                    : endpoint + "/" + bucketName + "/";
+            if (url.startsWith(prefix)) {
+                key = url.substring(prefix.length());
+            } else {
+                // CDN URL일 수 있으므로 마지막 / 이후부터 찾기
+                int lastSlashIndex = url.indexOf('/', 8); // https:// 이후 첫 /
+                if (lastSlashIndex > 0) {
+                    key = url.substring(lastSlashIndex + 1);
+                } else {
+                    log.warn("Cannot extract key from URL: {}", url);
+                    return;
+                }
+            }
+        } else {
+            // 경로만 있는 경우
+            key = url;
         }
-        String key = url.substring(prefix.length());
+
         try {
             DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)

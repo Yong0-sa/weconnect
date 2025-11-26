@@ -176,7 +176,7 @@ public class DiaryService {
                 .diaryId(diary.getDiaryId())
                 .title(diary.getTitle())
                 .content(diary.getContent())
-                .photoUrl(diary.getPhotoUrl())
+                .photoUrl(objectStorageService.buildPublicUrl(diary.getPhotoUrl()))
                 .createdAt(diary.getCreatedAt())
                 .updatedAt(diary.getUpdatedAt())
                 .selectAt(diary.getSelectAt())
