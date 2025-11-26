@@ -131,7 +131,7 @@ public class ObjectStorageService {
             // CDN 도메인이 설정되어 있으면 CDN URL 반환
             String cleanCdnDomain = cdnDomain.trim();
             if (!cleanCdnDomain.startsWith("http://") && !cleanCdnDomain.startsWith("https://")) {
-                cleanCdnDomain = "https://" + cleanCdnDomain;
+                cleanCdnDomain = "http://" + cleanCdnDomain;
             }
             return String.format("%s/%s", cleanCdnDomain, path);
         } else {
