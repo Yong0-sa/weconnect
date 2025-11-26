@@ -61,12 +61,20 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         // 1) 신규 가입 필요 → 프론트 signup 페이지로 리다이렉트
         if (needsSignup) {
             String provider = authToken.getAuthorizedClientRegistrationId();
-            String redirectUrl = UriComponentsBuilder.fromUriString(signupUri)
+            String name = principal.getAttribute("name");
+
+            UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(signupUri)
                     .queryParam("status", "social_signup")
                     .queryParam("provider", provider)
-                    .queryParam("email", email)
-                    .build()
-                    .toUriString();
+                    .queryParam("email", email);
+
+            // 이름 정보가 있으면 추가
+            if (name != null && !name.isEmpty()) {
+                builder.queryParam("name", name);
+            }
+
+            // URL 인코딩 (한글 처리)
+            String redirectUrl = builder.build().encode().toUriString();
             response.sendRedirect(redirectUrl);
             return;
         }

@@ -178,6 +178,13 @@
   box-shadow: 0 0 0 min(0.2vw, 3px) rgba(76, 175, 80, 0.2);
 }
 
+.signup-input:disabled {
+  background-color: #d0d0d0;
+  color: #666;
+  cursor: not-allowed;
+  border-color: rgba(44, 62, 80, 0.15);
+}
+
 .member-type {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

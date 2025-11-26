@@ -45,11 +45,12 @@ function SignUp() {
       setFormData((prev) => ({
         ...prev,
         email: emailParam,
+        name: displayName,
       }));
 
       setSocialInfo({
         provider,
-        message: `${provider.toUpperCase()} 계정으로 이메일이 고정되어 있어요. 아래 정보만 입력하면 가입이 완료됩니다.`,
+        message: `${provider.toUpperCase()} 계정으로 이메일과 이름이 자동으로 입력되었습니다. 닉네임, 회원 유형, 전화번호만 입력하면 가입이 완료됩니다.`,
       });
 
       setMemberType("personal");
@@ -250,12 +251,6 @@ function SignUp() {
         </div>
 
         <div className="modal-fields">
-          {isSocialSignup && (
-            <div className="social-signup-info">
-              <strong>{socialInfo.provider.toUpperCase()}</strong>{" "}
-              {socialInfo.message}
-            </div>
-          )}
           <label className="signup-label" htmlFor="email">
             이메일
           </label>
@@ -359,6 +354,8 @@ function SignUp() {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="이름을 입력해 주세요."
+                disabled={isSocialSignup}
+                readOnly={isSocialSignup}
               />
               {errors.name && <p className="input-error">{errors.name}</p>}
 
@@ -391,6 +388,8 @@ function SignUp() {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="이름을 입력해 주세요."
+                disabled={isSocialSignup}
+                readOnly={isSocialSignup}
               />
               {errors.name && <p className="input-error">{errors.name}</p>}
 
