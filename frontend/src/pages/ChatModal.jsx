@@ -75,18 +75,18 @@ const formatMessageTime = (timestamp) => {
 const resolveRoomName = (room, currentUserId) => {
   if (!room) return "채팅방";
 
-  // 내가 user면 → farmer 이름
+  // 내가 user면 → farmer 농장명
   if (currentUserId && room.userId === currentUserId) {
-    return room.farmerName || room.farmName || "농장주";
+    return room.farmName || room.farmerName || "농장주";
   }
 
-  // 내가 farmer면 → user 이름
+  // 내가 farmer면 → user 닉네임
   if (currentUserId && room.farmerId === currentUserId) {
-    return room.userName || room.userNickname || "회원";
+    return room.userNickname || room.userName || "회원";
   }
 
   // 중립 fallback
-  return room.userName || room.farmerName || room.farmName || "채팅방";
+  return room.userNickname || room.farmName || room.userName || room.farmerName || "채팅방";
 };
 
 // ============================================================
