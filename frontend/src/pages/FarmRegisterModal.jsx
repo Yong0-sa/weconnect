@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { registerFarm } from "../api/farm";
 import "./FarmRegisterModal.css";
 
@@ -17,6 +17,7 @@ function FarmRegisterModal({ onClose = () => {}, onRegistered = () => {} }) {
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [scale, setScale] = useState(1);
 
   // 📌 필드 단위 유효성 검사
   const getFieldError = (field, value) => {
@@ -74,6 +75,24 @@ function FarmRegisterModal({ onClose = () => {}, onRegistered = () => {} }) {
     }
   };
 
+  // 모달 크기 자동 조정 (무한축소)
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const baseWidth = 1920;
+      const baseHeight = 919;
+      const widthScale = window.innerWidth / baseWidth;
+      const heightScale = window.innerHeight / baseHeight;
+      const nextScale = Math.min(widthScale, heightScale);
+      setScale(nextScale > 0 ? nextScale : 0.5);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
+
 
   // ------------------------------------------------------------
   // 📌 제출 처리
@@ -111,21 +130,12 @@ function FarmRegisterModal({ onClose = () => {}, onRegistered = () => {} }) {
 
   return (
     <div className="farm-register-modal" role="dialog" aria-modal="true">
-      <div className="farm-register-card">
+      <div className="farm-register-card" style={{ transform: `scale(${scale})` }}>
         <header className="farm-register-header">
           <div>
             <p className="farm-register-eyebrow">농장 정보 등록</p>
             <h2>농장주 정보를 완성해 주세요</h2>
           </div>
-          <button
-            type="button"
-            className="farm-register-close"
-            aria-label="농장 등록 닫기"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            ×
-          </button>
         </header>
 
         {status && (

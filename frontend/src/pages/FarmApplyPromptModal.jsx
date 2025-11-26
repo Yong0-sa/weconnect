@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import "./FarmApplyPromptModal.css";
 
 function FarmApplyPromptModal({
@@ -5,9 +6,29 @@ function FarmApplyPromptModal({
   onLater = () => {},
   disabled = false,
 }) {
+  const [scale, setScale] = useState(1);
+
+  // 모달 크기 자동 조정 (무한축소)
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const updateScale = () => {
+      const baseWidth = 1920;
+      const baseHeight = 919;
+      const widthScale = window.innerWidth / baseWidth;
+      const heightScale = window.innerHeight / baseHeight;
+      const nextScale = Math.min(widthScale, heightScale);
+      setScale(nextScale > 0 ? nextScale : 0.5);
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => {
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
+
   return (
     <div className="farm-apply-modal" role="dialog" aria-modal="true">
-      <div className="farm-apply-card">
+      <div className="farm-apply-card" style={{ transform: `scale(${scale})` }}>
         <header className="farm-apply-header">
           <div>
             <p className="farm-apply-eyebrow">농장 이용 안내</p>
