@@ -12,6 +12,7 @@ import com.project.eum.user.Member;
 import com.project.eum.user.MemberRepository;
 import com.project.eum.user.UserRole;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -29,6 +30,7 @@ public class FarmContractService {
     private final FarmContractRepository farmContractRepository;
     private final FarmRepository farmRepository;
     private final MemberRepository memberRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public FarmContractResponse apply(Long userId, FarmContractApplyRequest request) {
@@ -64,6 +66,7 @@ public class FarmContractService {
                         .build()
         );
 
+        notifyOwnerNewContract(farm.getOwner().getUserId(), saved);
         return FarmContractResponse.from(saved);
     }
 
@@ -179,6 +182,20 @@ public class FarmContractService {
             return FarmContractStatus.valueOf(source.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("허용되지 않은 상태입니다.");
+        }
+    }
+
+    private void notifyOwnerNewContract(Long ownerId, FarmContract contract) {
+        if (ownerId == null || contract == null) {
+            return;
+        }
+        try {
+            messagingTemplate.convertAndSend(
+                    "/topic/farm-contracts/" + ownerId,
+                    FarmContractResponse.from(contract)
+            );
+        } catch (Exception ignored) {
+            // 알림 실패는 신청 저장에 영향 주지 않음
         }
     }
 }

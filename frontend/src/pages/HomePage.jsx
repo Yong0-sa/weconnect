@@ -30,6 +30,7 @@ import SockJS from "sockjs-client";
 import FarmRegisterModal from "./FarmRegisterModal";
 import FarmApplyPromptModal from "./FarmApplyPromptModal";
 import { fetchShopItems, fetchUserItems } from "../api/shop";
+import { fetchOwnerContracts } from "../api/farmContracts";
 
 const getInitialChatCheck = () => {
   if (typeof window === "undefined") return Date.now();
@@ -93,6 +94,8 @@ function HomePage() {
     useState(false);
   const [shouldDelayPostLoginPrompts, setShouldDelayPostLoginPrompts] =
     useState(false);
+  const [hasPendingContracts, setHasPendingContracts] = useState(false);
+  const [isNotificationConnected, setIsNotificationConnected] = useState(false);
   const aiImageRef = useRef(null);
   const menuRef = useRef(null);
   const menuIconRef = useRef(null);
@@ -100,6 +103,7 @@ function HomePage() {
   const profileIconRef = useRef(null);
   const notificationClientRef = useRef(null);
   const notificationSubscriptionsRef = useRef(new Map());
+  const contractSubscriptionRef = useRef(null);
   const isChatModalOpenRef = useRef(false);
 
   const canManageMembers =
@@ -440,6 +444,26 @@ function HomePage() {
     return () => clearInterval(interval);
   }, [profile, isChatModalOpen, refreshUnreadChats]);
 
+  const loadPendingContracts = useCallback(async () => {
+    if (!canManageMembers) {
+      setHasPendingContracts(false);
+      return;
+    }
+    try {
+      const contracts = await fetchOwnerContracts();
+      const hasPending = Array.isArray(contracts)
+        ? contracts.some((contract) => contract.status === "PENDING")
+        : false;
+      setHasPendingContracts(hasPending);
+    } catch (error) {
+      console.error("농장 신청 알림을 불러오지 못했습니다.", error);
+    }
+  }, [canManageMembers]);
+
+  useEffect(() => {
+    loadPendingContracts();
+  }, [loadPendingContracts]);
+
   useEffect(() => {
     if (!profile) return;
 
@@ -452,6 +476,7 @@ function HomePage() {
     client.onConnect = () => {
       notificationClientRef.current = client;
       refreshUnreadChats();
+      setIsNotificationConnected(true);
     };
 
     client.onDisconnect = () => {
@@ -459,6 +484,11 @@ function HomePage() {
         subscription.unsubscribe()
       );
       notificationSubscriptionsRef.current.clear();
+      if (contractSubscriptionRef.current) {
+        contractSubscriptionRef.current.unsubscribe();
+        contractSubscriptionRef.current = null;
+      }
+      setIsNotificationConnected(false);
     };
 
     client.onStompError = (frame) => {
@@ -477,8 +507,43 @@ function HomePage() {
         client.deactivate();
       }
       notificationClientRef.current = null;
+      if (contractSubscriptionRef.current) {
+        contractSubscriptionRef.current.unsubscribe();
+        contractSubscriptionRef.current = null;
+      }
+      setIsNotificationConnected(false);
     };
   }, [profile, refreshUnreadChats]);
+
+  useEffect(() => {
+    const client = notificationClientRef.current;
+    if (!client || !client.connected || !isNotificationConnected) {
+      return;
+    }
+    if (!canManageMembers || !profile?.userId) {
+      if (contractSubscriptionRef.current) {
+        contractSubscriptionRef.current.unsubscribe();
+        contractSubscriptionRef.current = null;
+      }
+      return;
+    }
+
+    if (contractSubscriptionRef.current) {
+      contractSubscriptionRef.current.unsubscribe();
+    }
+    const destination = `/topic/farm-contracts/${profile.userId}`;
+    const subscription = client.subscribe(destination, () => {
+      setHasPendingContracts(true);
+    });
+    contractSubscriptionRef.current = subscription;
+
+    return () => {
+      if (contractSubscriptionRef.current) {
+        contractSubscriptionRef.current.unsubscribe();
+        contractSubscriptionRef.current = null;
+      }
+    };
+  }, [canManageMembers, profile?.userId, isNotificationConnected]);
 
   const handleLogout = async () => {
     try {
@@ -516,6 +581,7 @@ function HomePage() {
           {
             label: "회원 정보 관리",
             onClick: openMemberInfoManage,
+            showBadge: hasPendingContracts,
           },
         ]
       : []),
@@ -672,12 +738,21 @@ function HomePage() {
           aria-expanded={isProfileOpen}
         >
           <img src={MypageIcon} alt="마이페이지" />
+          {hasPendingContracts && (
+            <span className="profile-icon-badge" aria-label="새 농장 신청" />
+          )}
         </div>
         {isProfileOpen && (
           <div className="profile-panel" ref={profileRef}>
             <ul className="profile-panel__list">
               {profileItems.map((item) => (
                 <li key={item.label}>
+                  {item.showBadge && (
+                    <span
+                      className="profile-panel__badge-floating"
+                      aria-label="새 농장 신청"
+                    />
+                  )}
                   <button
                     type="button"
                     className="profile-panel__item"
@@ -946,6 +1021,7 @@ function HomePage() {
             <MemberInfoManageModal
               profile={profile}
               onClose={() => setIsMemberInfoManageOpen(false)}
+              onPendingStateChange={setHasPendingContracts}
             />
           </div>
         </div>

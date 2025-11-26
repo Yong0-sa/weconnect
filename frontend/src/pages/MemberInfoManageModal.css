@@ -37,6 +37,23 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 18px;
+  position: relative;
+}
+
+.member-manage-header-left {
+  display: flex;
+  align-items: flex-start;
+}
+
+.member-manage-alert-dot {
+  position: absolute;
+  top: 10px;
+  left: -16px;
+  width: 0.73vw;
+  height: 0.73vw;
+  border-radius: 50%;
+  background: #ff4d4f;
+  box-shadow: 0 0.21vw 0.52vw rgba(0, 0, 0, 0.25);
 }
 
 .member-manage-eyebrow {

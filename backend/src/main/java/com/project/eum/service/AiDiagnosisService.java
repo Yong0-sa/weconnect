@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.eum.diagnosis.Diagnosis;
 import com.project.eum.diagnosis.DiagnosisRepository;
 import com.project.eum.dto.AiDiagnosisResponse;
-import com.project.eum.dto.DiaryRequest;
-import com.project.eum.dto.DiaryResponse;
 import com.project.eum.util.MultipartInputStreamFileResource;   // ← 반드시 필요
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,8 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,7 +29,6 @@ public class AiDiagnosisService {
 
     private final DiagnosisRepository diagnosisRepository;
     private final ObjectStorageService objectStorageService;
-    private final DiaryService diaryService;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 

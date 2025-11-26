@@ -47,14 +47,27 @@
 
 .chat-icon-badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 16px;
-  height: 16px;
+  top: -0.31vw;
+  right: -0.31vw;
+  width: 0.83vw;
+  height: 0.83vw;
   border-radius: 50%;
   background: #ff4d4f;
-  border: 2px solid #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  border: 0.1vw solid #ffffff;
+  box-shadow: 0 0.1vw 0.31vw rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.profile-icon-badge {
+  position: absolute;
+  top: -0.31vw;
+  right: -0.31vw;
+  width: 0.83vw;
+  height: 0.83vw;
+  border-radius: 50%;
+  background: #ff4d4f;
+  border: 0.1vw solid #ffffff;
+  box-shadow: 0 0.1vw 0.31vw rgba(0, 0, 0, 0.25);
   pointer-events: none;
 }
 
@@ -451,6 +464,10 @@
   gap: min(0.5vw, 10px);
 }
 
+.profile-panel__list li {
+  position: relative;
+}
+
 .profile-panel__item,
 .profile-panel__logout {
   width: 100%;
@@ -459,6 +476,9 @@
   padding: min(0.9vw, 15px) 0;
   font-size: min(1.2vw, 18px);
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
   transition: transform 0.2s ease, background 0.2s ease;
 }
@@ -484,6 +504,27 @@
 .profile-panel__logout:focus-visible {
   background: #fff;
   transform: translateY(min(-0.15vw, -3px));
+}
+
+.profile-panel__badge {
+  display: inline-block;
+  width: 0.52vw;
+  height: 0.52vw;
+  border-radius: 50%;
+  background: #ff4d4f;
+  box-shadow: 0 0.1vw 0.31vw rgba(0, 0, 0, 0.25);
+}
+
+.profile-panel__badge-floating {
+  position: absolute;
+  left: -0.78vw;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.47vw;
+  height: 0.47vw;
+  border-radius: 50%;
+  background: #ff4d4f;
+  box-shadow: 0 0.1vw 0.31vw rgba(0, 0, 0, 0.25);
 }
 
 /* 코인 아이콘 */

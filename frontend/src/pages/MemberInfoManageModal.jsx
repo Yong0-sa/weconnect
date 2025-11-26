@@ -24,7 +24,11 @@ const columns = [
   { key: "endDate", label: "계약 종료일" },
 ];
 
-function MemberInfoManageModal({ profile, onClose = () => {} }) {
+function MemberInfoManageModal({
+  profile,
+  onClose = () => {},
+  onPendingStateChange = () => {},
+}) {
   const [contracts, setContracts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,6 +43,10 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
 
   const totalMembers = contracts.length;
   const allSelected = totalMembers > 0 && selectedIds.length === totalMembers;
+  const hasPendingContracts = useMemo(
+    () => contracts.some((contract) => contract.status === "PENDING"),
+    [contracts]
+  );
 
   const loadContracts = useCallback(async () => {
     setIsLoading(true);
@@ -72,6 +80,10 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
   useEffect(() => {
     loadContracts();
   }, [loadContracts]);
+
+  useEffect(() => {
+    onPendingStateChange(hasPendingContracts);
+  }, [hasPendingContracts, onPendingStateChange]);
 
   useEffect(() => {
     setSelectedIds((prev) =>
@@ -359,12 +371,20 @@ function MemberInfoManageModal({ profile, onClose = () => {} }) {
   return (
     <div className="member-manage-modal" style={{ transform: `scale(${scale})` }}>
       <header className="member-manage-modal__header">
-        <div>
-          <p className="member-manage-eyebrow">회원 정보 관리</p>
-          <h2>{headerTitle}</h2>
-          <p className="member-manage-description">
-            회원 목록을 확인하고 승인 상태를 관리할 수 있어요.
-          </p>
+        {hasPendingContracts && (
+          <span
+            className="member-manage-alert-dot"
+            aria-label="새로운 농장 신청이 있습니다."
+          />
+        )}
+        <div className="member-manage-header-left">
+          <div>
+            <p className="member-manage-eyebrow">회원 정보 관리</p>
+            <h2>{headerTitle}</h2>
+            <p className="member-manage-description">
+              회원 목록을 확인하고 승인 상태를 관리할 수 있어요.
+            </p>
+          </div>
         </div>
         <button
           type="button"
