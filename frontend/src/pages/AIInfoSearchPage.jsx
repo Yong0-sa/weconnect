@@ -326,8 +326,8 @@ function AIInfoSearchPage({ onClose }) {
   };
 
   return (
-    <div className={`ai-info-page${isSidebarOpen ? " sidebar-visible" : ""}`} style={{ transform: `scale(${scale})` }}>
-      <div className={`ai-info-shell${isSidebarOpen ? " with-sidebar" : ""}`}>
+    <div className={`ai-info-page${isSidebarOpen ? " sidebar-visible" : ""}`}>
+      <div className={`ai-info-shell${isSidebarOpen ? " with-sidebar" : ""}`} style={{ transform: `scale(${scale})` }}>
         <aside className={`ai-info-sidebar ${isSidebarOpen ? "open" : ""}`}>
           <div className="sidebar-header">
             <h3>최근 질문</h3>
