@@ -18,6 +18,7 @@ from fastapi import File, FastAPI, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from ultralytics import YOLO
+from ensemble_boxes import weighted_boxes_fusion  # 🔥 WBF
 
 from rag_service import (
     EmptyQueryError,
@@ -32,7 +33,7 @@ from text_suggestion_service import TextSuggestionService, TextSuggestionError
 # FastAPI 전체 서버 공통 로그 설정
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ def _detect_model_root() -> Path:
 
 MODEL_ROOT = _detect_model_root()
 
+# 🔥 실제 배포 시 모델 폴더명은 여기에 맞춰 두면 됨
 CROP_MODEL_FOLDERS: Dict[str, Dict[str, str]] = {
     "apple": {"folder": "apple_yolo11_models", "display_name": "사과"},
     "tomato": {"folder": "tomato_yolo11_models", "display_name": "토마토"},
@@ -75,9 +77,108 @@ def _normalise_class_names(names: Union[Dict[int, str], List[str]]) -> List[str]
     return list(names)
 
 
+# =====================================================
+#   🔥 YOLO Detection + TTA + WBF 전용 유틸 함수들
+# =====================================================
+
+def extract_boxes(result, img_w: int, img_h: int):
+    """
+    YOLO detection 결과에서 [x1, y1, x2, y2] (0~1 정규화), scores, labels 추출
+    """
+    bboxes: List[List[float]] = []
+    scores: List[float] = []
+    labels: List[int] = []
+
+    boxes = getattr(result, "boxes", None)
+    if boxes is None:
+        return bboxes, scores, labels
+
+    for box in boxes:
+        x1, y1, x2, y2 = box.xyxy[0]
+        conf = float(box.conf[0])
+        cls_id = int(box.cls[0])
+
+        bboxes.append([
+            x1.item() / img_w,
+            y1.item() / img_h,
+            x2.item() / img_w,
+            y2.item() / img_h,
+            ])
+        scores.append(conf)
+        labels.append(cls_id)
+
+    return bboxes, scores, labels
+
+
+def tta_inference(model: YOLO, img_pil: Image.Image):
+    """
+    하나의 YOLO 모델에 대해 TTA(원본, 가로 flip, 세로 flip) 적용 후
+    모든 박스를 원본 좌표계(0~1) 기준으로 합쳐서 반환.
+    """
+    img_w, img_h = img_pil.size
+
+    all_bboxes: List[List[float]] = []
+    all_scores: List[float] = []
+    all_labels: List[int] = []
+
+    logger.info("🔁 TTA 실행: size=%s", img_pil.size)
+
+    # 1) 원본
+    base_res = model.predict(
+        np.array(img_pil),
+        conf=0.25,
+        iou=0.6,
+        verbose=False,
+    )[0]
+    b1, s1, l1 = extract_boxes(base_res, img_w, img_h)
+    all_bboxes += b1
+    all_scores += s1
+    all_labels += l1
+
+    # 2) 좌우 flip
+    img_hflip = img_pil.transpose(Image.FLIP_LEFT_RIGHT)
+    h_res = model.predict(
+        np.array(img_hflip),
+        conf=0.25,
+        iou=0.6,
+        verbose=False,
+    )[0]
+    b2, s2, l2 = extract_boxes(h_res, img_w, img_h)
+    # 좌표 원복: x만 반전
+    b2_restored = [
+        [1 - x2, y1, 1 - x1, y2] for (x1, y1, x2, y2) in b2
+    ]
+    all_bboxes += b2_restored
+    all_scores += s2
+    all_labels += l2
+
+    # 3) 상하 flip
+    img_vflip = img_pil.transpose(Image.FLIP_TOP_BOTTOM)
+    v_res = model.predict(
+        np.array(img_vflip),
+        conf=0.25,
+        iou=0.6,
+        verbose=False,
+    )[0]
+    b3, s3, l3 = extract_boxes(v_res, img_w, img_h)
+    # 좌표 원복: y만 반전
+    b3_restored = [
+        [x1, 1 - y2, x2, 1 - y1] for (x1, y1, x2, y2) in b3
+    ]
+    all_bboxes += b3_restored
+    all_scores += s3
+    all_labels += l3
+
+    return all_bboxes, all_scores, all_labels
+
+
 class YOLOEnsemble:
     """
-    폴드 모델 여러 개를 앙상블하여 하나의 예측을 반환한다.
+    🔥 YOLO11 Object Detection + Fold 앙상블 + TTA + WBF
+    - 여러 fold 모델을 로드
+    - 각 모델에 TTA inference
+    - 모든 결과를 Weighted Box Fusion으로 합치고
+    - 가장 confidence 높은 박스의 class를 최종 label로 사용
     """
 
     def __init__(self, crop_type: str, model_paths: List[Path]) -> None:
@@ -112,49 +213,80 @@ class YOLOEnsemble:
         names = loaded[0].names
         self._class_names = _normalise_class_names(names)
         self._models = loaded
-        logger.info("YOLO 앙상블 로드 완료: crop=%s, class_count=%d", self.crop_type, len(self._class_names))
-
-    def _extract_scores(self, result) -> np.ndarray:
-        scores = np.zeros(len(self._class_names), dtype=np.float32)
-        probs = getattr(result, "probs", None)
-        if probs is not None and getattr(probs, "data", None) is not None:
-            data = probs.data.cpu().numpy()
-            length = min(len(data), len(scores))
-            scores[:length] = data[:length]
-            return scores
-
-        boxes = getattr(result, "boxes", None)
-        if boxes is not None and getattr(boxes, "cls", None) is not None and getattr(boxes, "conf", None) is not None:
-            classes = boxes.cls.tolist()
-            confidences = boxes.conf.tolist()
-            for cls_idx, conf in zip(classes, confidences):
-                idx = int(cls_idx)
-                if 0 <= idx < len(scores):
-                    scores[idx] = max(scores[idx], float(conf))
-        return scores
+        logger.info(
+            "YOLO 앙상블 로드 완료: crop=%s, class_count=%d",
+            self.crop_type,
+            len(self._class_names),
+        )
 
     def predict(self, image: Image.Image) -> EnsemblePrediction:
+        """
+        Detection 결과 기반으로:
+        - fold * TTA 결과 전부 모으고
+        - WBF로 박스 합친 다음
+        - confidence 가장 높은 class 하나만 최종 반환
+        """
         with self._load_lock:
             self._ensure_loaded()
 
-        aggregated = np.zeros(len(self._class_names), dtype=np.float32)
-        # 모델별 추론은 thread-safe 하지 않을 수 있으므로 순차 실행
+        img_w, img_h = image.size
+
+        all_boxes_list: List[List[List[float]]] = []
+        all_scores_list: List[List[float]] = []
+        all_labels_list: List[List[int]] = []
+
+        # 🔥 각 fold 모델에 TTA inference 적용
         for model in self._models:
-            result = model(image, verbose=False)[0]
-            aggregated += self._extract_scores(result)
+            bboxes, scores, labels = tta_inference(model, image)
+            all_boxes_list.append(bboxes)
+            all_scores_list.append(scores)
+            all_labels_list.append(labels)
 
-        if not np.any(aggregated):
-            raise RuntimeError("모델이 유효한 신뢰도를 반환하지 않았습니다.")
+        if not any(len(b) for b in all_boxes_list):
+            raise RuntimeError("모델이 유효한 박스를 반환하지 않았습니다.")
 
-        averaged = aggregated / len(self._models)
-        predicted_index = int(np.argmax(averaged))
-        confidence = float(averaged[predicted_index])
-        if predicted_index < len(self._class_names):
-            label = self._class_names[predicted_index]
+        logger.info(
+            "📦 WBF 입력 준비: folds=%d, total_boxes=%d",
+            len(self._models),
+            sum(len(b) for b in all_boxes_list),
+        )
+
+
+        # 🔥 Weighted Box Fusion
+        fused_boxes, fused_scores, fused_labels = weighted_boxes_fusion(
+            all_boxes_list,
+            all_scores_list,
+            all_labels_list,
+            iou_thr=0.5,
+            skip_box_thr=0.001,
+        )
+
+        if len(fused_boxes) == 0:
+            raise RuntimeError("WBF 결과가 비어 있습니다.")
+
+        # 🔥 가장 confidence 높은 박스 선택
+        best_idx = int(np.argmax(fused_scores))
+        best_score = float(fused_scores[best_idx])
+        best_label_idx = int(fused_labels[best_idx])
+
+        logger.info(
+            "🔥 WBF 결과: fused=%d, top_score=%.4f, top_label=%d",
+            len(fused_boxes),
+            fused_scores[best_idx],
+            best_label_idx,
+        )
+
+
+        if best_label_idx < len(self._class_names):
+            label = self._class_names[best_label_idx]
         else:
-            label = f"class_{predicted_index}"
+            label = f"class_{best_label_idx}"
 
-        return EnsemblePrediction(predicted_index=predicted_index, confidence=confidence, label=label)
+        return EnsemblePrediction(
+            predicted_index=best_label_idx,
+            confidence=best_score,
+            label=label,
+        )
 
 
 _ensemble_registry: Dict[str, YOLOEnsemble] = {}
@@ -195,11 +327,10 @@ def load_image(image_bytes: bytes) -> Image.Image:
         raise ValueError(f"이미지 파일을 열 수 없습니다: {exc}") from exc
 
 
-# RAG 대화 히스토리 저장 구조
+# ===================== RAG 히스토리 구조 =====================
+
 @dataclass
 class HistoryEntry:
-    # 하나의 검색/답변 처리 기록을 표현하는 데이터 구조.
-    # RAGResult 정보 + 요청 메타데이터 포함.
     id: str
     question: str
     answer: str
@@ -210,15 +341,11 @@ class HistoryEntry:
 
 
 class HistoryStore:
-    # In-memory 히스토리 저장소.
-
     def __init__(self, max_items: int = 100) -> None:
         self._items: Deque[HistoryEntry] = deque(maxlen=max_items)
         self._lock = Lock()
 
     def add(self, question: str, result: RAGResult) -> HistoryEntry:
-        #  히스토리 엔트리를 생성하고 저장.
-        # result 는 RAGService.ask()의 반환값.
         entry = HistoryEntry(
             id=str(uuid4()),
             question=question,
@@ -228,46 +355,37 @@ class HistoryStore:
             prompt_type=result.prompt_type,
             created_at=datetime.now(timezone.utc),
         )
-
-        #  thread-safe append
-        # → 동시에 여러 사용자가 검색하더라도 안정적으로 기록됨.
         with self._lock:
             self._items.append(entry)
         return entry
 
     def list(self) -> List[HistoryEntry]:
-        # 저장된 히스토리 전체 조회. 저장 순서대로 반환.
         with self._lock:
             return list(self._items)
 
 
-# 요청/응답 구조 정의 (FastAPI 자동 문서화 및 데이터 검증)
+# 요청/응답 구조 정의
 
 class SearchRequest(BaseModel):
-    # 사용자가 AI에게 질문할 때 사용하는 요청 바디.
     question: str = Field(..., min_length=1, description="사용자 질문")
 
 
+class ReferenceLinkModel(BaseModel):
+    title: str
+    url: str
+
+
 class HistoryItem(BaseModel):
-    # HistoryEntry를 API 응답용으로 변환한 버전.
     id: str
     question: str
     answer: str
-    pdf_links: List["ReferenceLinkModel"]
+    pdf_links: List[ReferenceLinkModel]
     embed_ids: List[str]
     prompt_type: Literal["greet", "answer", "fallback"]
     created_at: datetime
 
 
-class ReferenceLinkModel(BaseModel):
-    # RAG 결과에 포함될 PDF 문서 링크 모델.
-    title: str
-    url: str
-
-
 def _to_history_item(entry: HistoryEntry) -> HistoryItem:
-    # HistoryEntry → HistoryItem 변환 함수.
-    # API 응답을 위해 dataclass 형태를 Pydantic 모델로 변환함.
     return HistoryItem(
         id=entry.id,
         question=entry.question,
@@ -280,117 +398,91 @@ def _to_history_item(entry: HistoryEntry) -> HistoryItem:
 
 
 # RAGService 초기화
-# - 벡터DB 연결, 임베딩 모델 로드 등 실행 시점에 필요한 자원 준비
 logger.info("RAGService 초기화 시작...")
-
 try:
     rag_service = RAGService()
     logger.info("RAGService 초기화 완료")
-
 except Exception as exc:
     logger.error(f"RAGService 초기화 실패: {exc}")
     logger.error(f"상세 traceback:\n{traceback.format_exc()}")
     raise
 
-
 # TextSuggestionService 초기화
 logger.info("TextSuggestionService 초기화 시작...")
-
 try:
     text_suggestion_service = TextSuggestionService()
     logger.info("TextSuggestionService 초기화 완료")
-
 except Exception as exc:
     logger.error(f"TextSuggestionService 초기화 실패: {exc}")
     logger.error(f"상세 traceback:\n{traceback.format_exc()}")
     raise
 
-# 전역 히스토리 저장소 (서버 살아 있는 동안 유지)
+# 전역 히스토리 저장소
 history_store = HistoryStore()
 
 
 @app.post("/api/ai/chat", response_model=HistoryItem)
 async def search_ai(payload: SearchRequest) -> HistoryItem:
-
     try:
-        # 1) 유효성 검사를 통과한 사용자 질문 수신 로그
-        logger.info(f"질문 수신: {payload.question}")
-        # - RAGService.ask()는 CPU-bound(임베딩 계산 + 벡터 검색 포함)
-        # - FastAPI event loop 차단 방지 → 대규모 동시 요청에도 안정적
+        logger.info("질문 수신: %s", payload.question)
         result = await run_in_threadpool(rag_service.ask, payload.question)
-
-        logger.info(f"답변 생성 완료: prompt_type={result.prompt_type}")
-
-    # 각 예외 유형별로 HTTP 상태 코드 구분 처리
+        logger.info("답변 생성 완료: prompt_type=%s", result.prompt_type)
     except InappropriateQueryError as exc:
-        logger.warning(f"부적절한 질문: {exc}")
+        logger.warning("부적절한 질문: %s", exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-
     except EmptyQueryError as exc:
-        logger.warning(f"빈 질문: {exc}")
+        logger.warning("빈 질문: %s", exc)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-
     except RAGServiceError as exc:
-        logger.error(f"RAG 서비스 에러 발생: {exc}")
-        logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+        logger.error("RAG 서비스 에러 발생: %s", exc)
+        logger.error("상세 traceback:\n%s", traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-
     except Exception as exc:
-        logger.error(f"예상치 못한 에러 발생: {type(exc).__name__}: {exc}")
-        logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+        logger.error("예상치 못한 에러 발생: %s: %s", type(exc).__name__, exc)
+        logger.error("상세 traceback:\n%s", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"서버 내부 오류: {exc}") from exc
 
-    # 3) 정상 응답일 경우 → 히스토리 저장 후 응답 모델 생성
-    # 질문 저장 시 strip()을 한 번 더 적용해 안전성 확보
     entry = history_store.add(payload.question.strip(), result)
-
-    # API 응답용 Pydantic 모델 변환
     return _to_history_item(entry)
 
 
-# AI 검색 기록 조회 API
 @app.get("/api/ai/chat/history", response_model=List[HistoryItem])
 async def get_history() -> List[HistoryItem]:
-    # HistoryStore.list()는 thread-safe이지만 synchronous 함수이므로
-    # FastAPI event loop 블로킹을 피하기 위해 threadpool에서 실행
     entries = await run_in_threadpool(history_store.list)
-
-    # Pydantic 응답모델로 변환 후 클라이언트 반환
     return [_to_history_item(entry) for entry in entries]
 
 
 # ===== AI 글작성 도우미 엔드포인트 =====
 
 class TextSuggestionRequest(BaseModel):
-    """문장 추천 요청"""
     content: str = Field(..., min_length=1, description="현재 작성 중인 내용")
 
 
 class TextSuggestionResponse(BaseModel):
-    """문장 추천 응답"""
     suggestions: List[str] = Field(..., description="추천 문장 리스트 (2개)")
 
 
 @app.post("/text-suggestions", response_model=TextSuggestionResponse)
 async def get_text_suggestions(payload: TextSuggestionRequest) -> TextSuggestionResponse:
-    """
-    농장 공지사항 작성 시 AI 문장 추천
-    현재 작성 중인 내용을 기반으로 자연스럽게 이어질 문장 2가지 제안
-    """
     try:
-        logger.info(f"문장 추천 요청: 내용 길이={len(payload.content)} 글자")
-        suggestions = await run_in_threadpool(text_suggestion_service.get_suggestions, payload.content)
-        logger.info(f"문장 추천 완료: {len(suggestions)}개 문장 생성")
+        logger.info("문장 추천 요청: 내용 길이=%d 글자", len(payload.content))
+        suggestions = await run_in_threadpool(
+            text_suggestion_service.get_suggestions,
+            payload.content,
+        )
+        logger.info("문장 추천 완료: %d개 문장 생성", len(suggestions))
         return TextSuggestionResponse(suggestions=suggestions)
     except TextSuggestionError as exc:
-        logger.error(f"문장 추천 에러: {exc}")
-        logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+        logger.error("문장 추천 에러: %s", exc)
+        logger.error("상세 traceback:\n%s", traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
-        logger.error(f"예상치 못한 에러: {type(exc).__name__}: {exc}")
-        logger.error(f"상세 traceback:\n{traceback.format_exc()}")
+        logger.error("예상치 못한 에러: %s: %s", type(exc).__name__, exc)
+        logger.error("상세 traceback:\n%s", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"서버 내부 오류: {exc}") from exc
 
+
+# ===== 작물 진단 엔드포인트 =====
 
 @app.post("/predict/apple")
 async def predict_apple(file: UploadFile = File(...)):
@@ -414,7 +506,7 @@ async def predict_tomato(file: UploadFile = File(...)):
 
 
 async def predict_crop(crop_type: str, file: UploadFile):
-    """YOLO 앙상블을 활용한 작물 질병 진단 공통 함수"""
+    """YOLO TTA + WBF 앙상블을 활용한 작물 질병 진단 공통 함수"""
     normalized = crop_type.lower()
     if normalized not in CROP_MODEL_FOLDERS:
         raise HTTPException(status_code=400, detail=f"지원하지 않는 작물 타입입니다: {crop_type}")
