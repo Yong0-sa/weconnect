@@ -13,6 +13,41 @@ const cropOptions = [
   { value: "grape", label: "포도"},
 ];
 
+// ❗서버에서 온 긴 에러 문구에서 사용자에게 보여줄 메시지만 뽑아내는 함수
+function extractFriendlyErrorMessage(raw) {
+  if (!raw) return "진단 요청 중 오류가 발생했습니다.";
+
+  // 1) {"detail":"..."} 패턴에서 detail 값만 추출
+  const detailMatch = raw.match(/"detail"\s*:\s*"([^"]+)"/);
+  if (detailMatch) {
+    return detailMatch[1];
+  }
+
+  // 2) raw 자체가 JSON 문자열일 수도 있음 → 파싱 시도
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed.detail) return parsed.detail;
+    if (parsed.message) return parsed.message;
+  } catch (e) {
+    // JSON 아니면 무시
+  }
+
+  // 3) '... {"detail":"..."}' 같이 섞여있는 경우 → detail JSON 부분만 잘라서 파싱
+  const jsonStart = raw.indexOf('{"detail"');
+  if (jsonStart !== -1) {
+    try {
+      const inner = JSON.parse(raw.slice(jsonStart));
+      if (inner.detail) return inner.detail;
+    } catch (e) {
+      // 파싱 실패 시 무시
+    }
+  }
+
+  // 4) 위에 다 안 걸리면 원본 그대로
+  return raw;
+}
+
+
 function AICropSearchPage({ onClose, onOpenDiaryModal }) {
     // 상태 정의
   const [selectedCrop, setSelectedCrop] = useState(cropOptions[0]);
@@ -126,21 +161,25 @@ function AICropSearchPage({ onClose, onOpenDiaryModal }) {
 
       console.log("진단 결과:", result); // 디버깅용
       if (!result || !result.success) {
-        const errorMsg = result?.message || "진단 결과를 받아오지 못했습니다.";
+        const rawMessage = result?.message || "진단 결과를 받아오지 못했습니다.";
+        const errorMsg = extractFriendlyErrorMessage(rawMessage);   // 🔥 여기 추가
         setRequestError(errorMsg);
         console.error("진단 실패:", errorMsg, result); // 디버깅용
         return;
       }
+
 
       setDiagnosis(result);
       // 진단 성공 시 내역 새로고침
       loadDiagnosisHistory();
     } catch (error) {
       console.error("진단 요청 오류:", error); // 디버깅용
-      setRequestError(error.message || "진단 요청 중 오류가 발생했습니다.");
+      const msg = extractFriendlyErrorMessage(error.message);
+      setRequestError(msg || "진단 요청 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
+
   };
 
   const toggleDeleteMode = () => {
