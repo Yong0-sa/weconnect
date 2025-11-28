@@ -164,7 +164,7 @@ class YOLOEnsemble:
             all_boxes.append(b); all_scores.append(s); all_labels.append(l)
 
         if not any(len(b) for b in all_boxes):
-            raise RuntimeError("모델이 유효한 박스를 반환하지 않았습니다.")
+            raise RuntimeError("진단에 실패했습니다. 병해를 다른 각도에서 선명하게 찍어 다시 시도해주세요.")
 
         # WBF
         fused_boxes, fused_scores, fused_labels = weighted_boxes_fusion(
@@ -172,7 +172,7 @@ class YOLOEnsemble:
         )
 
         if len(fused_boxes) == 0:
-            raise RuntimeError("WBF 결과가 비어 있습니다.")
+            raise RuntimeError("진단에 실패했습니다. 병해를 다른 각도에서 선명하게 찍어 다시 시도해주세요.")
 
         best_idx = int(np.argmax(fused_scores))
         confidence = float(fused_scores[best_idx])
