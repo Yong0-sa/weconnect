@@ -246,59 +246,56 @@ async def predict_tomato(file: UploadFile = File(...)):
 async def predict_crop(crop_type: str, file: UploadFile):
     normalized = crop_type.lower()
 
-    # 1) 이미지 로드
-    image_bytes = await file.read()
-    if not image_bytes:
-        raise HTTPException(status_code=400, detail="이미지 파일이 비어 있습니다.")
+    # 이미지 읽기
+    img_bytes = await file.read()
+    if not img_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="진단에 실패했습니다. 병해를 다른 각도에서 선명하게 찍어 다시 시도해주세요."
+        )
 
+    # 이미지 로딩 오류
     try:
-        image = await run_in_threadpool(load_image, image_bytes)
+        image = await run_in_threadpool(load_image, img_bytes)
     except ValueError:
         raise HTTPException(
             status_code=400,
-            detail="이미지를 불러올 수 없습니다. 다른 사진으로 다시 시도해주세요."
+            detail="진단에 실패했습니다. 병해를 다른 각도에서 선명하게 찍어 다시 시도해주세요."
         )
 
-    # 2) 모델 로드
+    # 모델 로드 실패
     try:
         ensemble = get_yolo_ensemble(normalized)
     except FileNotFoundError:
         raise HTTPException(
             status_code=503,
-            detail="필요한 모델 파일이 누락되었습니다. 관리자에게 문의하세요."
+            detail="필요한 모델 파일이 누락되었습니다. 관리자에게 문의해주세요."
         )
 
-    # 3) 예측 + 예외 처리
+    # YOLO 예측
     try:
         prediction = await run_in_threadpool(ensemble.predict, image.copy())
 
-    except RuntimeError as exc:
-        msg = str(exc)
-
-        # 박스 없음 / WBF 실패 → 병해 미검출
-        if "박스" in msg or "WBF" in msg:
-            raise HTTPException(
-                status_code=400,
-                detail="병해가 감지되지 않았습니다. 병든 부분이 잘 보이도록 다시 촬영해주세요."
-            )
-
-        # 기타 RuntimeError도 동일 처리
+    # 박스 없음 / WBF 실패 / RuntimeError → 동일 메시지
+    except RuntimeError:
         raise HTTPException(
             status_code=400,
-            detail="병해가 감지되지 않았습니다. 더 명확한 병반이 보이도록 다시 촬영해주세요."
+            detail="진단에 실패했습니다. 병해를 다른 각도에서 선명하게 찍어 다시 시도해주세요."
         )
 
+    # 흐림 / 좌표 에러 / 타입 에러 → 동일 메시지
     except (ValueError, IndexError, TypeError):
         raise HTTPException(
             status_code=400,
-            detail="이미지가 흐리거나 병든 부분이 명확하지 않습니다. 선명하게 다시 촬영해주세요."
+            detail="진단에 실패했습니다. 병해를 다른 각도에서 선명하게 찍어 다시 시도해주세요."
         )
 
+    # 기타 예상 못한 오류
     except Exception:
-        logger.error("YOLO 내부 오류", exc_info=True)
+        logger.error("YOLO 예측 중 내부 오류 발생", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail="AI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+            detail="AI 서버에서 문제가 발생했습니다. 잠시 후 다시 시도해주세요."
         )
 
     # 정상 응답
@@ -308,4 +305,5 @@ async def predict_crop(crop_type: str, file: UploadFile):
         "label": prediction.label,
         "message": "진단이 완료되었습니다."
     }
+
 
