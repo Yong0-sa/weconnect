@@ -48,11 +48,16 @@
 
 ---
 
-### 아키텍처
+### 인프라 아키텍처
 
 <div align="center">
-  <img src="assets/인프라아키텍처.png" width="45%" alt="인프라 아키텍처">
-  <img src="assets/소프트웨어아키텍처.png" width="45%" alt="소프트웨어 아키텍처">
+  <img src="assets/인프라아키텍처.png" width="70%" alt="인프라 아키텍처">
+</div>
+
+### 소프트웨어 아키텍처
+
+<div align="center">
+  <img src="assets/소프트웨어아키텍처.png" width="70%" alt="소프트웨어 아키텍처">
 </div>
 
 <br>
