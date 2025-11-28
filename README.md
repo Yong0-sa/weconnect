@@ -2,7 +2,7 @@
 
 ---
 
-![Demo](frontend/assets/demo.gif)
+![Demo](assets/demo.gif)
 
 > **이움**은 AI 기반 작물 진단과 농사 가이드로 실시간으로 농사 정보를 제공하고, 농장 커뮤니티와 실시간 채팅으로 농장 참여자들을 연결합니다. **이움**과 함께 게임처럼 즐겁게 도시농업을 시작하세요!
 
@@ -240,8 +240,8 @@ weconnect/
 ### 아키텍처
 
 <div align="center">
-  <img src="frontend/assets/인프라아키텍처.png" width="45%" alt="인프라 아키텍처">
-  <img src="frontend/assets/소프트웨어아키텍처.png" width="45%" alt="소프트웨어 아키텍처">
+  <img src="assets/인프라아키텍처.png" width="45%" alt="인프라 아키텍처">
+  <img src="assets/소프트웨어아키텍처.png" width="45%" alt="소프트웨어 아키텍처">
 </div>
 
 <br>
