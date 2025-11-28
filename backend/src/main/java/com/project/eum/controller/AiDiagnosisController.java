@@ -1,7 +1,6 @@
 package com.project.eum.controller;
 
 import com.project.eum.config.SessionConst;
-import com.project.eum.diagnosis.Diagnosis;
 import com.project.eum.dto.AiDiagnosisResponse;
 import com.project.eum.service.AiDiagnosisService;
 import jakarta.servlet.http.HttpSession;
