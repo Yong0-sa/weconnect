@@ -14,6 +14,7 @@
 - AI로 작물을 진단하고 농사 정보를 제공하며, 농장 커뮤니티로 참여자를 연결하는 플랫폼
 
 > **배경**: 홈가드닝·반려식물 소비가 크게 증가하며 식물 재배에 대한 관심과 긍정적 인식이 이미 형성되어 있습니다. 그러나 실외 텃밭과 같은 본격적인 도시농업으로 확장하는 과정에서 정보 부족, 병해 대응 어려움, 접근성 한계, 시간 부담 등 다양한 장벽에 직면합니다. 기존 도시농업 관련 서비스가 딱딱하고 재미 요소가 부족한 점도 실제 참여로 이어지지 못하는 주요 요인입니다.
+>
 > **목표**: AI로 작물 문제를 해결하고, 농장 커뮤니티에서 정보를 교류하며, 게임 같은 재미 요소로 쉽게 도시농업을 시작하고 지속할 수 있는 환경을 만들고자 합니다.  
 > **기대 효과**: AI 기반 농사 정보 제공 기능으로 초보자도 스스로 문제를 해결하며 지속적인 농사 경험을 쌓을 수 있고, 농장 커뮤니티를 통해 참여자 간 교류를 촉진하여 도시 공동체성을 강화할 수 있습니다.
 
@@ -44,7 +45,27 @@
   ![Figma](https://img.shields.io/badge/Figma-F24E1E?style=plastic&logo=Figma&logoColor=white)
   ![VS Code](https://img.shields.io/badge/VS%20Code-007ACC?style=plastic&logo=VisualStudioCode&logoColor=white)
 
-## 2. ⚙️ 설치 및 실행 방법
+## 2. 🚀 배포
+
+---
+
+### 아키텍처
+
+<div align="center">
+  <img src="assets/인프라아키텍처.png" width="45%" alt="인프라 아키텍처">
+  <img src="assets/소프트웨어아키텍처.png" width="45%" alt="소프트웨어 아키텍처">
+</div>
+
+<br>
+
+- **배포 환경**: Naver Cloud Platform
+- **CI/CD**: GitHub Actions
+- **특징**:
+  - Frontend, Backend, AI Server 각각 독립 배포
+  - GitHub Actions를 통한 자동 빌드 및 배포
+  - Naver Cloud 서버 환경에서 운영
+
+## 3. ⚙️ 설치 및 실행 방법
 
 ---
 
@@ -76,10 +97,10 @@ npm run dev
 ```bash
 cd backend
 
-# 환경 변수 설정 (application.properties 또는 .env 파일 참고)
-# - MySQL 데이터베이스 연결 정보
-# - OAuth2 클라이언트 ID/Secret (Google 소셜 로그인)
-# - AWS S3 (Naver Object Storage) 설정
+# application.properties 파일을 본인 환경에 맞게 수정
+# - MySQL 연결 정보 (localhost, port, DB명, username, password)
+# - OAuth2 클라이언트 ID/Secret (Google 소셜 로그인, 필요시)
+# - Object Storage 설정 (Naver Cloud Platform, 필요시)
 
 # Gradle 빌드 및 실행
 ./gradlew bootRun
@@ -108,16 +129,15 @@ chmod +x start_server.sh
 ./start_server.sh
 ```
 
-### 🚀 전체 시스템 실행 순서
+### 🚀 로컬 실행 순서
 
 1. **MySQL 서버** 시작
 2. **Backend** 실행 (포트 8080)
 3. **AI Server** 실행 (포트 8000)
 4. **Frontend** 실행 (포트 5173)
+5. 브라우저에서 `http://localhost:5173` 접속
 
-브라우저에서 `http://localhost:5173` 접속
-
-## 3. 📂 프로젝트 구조
+## 4. 📂 프로젝트 구조
 
 ---
 
@@ -185,7 +205,7 @@ weconnect/
 - `text_suggestion_service.py`: 공지사항 작성 시 AI 문장 추천
 - `local_predict.py`: YOLO 모델로 작물 병해충 진단
 
-## 4. 👥 팀 소개
+## 5. 👥 팀 소개
 
 ---
 
@@ -200,7 +220,7 @@ weconnect/
 | <a href="https://github.com/jsim-svg919"><img src="https://github.com/jsim-svg919.png" width="100"/></a> |                              | <a href="https://github.com/KIM-CHEOL-YONG"><img src="https://github.com/KIM-CHEOL-YONG.png" width="100"/></a> | <a href="https://github.com/dldudqls7788"><img src="https://github.com/dldudqls7788.png" width="100"/></a> | <a href="https://github.com/Yong0-sa"><img src="https://github.com/Yong0-sa.png" width="100"/></a> |
 |                                            PM<br>RAG Engineer                                            | Data Engineer<br>DB Designer |                                            Backend Dev<br>DB Admin                                             |                                         AI Engineer<br>Backend Dev                                         |                                  Frontend Dev<br>DevOps Engineer                                   |
 
-## 5. 📎 참고 자료 및 산출물
+## 6. 📎 참고 자료 및 산출물
 
 ---
 
@@ -213,7 +233,7 @@ weconnect/
   - [이영빈 협업일지](https://www.notion.so/sdtunit032526/270ae0eec9558061bf03f5dcf1eab933?source=copy_link)
   - [진영서 협업일지](https://www.notion.so/sdtunit032526/270ae0eec955806eb151dbbdaeafc545?source=copy_link)
 
-## 6. 📄 사용한 모델 및 라이센스
+## 7. 📄 사용한 모델 및 라이센스
 
 ---
 
@@ -232,23 +252,3 @@ weconnect/
 - **PyTorch**: BSD License (상업적 사용 가능)
 - **Spring Boot**: Apache 2.0 License (상업적 사용 가능)
 - **React**: MIT License (상업적 사용 가능)
-
-## 7. 🚀 배포
-
----
-
-### 아키텍처
-
-<div align="center">
-  <img src="assets/인프라아키텍처.png" width="45%" alt="인프라 아키텍처">
-  <img src="assets/소프트웨어아키텍처.png" width="45%" alt="소프트웨어 아키텍처">
-</div>
-
-<br>
-
-- **배포 환경**: Naver Cloud Platform
-- **CI/CD**: GitHub Actions
-- **특징**:
-  - Frontend, Backend, AI Server 각각 독립 배포
-  - GitHub Actions를 통한 자동 빌드 및 배포
-  - Naver Cloud 서버 환경에서 운영
