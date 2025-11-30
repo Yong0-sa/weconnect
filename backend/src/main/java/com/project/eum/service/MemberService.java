@@ -86,6 +86,28 @@ public class MemberService {
 
 
     /* ============================================================
+       가입 전 중복 체크 (이메일/닉네임)
+       ============================================================ */
+    @Transactional(readOnly = true)
+    public boolean isEmailAvailable(String email) {
+        String sanitizedEmail = sanitizeEmail(email);
+        if (!StringUtils.hasText(sanitizedEmail)) {
+            throw new IllegalArgumentException("이메일을 입력해 주세요.");
+        }
+        return !memberRepository.existsByEmail(sanitizedEmail);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isNicknameAvailableForSignup(String nickname) {
+        if (!StringUtils.hasText(nickname)) {
+            throw new IllegalArgumentException("닉네임을 입력해 주세요.");
+        }
+        String sanitized = nickname.trim();
+        return !memberRepository.existsByNickname(sanitized);
+    }
+
+
+    /* ============================================================
        이메일 포맷 정리
        ============================================================ */
     private String sanitizeEmail(String email) {
@@ -239,16 +261,6 @@ public class MemberService {
         if (!member.isFarmPromptShown()) {
             member.setFarmPromptShown(true);
         }
-    }
-
-    // 이메일 중복 여부 체크
-    @Transactional(readOnly = true)
-    public boolean isEmailAvailable(String email) {
-        String sanitized = sanitizeEmail(email);
-        if (!StringUtils.hasText(sanitized)) {
-            throw new IllegalArgumentException("이메일을 입력해 주세요.");
-        }
-        return !memberRepository.existsByEmail(sanitized);
     }
 
     // 회원 타입(PERSONAL/FARMER)에 따른 기본 권한 매핑

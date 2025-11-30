@@ -2,7 +2,12 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BackgroundBlur from "../assets/backgroud_blur.png";
-import { signUp, login as loginRequest } from "../api/auth";
+import {
+  signUp,
+  login as loginRequest,
+  checkEmailAvailability,
+  checkNicknameAvailability,
+} from "../api/auth";
 
 function SignUp() {
   const navigate = useNavigate();
@@ -26,6 +31,10 @@ function SignUp() {
   const [socialInfo, setSocialInfo] = useState({
     provider: "",
     message: "",
+  });
+  const [availability, setAvailability] = useState({
+    email: { state: "idle", message: "" },
+    nickname: { state: "idle", message: "" },
   });
 
   // ------------------------------------------------------------
@@ -56,6 +65,138 @@ function SignUp() {
       setMemberType("personal");
     }
   }, [location.search]);
+
+  // ------------------------------------------------------------
+  // 📌 이메일 중복 자동 확인 (입력 완료 시점)
+  // ------------------------------------------------------------
+  useEffect(() => {
+    if (isSocialSignup) {
+      setAvailability((prev) => ({
+        ...prev,
+        email: { state: "idle", message: "" },
+      }));
+      return;
+    }
+
+    const trimmed = formData.email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!trimmed || !emailRegex.test(trimmed)) {
+      setAvailability((prev) => ({
+        ...prev,
+        email: { state: "idle", message: "" },
+      }));
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setAvailability((prev) => ({
+        ...prev,
+        email: { state: "checking", message: "" },
+      }));
+
+      try {
+        const res = await checkEmailAvailability(trimmed);
+        if (cancelled) return;
+
+        if (res?.available) {
+          setAvailability((prev) => ({
+            ...prev,
+            email: { state: "available", message: "사용 가능한 이메일입니다." },
+          }));
+          setErrors((prev) => {
+            const next = { ...prev };
+            if (next.email && next.email.startsWith("이미 사용")) {
+              delete next.email;
+            }
+            return next;
+          });
+        } else {
+          setAvailability((prev) => ({
+            ...prev,
+            email: { state: "unavailable", message: "이미 사용 중인 이메일입니다." },
+          }));
+          setErrors((prev) => ({ ...prev, email: "이미 사용 중인 이메일입니다." }));
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setAvailability((prev) => ({
+          ...prev,
+          email: {
+            state: "error",
+            message: error.message || "이메일 중복 확인에 실패했습니다.",
+          },
+        }));
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [formData.email, isSocialSignup]);
+
+  // ------------------------------------------------------------
+  // 📌 닉네임 중복 자동 확인 (입력 완료 시점)
+  // ------------------------------------------------------------
+  useEffect(() => {
+    const trimmed = formData.nickname.trim();
+    if (!trimmed) {
+      setAvailability((prev) => ({
+        ...prev,
+        nickname: { state: "idle", message: "" },
+      }));
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setAvailability((prev) => ({
+        ...prev,
+        nickname: { state: "checking", message: "" },
+      }));
+
+      try {
+        const res = await checkNicknameAvailability(trimmed);
+        if (cancelled) return;
+
+        if (res?.available) {
+          setAvailability((prev) => ({
+            ...prev,
+            nickname: { state: "available", message: "사용 가능한 닉네임입니다." },
+          }));
+          setErrors((prev) => {
+            const next = { ...prev };
+            if (next.nickname && next.nickname.startsWith("이미 사용")) {
+              delete next.nickname;
+            }
+            return next;
+          });
+        } else {
+          setAvailability((prev) => ({
+            ...prev,
+            nickname: { state: "unavailable", message: "이미 사용 중인 닉네임입니다." },
+          }));
+          setErrors((prev) => ({ ...prev, nickname: "이미 사용 중인 닉네임입니다." }));
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setAvailability((prev) => ({
+          ...prev,
+          nickname: {
+            state: "error",
+            message: error.message || "닉네임 중복 확인에 실패했습니다.",
+          },
+        }));
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [formData.nickname]);
 
   // ------------------------------------------------------------
   // 📌 단일 필드 검증
@@ -111,6 +252,13 @@ function SignUp() {
 
     setFormData((prev) => {
       const nextState = { ...prev, [name]: value };
+
+      if (name === "email" || name === "nickname") {
+        setAvailability((prevState) => ({
+          ...prevState,
+          [name]: { state: "idle", message: "" },
+        }));
+      }
 
       setErrors((prevErrors) => {
         const updated = { ...prevErrors };
@@ -171,6 +319,13 @@ function SignUp() {
         newErrors[field] = message;
       }
     });
+
+    if (availability.email.state === "unavailable") {
+      newErrors.email = "이미 사용 중인 이메일입니다.";
+    }
+    if (availability.nickname.state === "unavailable") {
+      newErrors.nickname = "이미 사용 중인 닉네임입니다.";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -266,6 +421,18 @@ function SignUp() {
             readOnly={isSocialSignup}
           />
           {errors.email && <p className="input-error">{errors.email}</p>}
+          {!errors.email && availability.email.state === "checking" && (
+            <p className="input-hint">이메일 중복 확인 중입니다...</p>
+          )}
+          {!errors.email && availability.email.state === "available" && (
+            <p className="input-hint success">{availability.email.message}</p>
+          )}
+          {!errors.email && availability.email.state === "unavailable" && (
+            <p className="input-error">{availability.email.message}</p>
+          )}
+          {availability.email.state === "error" && (
+            <p className="input-error">{availability.email.message}</p>
+          )}
 
           <label className="signup-label" htmlFor="nickname">
             닉네임
@@ -280,6 +447,18 @@ function SignUp() {
             placeholder="닉네임을 입력해 주세요."
           />
           {errors.nickname && <p className="input-error">{errors.nickname}</p>}
+          {!errors.nickname && availability.nickname.state === "checking" && (
+            <p className="input-hint">닉네임 중복 확인 중입니다...</p>
+          )}
+          {!errors.nickname && availability.nickname.state === "available" && (
+            <p className="input-hint success">{availability.nickname.message}</p>
+          )}
+          {!errors.nickname && availability.nickname.state === "unavailable" && (
+            <p className="input-error">{availability.nickname.message}</p>
+          )}
+          {availability.nickname.state === "error" && (
+            <p className="input-error">{availability.nickname.message}</p>
+          )}
 
           <label className="signup-label" htmlFor="password">
             비밀번호

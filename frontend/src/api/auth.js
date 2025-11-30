@@ -48,6 +48,29 @@ export async function login(payload) {
   return handleResponse(res, "로그인에 실패했습니다.");
 }
 
+// 이메일 중복 확인
+export async function checkEmailAvailability(email) {
+  const params = new URLSearchParams({ email });
+  const res = await fetch(`${API_BASE}/api/auth/email/availability?${params.toString()}`, {
+    method: "GET",
+  });
+
+  return handleResponse(res, "이메일 중복 확인에 실패했습니다.");
+}
+
+// 닉네임 중복 확인
+export async function checkNicknameAvailability(nickname) {
+  const params = new URLSearchParams({ nickname });
+  const res = await fetch(
+    `${API_BASE}/api/auth/nickname/availability?${params.toString()}`,
+    {
+      method: "GET",
+    }
+  );
+
+  return handleResponse(res, "닉네임 중복 확인에 실패했습니다.");
+}
+
 // 로그아웃 요청
 export async function logout() {
   const res = await fetch(`${API_BASE}/api/auth/logout`, {

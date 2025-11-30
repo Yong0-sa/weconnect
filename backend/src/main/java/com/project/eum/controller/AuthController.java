@@ -81,6 +81,12 @@ public class AuthController {
         return ResponseEntity.ok(new EmailAvailabilityResponse(available));
     }
 
+    @GetMapping("/nickname/availability")
+    public ResponseEntity<NicknameAvailabilityResponse> checkNicknameAvailability(@RequestParam("nickname") String nickname) {
+        boolean available = memberService.isNicknameAvailableForSignup(nickname);
+        return ResponseEntity.ok(new NicknameAvailabilityResponse(available));
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<Map<String, Object>> logout(HttpSession session) {
         if (session != null) {
@@ -93,6 +99,8 @@ public class AuthController {
     record SignUpResponse(Long id, String message) {}
 
     record EmailAvailabilityResponse(boolean available) {}
+
+    record NicknameAvailabilityResponse(boolean available) {}
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {

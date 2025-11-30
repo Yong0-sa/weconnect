@@ -215,6 +215,16 @@
   margin-top: min(0.4vw, 5px);
 }
 
+.input-hint {
+  font-size: min(1.05vw, 13px);
+  color: #2c3e50;
+  margin-top: min(0.35vw, 4px);
+}
+
+.input-hint.success {
+  color: #2e7d32;
+}
+
 /* 가입하기 버튼 */
 
 .submit-btn {
