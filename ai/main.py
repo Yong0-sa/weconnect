@@ -223,6 +223,110 @@ def load_image(image_bytes: bytes) -> Image.Image:
 # =======================================================
 # ... (여기까지 네 코드 그대로 유지하면 됨) ...
 
+# =======================================================
+# 챗봇 RAG API (백엔드 /api/ai/chat과 연동)
+# =======================================================
+
+class ChatRequest(BaseModel):
+    question: str = Field(..., min_length=1, description="사용자 질문")
+
+
+class ReferenceLinkSchema(BaseModel):
+    title: str
+    url: str
+
+
+class ChatResponse(BaseModel):
+    id: str
+    question: str
+    answer: str
+    pdf_links: List[ReferenceLinkSchema] = Field(default_factory=list)
+    prompt_type: Literal["greet", "answer", "fallback"]
+    embed_ids: List[str] = Field(default_factory=list)
+    created_at: str
+
+
+_rag_service: RAGService | None = None
+_rag_lock = Lock()
+
+
+def _get_rag_service() -> RAGService:
+    global _rag_service
+    with _rag_lock:
+        if _rag_service is None:
+            _rag_service = RAGService()
+        return _rag_service
+
+
+def _to_reference_payload(links: List[ReferenceLink]) -> List[ReferenceLinkSchema]:
+    if not links:
+        return []
+    return [ReferenceLinkSchema(title=link.title, url=link.url) for link in links]
+
+
+def _build_response(
+    *,
+    question: str,
+    answer: str,
+    prompt_type: Literal["greet", "answer", "fallback"],
+    pdf_links: List[ReferenceLink] | None = None,
+    embed_ids: List[str] | None = None,
+) -> ChatResponse:
+    return ChatResponse(
+        id=str(uuid4()),
+        question=question,
+        answer=answer,
+        pdf_links=_to_reference_payload(pdf_links or []),
+        prompt_type=prompt_type,
+        embed_ids=embed_ids or [],
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@app.post("/api/ai/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    question = (request.question or "").strip()
+
+    if not question:
+        # 백엔드에서 이미 검증하지만, 안전하게 처리
+        return _build_response(
+            question="",
+            answer="질문을 입력해 주세요.",
+            prompt_type="fallback",
+        )
+
+    try:
+        rag = _get_rag_service()
+    except Exception:
+        logger.exception("RAG 서비스 초기화 실패")
+        return _build_response(
+            question=question,
+            answer="AI 엔진 초기화에 실패했습니다. 잠시 후 다시 시도해주세요.",
+            prompt_type="fallback",
+        )
+
+    try:
+        result: RAGResult = await run_in_threadpool(rag.ask, question)
+    except EmptyQueryError as exc:
+        return _build_response(question=question, answer=str(exc), prompt_type="fallback")
+    except InappropriateQueryError as exc:
+        return _build_response(question=question, answer=str(exc), prompt_type="fallback")
+    except RAGServiceError:
+        logger.exception("RAG 서비스 처리 실패")
+        return _build_response(
+            question=question,
+            answer="AI 서버에서 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
+            prompt_type="fallback",
+        )
+
+    return _build_response(
+        question=question,
+        answer=result.answer,
+        prompt_type=result.prompt_type,
+        pdf_links=result.pdf_links,
+        embed_ids=result.embed_ids or [],
+    )
+
 
 # =======================================================
 # 🔥 작물 진단 API (완전히 정리된 최종 버전)
