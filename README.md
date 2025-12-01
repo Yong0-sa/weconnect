@@ -229,7 +229,7 @@ weconnect/
 ---
 
 - 📘 **최종 기획서**: [다운로드](https://drive.google.com/file/d/1r-igEm5rH4EXguDtSA7aBgUoD50Yqnnj/view?usp=sharing)
-- 📽️ **발표자료 (PPT)**: [다운로드](https://drive.google.com/file/d/1Hgv__uSKvIcGBbNXhE-uS1NUE0cW6XMM/view?usp=sharing)
+- 📽️ **발표자료 (PPT)**: [다운로드](https://drive.google.com/file/d/1jbJeKgsvIss4fzIw5FP-NeALTdGV5VqY/view?usp=sharing)
 - 🗂️ **팀원별 협업 일지**
   - [임진서 협업일지](https://www.notion.so/sdtunit032526/270ae0eec955800a9af8ec9762d979eb?source=copy_link)
   - [김민재 협업일지](https://www.notion.so/sdtunit032526/270ae0eec955800ba797f69f54bade64?source=copy_link)
